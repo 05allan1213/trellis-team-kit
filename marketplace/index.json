@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "web-app",
+      "type": "spec",
+      "name": "Team Web App",
+      "description": "Team conventions for frontend, backend, AI tooling, testing, debugging, review, and task workflow.",
+      "path": "marketplace/specs/web-app",
+      "tags": ["web", "frontend", "backend", "testing", "ai-tooling"]
+    }
+  ]
+}
