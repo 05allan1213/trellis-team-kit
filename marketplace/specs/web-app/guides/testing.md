@@ -193,6 +193,13 @@ Increase verification strength when the change affects:
 
 High-risk changes usually require more than targeted tests.
 
+**Safety-sensitive changes require additional checks:**
+- scan the diff for secrets, tokens, keys, or credentials before committing
+- verify auth/permission gates are not weakened or bypassed
+- verify error paths do not leak sensitive data (stack traces, connection strings, PII)
+- for dependency changes: verify provenance, check for known vulnerabilities, confirm lockfile changes are intentional
+- for destructive data operations: confirm rollback path, test migration on a safe copy first when possible
+
 Ask for human confirmation when verification would require destructive, irreversible, or production-impacting actions.
 
 ## Failure Handling

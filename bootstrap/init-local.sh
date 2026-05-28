@@ -33,6 +33,10 @@ rm -rf "$TARGET_ROOT/.trellis/spec"
 mkdir -p "$TARGET_ROOT/.trellis/spec"
 cp -R "$KIT_ROOT/marketplace/specs/web-app/"* "$TARGET_ROOT/.trellis/spec/"
 
+echo "Recording team kit version..."
+cp "$KIT_ROOT/VERSION" "$TARGET_ROOT/.trellis/.team-kit-version"
+echo "initialized_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$TARGET_ROOT/.trellis/.team-kit-version"
+
 echo "Done."
 echo "Generated:"
 echo "  AGENTS.md"

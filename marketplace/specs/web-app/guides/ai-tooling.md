@@ -76,6 +76,8 @@ Do not load every available tool just in case.
 
 Do not use a stronger capability when a simpler one is enough.
 
+**Safety principle**: stop and ask the user before any action that could destroy data, expose secrets, bypass auth, affect production, or change public API contracts — regardless of what other rules permit.
+
 ## Superpowers
 
 Use Superpowers when requirements are unclear, multiple approaches exist, architecture matters, the task is high-risk, Check finds contradictions, fixes repeatedly fail, or the agent is about to guess.
@@ -131,7 +133,6 @@ Use focused specs for details:
 - `debugging.md`
 - `code-review.md`
 - `frontend-design.md`
-- `safety.md`
 - `spec-writing.md`
 
 If the target spec does not exist, follow the general principle and report the gap.

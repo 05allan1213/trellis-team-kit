@@ -18,7 +18,7 @@ Frontend guidelines should document the project's actual frontend conventions, i
 | ------------------------------------------------- | ------------------------------------------------------- | ------- |
 | [Directory Structure](./directory-structure.md)   | Module organization and file layout                     | To fill |
 | [Component Guidelines](./component-guidelines.md) | Component patterns, props, composition                  | To fill |
-| [Frontend Design](./frontend-design.md)           | UI/UX design, visual consistency, frontend verification | To fill |
+| [Frontend Design](./frontend-design.md)           | UI/UX design, visual consistency, frontend verification | Done |
 | [Hook Guidelines](./hook-guidelines.md)           | Custom hooks, data fetching patterns                    | To fill |
 | [State Management](./state-management.md)         | Local state, global state, server state                 | To fill |
 | [Quality Guidelines](./quality-guidelines.md)     | Code standards, forbidden patterns                      | To fill |

@@ -35,6 +35,10 @@ curl -fsSL "$RAW_BASE/entry/CLAUDE.md" -o ./CLAUDE.md
 echo "Applying team workflow..."
 curl -fsSL "$RAW_BASE/workflow/workflow.md" -o ./.trellis/workflow.md
 
+echo "Recording team kit version..."
+curl -fsSL "$RAW_BASE/VERSION" -o ./.trellis/.team-kit-version
+echo "initialized_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ./.trellis/.team-kit-version
+
 echo "Done."
 echo "Generated:"
 echo "  AGENTS.md"

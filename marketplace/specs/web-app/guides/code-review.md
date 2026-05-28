@@ -52,7 +52,10 @@ Examples:
 * requirement not met
 * broken build, typecheck, or critical test
 * security, auth, privacy, payment, or data-loss risk
+* exposed secrets, tokens, keys, or credentials in the diff
 * unsafe migration or production-impacting config
+* new dependency with suspicious provenance or known vulnerabilities
+* public API contract broken silently
 * broken runtime path
 * false or missing critical verification
 
@@ -88,8 +91,10 @@ Require human review for:
 
 * auth or permissions
 * payments or financial data
-* production migrations or destructive operations
+* production migrations or destructive data operations
 * security-sensitive behavior
+* secrets, tokens, keys, or credentials appearing in the diff
+* new dependencies or dependency version changes
 * public API contracts
 * legal/privacy/compliance behavior
 * core architecture or cross-service contracts
@@ -139,3 +144,5 @@ Never:
 * ignore unrelated changes
 * downgrade security or data risks without evidence
 * mark a task done with unresolved P0 issues
+* ignore secrets, tokens, or credentials in the diff
+* approve a new dependency without flagging it for human review

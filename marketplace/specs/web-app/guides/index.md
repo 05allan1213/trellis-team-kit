@@ -32,6 +32,7 @@ These guides help AI assistants ask the right questions and load the right rules
 | [Parallel Agents](./parallel-agents.md)                       | Decide when and how to use parallel agents                                      | When work can be safely split across agents           |
 | [Spec Writing](./spec-writing.md)                             | Keep specs short, focused, and maintainable                                     | When creating or updating specs                       |
 | [Testing](./testing.md)                                       | Decide what validation is required                                              | Before and after implementation                       |
+| [Frontend Design](../frontend/frontend-design.md)             | UI/UX design contract, visual quality, project stage awareness                  | When a task touches frontend UI, components, or pages |
 
 ---
 

@@ -200,7 +200,7 @@ Stop OMC when:
 
 ## Related Specs
 
-Use with `.trellis/workflow.md`, `ai-tooling.md`, `testing.md`, `debugging.md`, `code-review.md`, `frontend-design.md`, and `safety.md`.
+Use with `.trellis/workflow.md`, `ai-tooling.md`, `testing.md`, `debugging.md`, `code-review.md`, and `frontend-design.md`.
 
 ## Definition of Done
 

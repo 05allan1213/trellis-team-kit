@@ -127,10 +127,11 @@ python3 ./.trellis/scripts/get_context.py --mode phase --step <X.Y>  # detailed 
 <!--
   WORKFLOW-STATE BREADCRUMB CONTRACT (read this before editing the tag blocks below)
 
-  The 4 [workflow-state:STATUS] blocks embedded in the ## Phase Index section
-  below are the SINGLE source of truth for the per-turn `<workflow-state>`
-  breadcrumb that every supported AI platform's UserPromptSubmit hook
-  reads. inject-workflow-state.py (Python platforms) and
+  The base workflow has 3 statuses (`no_task`, `planning`, `in_progress`).
+This file contains 5 live [workflow-state:STATUS] blocks: the 3 base blocks
+plus 2 inline-mode alternates. These blocks are the SINGLE source of truth
+for the per-turn `<workflow-state>` breadcrumb that every supported AI
+platform's UserPromptSubmit hook reads. inject-workflow-state.py (Python platforms) and
   inject-workflow-state.js (OpenCode plugin) only parse them — there is no
   fallback dict baked into the scripts after v0.5.0-rc.0.
 
@@ -146,17 +147,14 @@ python3 ./.trellis/scripts/get_context.py --mode phase --step <X.Y>  # detailed 
     skip and Phase 3.4 commit skip both manifested via this gap).
 
   TAG ↔ PHASE scoping:
-    [workflow-state:no_task]      → no active task; before Phase 1
-    [workflow-state:planning]     → all of Phase 1 (status='planning')
-    [workflow-state:in_progress]  → Phase 2 + Phase 3.1-3.4
-                                    (status stays 'in_progress' from
-                                    task.py start until task.py archive)
-    [workflow-state:completed]    → currently DEAD: cmd_archive flips
-                                    status and moves the dir in the same
-                                    call, so the resolver loses the
-                                    pointer (block kept for a future
-                                    explicit in_progress→completed
-                                    transition)
+    [workflow-state:no_task]           → no active task; before Phase 1
+    [workflow-state:planning]          → all of Phase 1 (status='planning')
+    [workflow-state:planning-inline]   → Phase 1 when codex.dispatch_mode=inline
+    [workflow-state:in_progress]       → Phase 2 + Phase 3.1-3.4
+                                         (status stays 'in_progress' from
+                                         task.py start until task.py archive)
+    [workflow-state:in_progress-inline]→ Phase 2 + Phase 3.1-3.4 when
+                                         codex.dispatch_mode=inline
 
   Editing checklist:
     - When you change a [workflow-state:STATUS] block, also check the
@@ -224,9 +222,10 @@ Do NOT use oh-my-claudecode for implementation before PRD is confirmed. Then run
 
 [workflow-state:in_progress]
 **Tools**: `trellis-implement` / `trellis-research` are sub-agent types only (Task/Agent tool, NOT Skill). `trellis-update-spec` is a skill. `trellis-check` exists as both; prefer the Agent form after code changes. Superpowers is a reasoning extension. oh-my-claudecode is a multi-agent parallel execution extension, not a replacement for Trellis.
-**Flow**: decide execution mode → trellis-implement or oh-my-claudecode parallel agents → trellis-check → Superpowers if blocked/repeatedly failing → trellis-update-spec → commit (Phase 3.4) → `/trellis:finish-work`.
+**Flow**: decide execution mode → trellis-implement or oh-my-claudecode parallel agents → trellis-check → Superpowers if blocked/repeatedly failing → Phase 3.1 final confirmation → trellis-update-spec → commit (Phase 3.4) → `/trellis:finish-work`.
 **Execution mode gate**: use standard Trellis sub-agents for small or tightly coupled work. Use oh-my-claudecode only when PRD is confirmed, Acceptance Criteria are clear, the work can be split safely, and parallelism improves speed or coverage. OMC parallel mode requires explicit user confirmation before spawning — the main agent recommends the mode, but does not unilaterally switch to parallel execution. Never use it to invent scope, skip Plan, skip Check, or hide unresolved conflicts.
 **Main-session default (no override)**: dispatch the `trellis-implement` / `trellis-check` sub-agents — the main agent does NOT edit code by default. If oh-my-claudecode is used, the main agent still owns task context, coordination, integration, conflict resolution, and final report.
+Phase 3.1 final confirmation (required, once): before `trellis-update-spec`, confirm Phase 2.2 check passed, all Acceptance Criteria are met, and no unrelated changes leaked into the diff. Re-run check only if Phase 2.2 was skipped or code changed after it.
 Phase 3.4 commit (required, once): after trellis-update-spec, or whenever implementation is verifiably complete, the main agent **drives the commit** — state the commit plan in user-facing text, then run `git commit` — BEFORE suggesting `/trellis:finish-work`. `/finish-work` refuses to run on a dirty working tree (paths outside `.trellis/workspace/` and `.trellis/tasks/`).
 **Sub-agent self-exemption**: if you are already running as `trellis-implement`, implement directly from the loaded task context and do NOT spawn another `trellis-implement`; if you are already running as `trellis-check`, review/fix directly and do NOT spawn another `trellis-check`. The default dispatch rule applies to the main session only.
 **Sub-agent dispatch protocol (all platforms, all sub-agents)**: When you spawn `trellis-implement` / `trellis-check` / `trellis-research`, your dispatch prompt **MUST** start with one line: `Active task: <task path from \`task.py current\`>`. No exceptions. When using oh-my-claudecode, each parallel agent dispatch prompt must include the active task path, the agent role, its assigned files/scope, and any role-specific Skills/MCPs to load. On class-2 platforms (codex / copilot / gemini / qoder) the sub-agent depends on this line because there is no hook to inject task context. On class-1 platforms (claude / cursor / opencode / kiro / codebuddy / droid) the line is normally redundant — the hook injects context directly — but it serves as a critical fallback when the hook fails (Windows + Claude Code PreToolUse silent skip, `--continue` resume, fork distribution, hooks disabled, etc.). For `trellis-research`, the line tells the sub-agent which `{task_dir}/research/` to write into.
@@ -239,31 +238,18 @@ Phase 3.4 commit (required, once): after trellis-update-spec, or whenever implem
      instead of dispatching sub-agents. -->
 
 [workflow-state:in_progress-inline]
-**Flow** (inline mode): decide if task is still safe for inline execution → main session loads `trellis-before-dev` → main session edits code → main session loads `trellis-check` → run lint / type-check / tests → fix → use Superpowers if blocked/repeatedly failing → `trellis-update-spec` → commit (Phase 3.4) → `/trellis:finish-work`.
+**Flow** (inline mode): decide if task is still safe for inline execution → main session loads `trellis-before-dev` → main session edits code → main session loads `trellis-check` → run lint / type-check / tests → fix → use Superpowers if blocked/repeatedly failing → Phase 3.1 final confirmation → `trellis-update-spec` → commit (Phase 3.4) → `/trellis:finish-work`.
 **Main-session default (inline dispatch_mode)**: the main agent edits code directly. Do NOT dispatch `trellis-implement` / `trellis-check` sub-agents. Use oh-my-claudecode only if the platform supports it, the confirmed PRD can be split safely, and the user explicitly confirms parallel mode before spawning agents; otherwise stay inline.
+Phase 3.1 final confirmation (required, once): before `trellis-update-spec`, confirm Phase 2.2 check passed, all Acceptance Criteria are met, and no unrelated changes leaked into the diff. Re-run check only if Phase 2.2 was skipped or code changed after it.
 Phase 3.4 commit (required, once): after `trellis-update-spec`, or whenever implementation is verifiably complete, the main agent **drives the commit** — state the commit plan in user-facing text, then run `git commit` — BEFORE suggesting `/trellis:finish-work`. `/finish-work` refuses to run on a dirty working tree (paths outside `.trellis/workspace/` and `.trellis/tasks/`).
 [/workflow-state:in_progress-inline]
 
 ### Phase 3: Finish
-- 3.1 Quality verification `[required · repeatable]`
+- 3.1 Final confirmation `[required · once]`
 - 3.2 Debug retrospective `[on demand]`
 - 3.3 Spec update `[required · once]`
 - 3.4 Commit changes `[required · once]`
 - 3.5 Wrap-up reminder
-
-<!-- Per-turn breadcrumb: shown while status='completed'.
-     Currently DEAD in normal flow: cmd_archive writes status='completed' in
-     the same call that moves the task dir to archive/, so the active-task
-     resolver loses the pointer and the hook never fires on archived tasks.
-     Block preserved for a future status-transition redesign (e.g. an
-     explicit in_progress→completed command). Edit through the same spec
-     channel as the live blocks. -->
-
-[workflow-state:completed]
-Code committed via Phase 3.4; run `/trellis:finish-work` to wrap up (archive the task + record session).
-If you reach this state with uncommitted code, return to Phase 3.4 first — `/finish-work` refuses to run on a dirty working tree.
-`task.py archive` deletes any runtime session files that still point at the archived task.
-[/workflow-state:completed]
 
 ### Rules
 
@@ -436,7 +422,7 @@ Curate `implement.jsonl` and `check.jsonl` so the Phase 2 sub-agents get the rig
 
 **What to put in**:
 - **Spec files** — `.trellis/spec/index.md` for routing when needed, `.trellis/spec/<package>/<layer>/index.md`, and any specific guideline files (`error-handling.md`, `conventions.md`, etc.) relevant to this task
-- **Team workflow specs** — focused files such as `ai-tooling.md`, `parallel-agents.md`, `testing.md`, `debugging.md`, `frontend-design.md`, `code-review.md`, or `safety.md` only when the task scenario needs them
+- **Team workflow specs** — focused files such as `ai-tooling.md`, `parallel-agents.md`, `testing.md`, `debugging.md`, `frontend-design.md` or `code-review.md` only when the task scenario needs them
 - **Research files** — `{TASK_DIR}/research/*.md` that the sub-agent will need to consult
 
 **What NOT to put in**:
@@ -618,6 +604,7 @@ If issues are found → fix → re-check, until green.
 - Need more research → research (same as Phase 1.2), write findings into `research/`
 - Repeated failure or contradictory fixes → use Superpowers reasoning before more edits
 - Parallel agents produce conflicting changes → main agent resolves against PRD, Acceptance Criteria, and relevant specs. If conflicts reveal a PRD ambiguity, return to Phase 1.1 to clarify the requirement before re-implementing. Do not merge blindly
+- **Task no longer needed** → the user may decide to abandon the task. The AI must not make this decision on its own. If the user confirms abandonment, archive the task directly without further implementation
 
 ---
 
@@ -625,14 +612,16 @@ If issues are found → fix → re-check, until green.
 
 Goal: ensure code quality, capture lessons, record the work. Finish is not complete until verification is honest, spec-update judgment is made, and work commits are handled according to Phase 3.4.
 
-#### 3.1 Quality verification `[required · repeatable]`
+#### 3.1 Final confirmation `[required · once]`
 
-Load the `trellis-check` skill and do a final verification:
-- Spec compliance
-- lint / type-check / tests
-- Cross-layer consistency (when changes span layers)
+Confirm the task is complete before proceeding to spec-update and commit:
 
-If issues are found → fix → re-check, until green.
+- Confirm Phase 2.2 `trellis-check` passed — if it was skipped, or if code changed after the last check, re-run it now
+- Confirm all Acceptance Criteria from `prd.md` are met
+- Confirm no unrelated changes leaked into the diff
+- If any AC is not met or the diff contains unexpected changes, return to Phase 2.1
+
+This is a confirmation gate, not a full re-check. The heavy verification already happened in 2.2.
 
 #### 3.2 Debug retrospective `[on demand]`
 
@@ -640,18 +629,21 @@ If this task involved repeated debugging (the same issue was fixed multiple time
 - Classify the root cause
 - Explain why earlier fixes failed
 - Propose prevention
-- Decide whether a new rule belongs in `.trellis/spec/`
+- Surface lessons for Phase 3.3 spec-update judgment
 
 The goal is to capture debugging lessons so the same class of issue doesn't recur.
 
 #### 3.3 Spec update `[required · once]`
 
-Load the `trellis-update-spec` skill and review whether this task produced new knowledge worth recording:
-- Newly discovered patterns or conventions
-- Pitfalls you hit
-- New technical decisions
+Load the `trellis-update-spec` skill and make a single, unified judgment about whether this task produced knowledge worth recording in `.trellis/spec/`. Consider all sources:
 
-Update the docs under `.trellis/spec/` accordingly, including tool-routing lessons such as when Superpowers, oh-my-claudecode, MCPs, or scenario skills should have been used or avoided. Even if the conclusion is "nothing to update", walk through the judgment.
+- New patterns or conventions discovered during implementation
+- Pitfalls hit and how they were resolved
+- Lessons surfaced by Phase 3.2 debug retrospective (if any)
+- New technical decisions
+- Tool-routing lessons: when Superpowers, oh-my-claudecode, MCPs, or scenario skills should have been used or avoided
+
+Update the relevant spec files accordingly. Even if the conclusion is "nothing to update", walk through the judgment.
 
 #### 3.4 Commit changes `[required · once]`
 
@@ -675,27 +667,28 @@ The AI drives a batched commit of this task's code changes so `/finish-work` can
    - **AI-edited this session** — files you wrote/edited via Edit/Write/Bash tool calls in this session. You know what changed and why.
    - **Unrecognized** — dirty files you did NOT touch this session (could be the user's manual edits, leftover WIP from a previous session, or unrelated work). Do NOT silently include these.
 
-4. **Draft a commit plan**. Group AI-edited files into logical commits (1 commit per coherent change unit, not 1 commit per file). Each entry: `<commit message>` + file list. List unrecognized files separately at the bottom.
+4. **Draft a commit plan** using the fixed template below. Present it once, ask for one-shot confirmation.
 
-5. **Present the plan once, ask for one-shot confirmation**. Format:
-   ```
-   Proposed commits (in order):
-     1. <message>
-        - <file>
-        - <file>
-     2. <message>
-        - <file>
+**Commit plan template:**
 
-   Unrecognized dirty files (NOT in any commit — confirm include/exclude):
+```
+Proposed commits (in order):
+  1. <type>: <description>
      - <file>
      - <file>
+  2. <type>: <description>
+     - <file>
 
-   Reply 'ok' / '行' to execute. Reply with edits, or '我自己来' / 'manual' to abort.
-   ```
+Unrecognized dirty files (NOT in any commit — confirm include/exclude):
+  - <file>
+  - <file>
 
-6. **On confirmation**: run `git add <files>` + `git commit -m "<msg>"` for each batch in order. Do not amend. Do not push.
+Reply 'ok' / '行' to execute. Reply with edits, or '我自己来' / 'manual' to abort.
+```
 
-7. **On rejection** (user replies "不行" / "我自己来" / "manual" / any pushback on the plan): stop. Do not attempt a second plan. The user will commit by hand; you skip ahead to 3.5 once they confirm.
+5. **On confirmation**: run `git add <files>` + `git commit -m "<msg>"` for each batch in order. Do not amend. Do not push.
+
+6. **On rejection** (user replies "不行" / "我自己来" / "manual" / any pushback on the plan): stop. Do not attempt a second plan. The user will commit by hand; you skip ahead to 3.5 once they confirm.
 
 **Rules**:
 - No `git commit --amend` anywhere — three-stage three-commit flow (work commits → archive commit → journal commit).
@@ -717,14 +710,15 @@ This section is for developers who want to modify the Trellis workflow itself. A
 
 Edit the corresponding step's walkthrough body in the Phase 1 / 2 / 3 sections above. **Critical constraint**: if you change a step's `[required · once]` marker or add a new `[required · once]` step, you MUST also add a matching enforcement line to that phase's `[workflow-state:STATUS]` tag block — otherwise the per-turn breadcrumb omits the reinforcement, and the AI silently skips the step. The regression tests assert this.
 
-All 4 tag blocks live in the `## Phase Index` section above, immediately after each phase summary:
+The 5 live [workflow-state:STATUS] blocks (3 base statuses + 2 inline alternates) are in the `## Phase Index` section above, immediately after each phase summary:
 
 | Scope | Corresponding tag |
 |---|---|
 | No active task (before Phase 1) | `[workflow-state:no_task]` (after the Phase Index ASCII art) |
 | All of Phase 1 (task created → ready for implementation) | `[workflow-state:planning]` (after Phase 1 summary) |
+| Phase 1 when codex.dispatch_mode=inline | `[workflow-state:planning-inline]` (after `[workflow-state:planning]`) |
 | Phase 2 + Phase 3.1–3.4 (implementation + check + wrap-up) | `[workflow-state:in_progress]` (after Phase 2 summary) |
-| After Phase 3.5 (archived) | `[workflow-state:completed]` (after Phase 3 summary; **currently DEAD**) |
+| Phase 2 + Phase 3.1–3.4 when codex.dispatch_mode=inline | `[workflow-state:in_progress-inline]` (after `[workflow-state:in_progress]`) |
 
 ### Changing the per-turn prompt text
 

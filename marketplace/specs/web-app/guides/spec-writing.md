@@ -232,9 +232,9 @@ Do not update spec when the task only produced:
 
 If no update is needed, say why.
 
-## Review Checklist
+## Definition of Done
 
-Before accepting a spec change, check:
+A spec change is done when:
 
 * Is this useful beyond the current task?
 * Is it in the right file?
