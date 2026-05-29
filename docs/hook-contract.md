@@ -46,14 +46,15 @@ Claude Code hook 事件的统一输出约定。
 
 用于注入 subagent 上下文：
 
-- `additionalContext` + `updatedInput` — 注入上下文并更新 prompt
+- `additionalContext` — 注入 subagent 初始上下文（仅支持此字段，不支持 updatedInput）
 
 ### SubagentStop
 
 用于验证 subagent 输出：
 
-- `decision: "block"` + `reason` — 输出不合格，要求补全
-- `additionalContext` — 提醒但不阻断（research 类 agent）
+- `decision: "block"` + `reason` — 输出不合格，要求 subagent 继续补全
+- **不支持 additionalContext** — SubagentStop 使用与 Stop 相同的 decision 控制格式
+- 如需注入父会话，使用 PostToolUse matcher: Agent
 
 ### Stop
 

@@ -252,16 +252,6 @@ def _emit_block(reason: str) -> None:
     sys.exit(0)
 
 
-def _emit_warning(text: str) -> None:
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "SubagentStop",
-            "additionalContext": text,
-        }
-    }, ensure_ascii=False))
-    sys.exit(0)
-
-
 def main() -> int:
     if os.environ.get("TRELLIS_HOOKS") == "0" or os.environ.get("TRELLIS_DISABLE_HOOKS") == "1":
         return 0
@@ -282,12 +272,9 @@ def main() -> int:
 
     output_text = _get_agent_output(input_data)
     if not output_text:
-        # Can't validate without output — warn but don't block
-        _emit_warning(
-            f"<subagent-stop-guard>\n"
-            f"Agent '{subagent_type}' stopped but no output text was found. "
-            f"Cannot validate output format.\n"
-            f"</subagent-stop-guard>"
+        _emit_block(
+            f"Subagent '{subagent_type}' stopped but no output text was found. "
+            f"Cannot validate output format. Subagent must produce output before stopping."
         )
         return 0
 
@@ -309,7 +296,6 @@ def main() -> int:
     if not missing:
         return 0
 
-    # Build block reason
     reason = (
         f"Subagent '{agent_label}' output is missing required elements:\n\n"
     )
@@ -319,22 +305,7 @@ def main() -> int:
         f"\nThe subagent must provide all required output elements. "
         f"Re-run the agent with explicit output format instructions."
     )
-
-    # Researcher gets soft warning unless evidence is required
-    if subagent_type == AGENT_RESEARCH:
-        warning = (
-            f"<subagent-format-warning>\n"
-            f"Subagent '{agent_label}' output is missing elements:\n"
-        )
-        for item in missing:
-            warning += f"  - {item}\n"
-        warning += (
-            f"Please ensure the research agent follows the expected output format.\n"
-            f"</subagent-format-warning>"
-        )
-        _emit_warning(warning)
-    else:
-        _emit_block(reason)
+    _emit_block(reason)
 
     return 0
 
