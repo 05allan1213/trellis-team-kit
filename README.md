@@ -46,6 +46,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit
 
 一行搞定。把 `你的名字` 换成你的英文名。
 
+如果 `raw.githubusercontent.com` 在你那边超时，用克隆方式：
+
+```bash
+git clone https://github.com/05allan1213/trellis-team-kit.git ~/trellis-team-kit
+mkdir my-project && cd my-project
+~/trellis-team-kit/bootstrap/init.sh 你的名字
+```
+
 ## 初始化后你会得到什么
 
 ```
