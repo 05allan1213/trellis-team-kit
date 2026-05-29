@@ -340,8 +340,13 @@ def main() -> int:
     except json.JSONDecodeError:
         return 0
 
-    # SubagentStart event: extract agent_name directly
-    agent_name = input_data.get("agent_name", "")
+    # SubagentStart event: extract agent_type first (official field), backward compatible
+    agent_name = (
+        input_data.get("agent_type")
+        or input_data.get("agent_name")
+        or input_data.get("subagent_type")
+        or ""
+    )
     if not isinstance(agent_name, str) or agent_name not in AGENTS_ALL:
         return 0
 

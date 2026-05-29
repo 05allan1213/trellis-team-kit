@@ -100,10 +100,10 @@ Claude Code hook 事件的统一输出约定。
 
 ```json
 {
+  "decision": "block",
+  "reason": "Cannot mark task done. Selected review gate is missing PASS/FAIL.",
   "hookSpecificOutput": {
-    "hookEventName": "Stop",
-    "decision": "block",
-    "reason": "Cannot mark task done. Selected review gate is missing PASS/FAIL."
+    "hookEventName": "Stop"
   }
 }
 ```

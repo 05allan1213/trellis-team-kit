@@ -73,18 +73,21 @@ def _find_trellis_root(start: Path) -> Optional[Path]:
 
 
 def _detect_subagent_type(input_data: dict) -> Optional[str]:
-    """Detect which subagent type is stopping from the hook input."""
-    agent_name = input_data.get("agent_name", "")
+    """Detect which subagent type is stopping from the hook input.
+    Official field is agent_type first, then backward compatible with others.
+    """
+    agent_name = (
+        input_data.get("agent_type")
+        or input_data.get("agent_name")
+        or input_data.get("subagent_type")
+        or ""
+    )
     if isinstance(agent_name, str) and agent_name in AGENTS_ALL:
         return agent_name
 
-    subagent_type = input_data.get("subagent_type", "")
-    if isinstance(subagent_type, str) and subagent_type in AGENTS_ALL:
-        return subagent_type
-
     tool_input = input_data.get("tool_input", {})
     if isinstance(tool_input, dict):
-        for key in ("subagent_type", "subagentType", "name"):
+        for key in ("subagent_type", "subagentType", "name", "agent_type", "agentType"):
             val = tool_input.get(key, "")
             if isinstance(val, str) and val in AGENTS_ALL:
                 return val
@@ -93,15 +96,17 @@ def _detect_subagent_type(input_data: dict) -> Optional[str]:
 
 
 def _get_agent_output(input_data: dict) -> str:
-    """Extract the subagent's output text from the hook input."""
-    for key in ("output", "result", "transcript", "message", "text"):
+    """Extract the subagent's output text from the hook input.
+    Official field is last_assistant_message first, then backward compatible.
+    """
+    for key in ("last_assistant_message", "output", "result", "transcript", "message", "text"):
         val = input_data.get(key, "")
         if isinstance(val, str) and len(val) > 50:
             return val
 
     result = input_data.get("result", {})
     if isinstance(result, dict):
-        for key in ("output", "text", "message", "content"):
+        for key in ("last_assistant_message", "output", "text", "message", "content"):
             val = result.get(key, "")
             if isinstance(val, str) and len(val) > 50:
                 return val
