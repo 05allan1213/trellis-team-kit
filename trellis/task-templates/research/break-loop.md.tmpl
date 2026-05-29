@@ -1,0 +1,69 @@
+# Break Loop: {{bug_or_recurring_issue}}
+
+<!-- This template is for breaking out of the fix-fail-repeat cycle. -->
+<!-- Use when the same type of bug keeps recurring or fixes keep failing. -->
+
+## Root Cause Category
+
+<!-- Classify the root cause to guide prevention. Select one: -->
+
+- [ ] **Logic error** — Incorrect algorithm or condition
+- [ ] **Missing validation** — Input or state not checked
+- [ ] **Race condition** — Concurrency or timing issue
+- [ ] **Integration mismatch** — Contract violation between components
+- [ ] **Configuration drift** — Environment or config inconsistency
+- [ ] **Missing error handling** — Unhandled failure mode
+- [ ] **Assumption error** — Code assumes something that isn't guaranteed
+- [ ] **Copy-paste error** — Duplicated code with incorrect modifications
+
+## Failed Attempts
+
+<!-- Document every attempt that failed. Be honest about what was tried. -->
+
+### Attempt 1
+
+- **What was tried**: <!-- describe the fix -->
+- **Why it failed**: <!-- describe why it didn't work -->
+- **What was learned**: <!-- what this failure revealed -->
+
+### Attempt 2
+
+- **What was tried**: <!-- describe the fix -->
+- **Why it failed**: <!-- describe why it didn't work -->
+- **What was learned**: <!-- what this failure revealed -->
+
+### Attempt 3
+
+- **What was tried**: <!-- describe the fix -->
+- **Why it failed**: <!-- describe why it didn't work -->
+- **What was learned**: <!-- what this failure revealed -->
+
+## Prevention Mechanism
+
+<!-- How can we prevent this class of bug from recurring? -->
+
+- <!-- Prevention 1: [what to add/change] -->
+- <!-- Prevention 2: [what to add/change] -->
+
+## Durable Action
+
+<!-- What durable action should be taken to prevent recurrence? -->
+<!-- Select all that apply. -->
+
+- [ ] **Update spec** — Add a rule to a code-spec that would have prevented this
+  - Spec file: <!-- path/to/spec.md -->
+  - Addition: <!-- what to add -->
+
+- [ ] **Update guide** — Add a checklist item or risk prompt to a thinking guide
+  - Guide file: <!-- path/to/guide.md -->
+  - Addition: <!-- what to add -->
+
+- [ ] **Add regression test** — Write a test that would have caught this bug
+  - Test file: <!-- path/to/test -->
+  - Scenario: <!-- what the test checks -->
+
+- [ ] **Create follow-up task** — There is more work needed beyond this fix
+  - Task description: <!-- what needs to be done -->
+
+- [ ] **No action needed** — This was a one-off with low recurrence risk
+  - Reason: <!-- why no action is needed -->

@@ -1,0 +1,94 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/session-start.py"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/inject-workflow-state.py"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "command": "python3 .claude/hooks/inject-subagent-context.py"
+          },
+          {
+            "command": "python3 .claude/hooks/protect-dangerous-actions.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "command": "python3 .claude/hooks/protect-dangerous-actions.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "command": "python3 .claude/hooks/post-edit-reminder.py"
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/subagent-stop-guard.py"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/stop-guard.py"
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "command": "python3 .claude/hooks/pre-compact-save-state.py"
+      }
+    ]
+  },
+  "skills": {
+    "trellis-brainstorm": ".claude/skills/trellis-brainstorm/SKILL.md",
+    "trellis-grill-me": ".claude/skills/trellis-grill-me/SKILL.md",
+    "trellis-dev-strategy": ".claude/skills/trellis-dev-strategy/SKILL.md",
+    "trellis-before-dev": ".claude/skills/trellis-before-dev/SKILL.md",
+    "trellis-implement": ".claude/skills/trellis-implement/SKILL.md",
+    "trellis-check": ".claude/skills/trellis-check/SKILL.md",
+    "trellis-spec-review": ".claude/skills/trellis-spec-review/SKILL.md",
+    "trellis-code-review": ".claude/skills/trellis-code-review/SKILL.md",
+    "trellis-code-architecture-review": ".claude/skills/trellis-code-architecture-review/SKILL.md",
+    "trellis-improve-codebase-architecture": ".claude/skills/trellis-improve-codebase-architecture/SKILL.md",
+    "trellis-update-spec": ".claude/skills/trellis-update-spec/SKILL.md",
+    "trellis-break-loop": ".claude/skills/trellis-break-loop/SKILL.md",
+    "trellis-merge-review": ".claude/skills/trellis-merge-review/SKILL.md",
+    "trellis-finish-work": ".claude/skills/trellis-finish-work/SKILL.md"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python3 ./.trellis/scripts/*)",
+      "Bash(python3 .claude/hooks/*)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(npm *)",
+      "Bash(pnpm *)",
+      "Bash(yarn *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(mkdir *)",
+      "WebSearch",
+      "WebFetch"
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+# Validation Commands: {{task_name}}
+
+<!-- Define the exact commands used to validate this task's implementation. -->
+<!-- These commands are run at each quality check gate. -->
+<!-- If a command cannot be run, explain why in Notes. -->
+
+## Lint Command
+
+```bash
+<!-- e.g., npm run lint -->
+<!-- e.g., npx eslint . --ext .ts,.tsx -->
+<!-- e.g., flake8 . -->
+```
+
+## TypeCheck Command
+
+```bash
+<!-- e.g., npm run typecheck -->
+<!-- e.g., npx tsc --noEmit -->
+<!-- e.g., mypy . -->
+```
+
+## Test Command
+
+```bash
+<!-- e.g., npm run test -->
+<!-- e.g., npm run test -- --coverage -->
+<!-- e.g., pytest tests/ -v -->
+```
+
+## Build Command
+
+```bash
+<!-- e.g., npm run build -->
+<!-- e.g., docker build -t app . -->
+```
+
+## E2E Command
+
+```bash
+<!-- e.g., npm run test:e2e -->
+<!-- e.g., npx playwright test -->
+<!-- e.g., N/A - no E2E tests for this task -->
+```
+
+## Notes
+
+<!-- Explain why any command cannot be run, or any special conditions. -->
+<!-- - E2E not applicable: this task has no UI changes -->
+<!-- - Build requires Docker: not available in CI, run locally -->
+<!-- - Tests require test database: see setup instructions -->

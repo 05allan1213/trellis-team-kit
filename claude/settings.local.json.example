@@ -1,0 +1,10 @@
+{
+  "_comment": "复制此文件为 settings.local.json 并根据本地环境自定义",
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npm run dev *)",
+      "Bash(npm run build *)"
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+# Grill Me: {{task_name}}
+
+<!-- This template is for self-interrogating the PRD before implementation. -->
+<!-- The goal is to find weaknesses, ambiguities, and risks before they become bugs. -->
+
+## AC Testability Check
+
+<!-- Can each acceptance criterion be objectively verified? -->
+<!-- If not, the AC is too vague and must be rewritten. -->
+
+| AC | Testable? | If No, Rewrite As |
+|----|-----------|-------------------|
+| AC1 | <!-- yes / no --> | <!-- rewritten AC if no --> |
+| AC2 | <!-- yes / no --> | <!-- rewritten AC if no --> |
+| AC3 | <!-- yes / no --> | <!-- rewritten AC if no --> |
+
+## Edge Cases Found
+
+<!-- List edge cases discovered by interrogating the ACs and scope. -->
+<!-- These should either be added to the ACs or explicitly scoped out. -->
+
+- <!-- Edge case 1: [description] | Handling: [add to AC / scope out / already covered] -->
+- <!-- Edge case 2: [description] | Handling: [add to AC / scope out / already covered] -->
+
+## Risks Identified
+
+<!-- Risks found during the grill that were not in the original PRD. -->
+
+- <!-- Risk 1: [description] | Severity: [high/medium/low] | Mitigation: [plan] -->
+- <!-- Risk 2: [description] | Severity: [high/medium/low] | Mitigation: [plan] -->
+
+## Scope Creep Concerns
+
+<!-- Areas where the task might expand beyond its stated scope. -->
+<!-- Identify the temptation points and set boundaries. -->
+
+- <!-- Concern 1: [what might expand] | Boundary: [where to stop] -->
+- <!-- Concern 2: [what might expand] | Boundary: [where to stop] -->
+
+## Open Questions After Grill
+
+<!-- Questions that remain unanswered after the interrogation. -->
+<!-- Tag each: [blocking] or [non-blocking] -->
+
+- [blocking] <!-- Question that must be answered before implementation -->
+- [non-blocking] <!-- Question that can be resolved during implementation -->
+
+## Recommendation
+
+<!-- Based on the grill, is this task ready for implementation? -->
+
+- [ ] **Ready** — All ACs testable, edge cases handled, risks mitigated.
+- [ ] **Needs Revision** — Specific issues must be resolved first (list above).

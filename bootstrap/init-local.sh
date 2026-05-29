@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
+# init-local.sh — Local initialization for trellis-team-kit v0.2
+# Creates local settings, workspace directory, and personal preferences.
+# Run AFTER init.sh.
 set -euo pipefail
 
 DEV_NAME="${1:-}"
 
 if [ -z "$DEV_NAME" ]; then
   echo "Usage: init-local.sh <developer-name>"
+  echo ""
+  echo "Example: init-local.sh alice"
   exit 1
 fi
 
@@ -18,29 +23,99 @@ if [ "$TARGET_ROOT" = "$KIT_ROOT" ]; then
   exit 1
 fi
 
-echo "Initializing Trellis with official Claude Code platform files..."
-trellis init -u "$DEV_NAME" --claude
+if [ ! -f "$TARGET_ROOT/.trellis/.team-kit-version" ]; then
+  echo "Error: trellis-team-kit not initialized. Run init.sh first."
+  exit 1
+fi
 
-echo "Applying team entry files..."
-cp "$KIT_ROOT/entry/AGENTS.md" "$TARGET_ROOT/AGENTS.md"
-cp "$KIT_ROOT/entry/CLAUDE.md" "$TARGET_ROOT/CLAUDE.md"
+# --- Helpers ---
+info()  { echo "[init-local] $*"; }
+warn()  { echo "[init-local] WARNING: $*" >&2; }
 
-echo "Applying team workflow..."
-cp "$KIT_ROOT/workflow/workflow.md" "$TARGET_ROOT/.trellis/workflow.md"
+# --- Step 1: Create claude/settings.local.json ---
+info "Step 1/3: Creating .claude/settings.local.json ..."
+mkdir -p "$TARGET_ROOT/.claude"
 
-echo "Applying team specs..."
-rm -rf "$TARGET_ROOT/.trellis/spec"
-mkdir -p "$TARGET_ROOT/.trellis/spec"
-cp -R "$KIT_ROOT/marketplace/specs/web-app/"* "$TARGET_ROOT/.trellis/spec/"
+if [ -f "$TARGET_ROOT/.claude/settings.local.json" ]; then
+  warn "  .claude/settings.local.json already exists, skipping"
+else
+  cat > "$TARGET_ROOT/.claude/settings.local.json" << 'SETTINGS_EOF'
+{
+  "permissions": {
+    "allow": [],
+    "deny": []
+  }
+}
+SETTINGS_EOF
+  info "  .claude/settings.local.json created"
+fi
 
-echo "Recording team kit version..."
-cp "$KIT_ROOT/VERSION" "$TARGET_ROOT/.trellis/.team-kit-version"
-echo "initialized_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$TARGET_ROOT/.trellis/.team-kit-version"
+# --- Step 2: Create .trellis/workspace/<name>/ ---
+info "Step 2/3: Creating workspace directory ..."
+WORKSPACE_DIR="$TARGET_ROOT/.trellis/workspace/$DEV_NAME"
+mkdir -p "$WORKSPACE_DIR"
 
-echo "Done."
-echo "Generated:"
-echo "  AGENTS.md"
-echo "  CLAUDE.md"
-echo "  .claude/"
-echo "  .trellis/workflow.md"
-echo "  .trellis/spec/"
+if [ ! -f "$WORKSPACE_DIR/journal.md" ]; then
+  cat > "$WORKSPACE_DIR/journal.md" << JOURNAL_EOF
+# Development Journal — $DEV_NAME
+
+Track task completions, learnings, and decisions here.
+Entries are appended automatically by trellis-finish-work.
+
+---
+
+JOURNAL_EOF
+  info "  Created workspace and journal at .trellis/workspace/$DEV_NAME/"
+else
+  info "  Workspace already exists at .trellis/workspace/$DEV_NAME/"
+fi
+
+# --- Step 3: Generate personal preferences ---
+info "Step 3/3: Generating personal preferences ..."
+PREFS_FILE="$WORKSPACE_DIR/preferences.md"
+
+if [ -f "$PREFS_FILE" ]; then
+  warn "  $PREFS_FILE already exists, skipping"
+else
+  cat > "$PREFS_FILE" << PREFS_EOF
+# Personal Preferences — $DEV_NAME
+
+Customize these preferences to match your workflow.
+These are loaded during before-dev to tailor the development experience.
+
+## Commit Style
+- Preferred commit message format: conventional commits (feat/fix/refactor/docs)
+- Include co-author: yes
+
+## Code Style
+- Prefer explicit over implicit
+- Prefer early returns over nested conditionals
+- Prefer small focused functions
+
+## Review Preferences
+- Prefer actionable feedback over vague suggestions
+- Flag security and performance concerns immediately
+
+## Notes
+- Add any personal workflow preferences here
+- This file is not shared with the team
+PREFS_EOF
+  info "  Created preferences at .trellis/workspace/$DEV_NAME/preferences.md"
+fi
+
+# --- Summary ---
+echo ""
+echo "=========================================="
+echo "  Local setup complete for $DEV_NAME"
+echo "=========================================="
+echo ""
+echo "  Created:"
+echo "    .claude/settings.local.json"
+echo "    .trellis/workspace/$DEV_NAME/journal.md"
+echo "    .trellis/workspace/$DEV_NAME/preferences.md"
+echo ""
+echo "  Next steps:"
+echo "    1. Edit .trellis/workspace/$DEV_NAME/preferences.md"
+echo "    2. Add custom permissions to .claude/settings.local.json"
+echo "    3. Start coding with your personalized setup"
+echo "=========================================="

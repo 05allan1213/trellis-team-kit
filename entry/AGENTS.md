@@ -3,58 +3,102 @@
 
 These instructions are for AI coding agents working in this project.
 
-This project is managed by Trellis. The working knowledge you need lives under `.trellis/`:
+This project is managed by Trellis with team-kit extensions. The working knowledge you need lives under `.trellis/`:
 
-- `.trellis/workflow.md` — development phases, when to create tasks, skill routing
-- `.trellis/spec/` — package- and layer-scoped coding guidelines (read before writing code in a given layer)
+- `.trellis/workflow.md` — full state machine, L0-L5 routing, dual-consent gates, skill routing
+- `.trellis/spec/` — layered coding guidelines (frontend/backend/shared/infra/guides)
 - `.trellis/workspace/` — per-developer journals and session traces
-- `.trellis/tasks/` — active and archived tasks (PRDs, research, jsonl context)
+- `.trellis/tasks/` — active and archived tasks (PRDs, design, implement, research, review, validation)
 
-If a Trellis command is available on your platform (e.g. `/trellis:finish-work`, `/trellis:continue`), prefer it over manual steps. Not every platform exposes every command.
+If a Trellis command is available on your platform (e.g. `/trellis:finish-work`, `/trellis:continue`), prefer it over manual steps.
 
-If you're using Codex or another agent-capable tool, additional project-scoped helpers may live in:
-
-- `.agents/skills/` — reusable Trellis skills
-- `.codex/agents/` — optional custom subagents
+Additional team-kit assets:
+- `.claude/skills/` — 14 reusable Trellis phase skills
+- `.claude/agents/` — 9 specialized subagents
+- `.claude/hooks/` — workflow state injection and guardrails
 
 Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
 
 <!-- TRELLIS:END -->
 
-<!-- CUSTOM:START -->
-## Custom Agent Contract
+<!-- TEAM-KIT:START -->
+# trellis-team-kit
 
-This file is an entry point only.
+## Core Rules
 
-For non-trivial development work, follow the Trellis workflow before changing code. Prefer structured task execution over ad-hoc implementation.
+You are an AI coding agent running in the trellis-team-kit workflow.
 
-### Operating Principles
+### Main Session Responsibilities
 
-- Understand the user's goal before editing.
-- Plan before implementing when the task affects behavior, architecture, data, UI, or multiple files.
-- Keep changes scoped to the active Trellis task, or create/follow the appropriate task before making non-trivial changes.
-- Prefer small, reversible changes over broad rewrites.
-- Verify the result before reporting completion.
-- Be explicit about what changed, what was checked, and what remains uncertain.
+You own decisions, communication, dispatch, and integration. Do NOT write code directly (unless user explicitly says inline or L1).
 
-### Rule Discovery
+### Subagent Responsibilities
 
-- Do not assume all rules are already loaded.
-- For task-specific guidance, inspect only the relevant files under `.trellis/spec/`.
-- For platform-specific commands, agents, skills, hooks, or local behavior, inspect only the relevant platform directory if it exists.
-- Load only the guidance needed for the current task. Do not load unrelated rules by default.
+| Agent | Role |
+|-------|------|
+| trellis-researcher | Research only — write research/, never edit source |
+| trellis-implementer | Implement per PRD/design/implement |
+| trellis-checker | Check, self-fix, output PASS/FAIL |
+| trellis-spec-reviewer | Spec compliance review |
+| trellis-code-reviewer | Code quality review |
+| trellis-architecture-reviewer | Architecture review |
+| trellis-architecture-deep-reviewer | Deep architecture review |
+| trellis-merge-reviewer | Post-merge review |
+| trellis-spec-updater | Spec update execution |
 
-### Boundaries
+## L0-L5 Task Routing
 
-- Do not bypass the Trellis workflow, active task scope, acceptance criteria, repository hooks, tests, or safeguards.
-- Do not perform destructive, irreversible, production-impacting, secret-related, or deployment-related actions without explicit user approval.
-- Do not hide failures. If verification cannot be completed, report exactly what was not verified and why.
+| Level | Type | Create Task | Required Artifacts | Gates |
+|-------|------|-------------|-------------------|-------|
+| L0 | Pure Q&A | No | None | None |
+| L1 | Typo/tiny edit | Optional | Skippable | Light check |
+| L2 | Light implementation | Yes | prd.md | check |
+| L3 | Normal feature/bugfix | Yes | prd.md + implement.md | check + code-review |
+| L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | check + spec-review + code-review + architecture-review |
+| L5 | Large refactor/multi-agent | Yes | Full artifacts | All + merge-review |
 
-### Context Discipline
+- **L0**: Answer directly
+- **L1**: User must say "skip trellis" / "no task" / "just do it"
+- **L2-L5**: Default to creating a Trellis task
 
-- Do not store project knowledge, task notes, coding standards, testing rules, debugging rules, frontend rules, review rules, or temporary decisions here.
-- Keep project knowledge in the repository's dedicated documentation, Trellis task files, specs, research, or memory areas.
-- Do not paste large rule files, logs, generated files, or unrelated documentation into the conversation unless needed for the current task.
+**The AI must NOT decide "it's small so no task" on its own.**
 
-Only update this custom section when the global agent contract itself changes.
-<!-- CUSTOM:END -->
+## Dual Consent Gates
+
+1. Task creation consent → enter planning only. No source editing.
+2. Implementation consent → then `task.py start` and write code.
+
+## Complete Workflow
+
+```
+Request → classify → task creation consent → task.py create
+  → brainstorm → grill-me → design → implement plan
+  → implementation consent → task.py start
+  → before-dev → implement → check → review gates
+  → update-spec → commit → merge-review → validate → finish-work
+```
+
+## Review Gate Contract
+
+Failed gate → return to IMPLEMENTING → cannot skip → cannot mark done.
+
+## Forbidden Actions
+
+1. Don't decide "small so no task" on your own
+2. Don't write code without implementation consent
+3. Don't skip check or failed review gate
+4. Don't self-finish-work
+5. Don't edit source during planning
+6. Don't push (unless user explicitly asks)
+7. Don't expand PRD scope
+8. Don't write code in main session (unless inline or L1)
+
+## File Routing
+
+- Workflow: `.trellis/workflow.md`
+- Specs: `.trellis/spec/index.md`
+- Task templates: `.trellis/templates/`
+- Skills: `.claude/skills/`
+- Agents: `.claude/agents/`
+- Hooks: `.claude/hooks/`
+<!-- TEAM-KIT:END -->

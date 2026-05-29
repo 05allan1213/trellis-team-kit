@@ -7,3 +7,5 @@ __pycache__/
 .trellis/tasks/
 .trellis/workspace/
 .trellis/.developer
+.omc/
+.claude/

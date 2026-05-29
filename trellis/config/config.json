@@ -1,0 +1,6 @@
+{
+  "_comment": "Team-kit default Trellis configuration",
+  "codex": {
+    "dispatch_mode": "sub-agent"
+  }
+}

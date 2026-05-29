@@ -1,0 +1,88 @@
+# Design: {{task_name}}
+
+## Current Architecture
+
+<!-- Describe the current state of the system relevant to this task. -->
+<!-- Include: component relationships, data flow, dependencies. -->
+<!-- Diagram or text is fine. Keep it focused on the change area. -->
+
+## Proposed Architecture
+
+<!-- Describe the target state after the change. -->
+<!-- Highlight what changes and what stays the same. -->
+<!-- Include: new components, changed relationships, new dependencies. -->
+
+## Data Flow
+
+<!-- Trace the data from input to output. -->
+<!-- Show: where data enters, how it is transformed, where it is stored, how it is consumed. -->
+
+```
+[Input] -> [Transform] -> [Store] -> [Consume]
+```
+
+## API / Schema / Type Contracts
+
+<!-- Define the explicit contracts for this change. -->
+<!-- These become the source of truth for implementation. -->
+
+### API Endpoints
+
+<!-- If adding or changing API endpoints, define them here. -->
+<!-- Include: method, path, request body, response body, status codes. -->
+
+### Schema Changes
+
+<!-- If adding or changing database schema, define the migration here. -->
+<!-- Include: table, columns, types, constraints, indexes. -->
+
+### Type Definitions
+
+<!-- If adding or changing shared types, define them here. -->
+<!-- Include: type name, fields, types, constraints. -->
+
+## Module Boundaries
+
+<!-- Which modules are affected? What are their responsibilities in this change? -->
+<!-- - Module A: [what it does in this change] -->
+<!-- - Module B: [what it does in this change] -->
+
+## Reuse Opportunities
+
+<!-- What existing code, patterns, or libraries can be reused? -->
+<!-- Searched codebase for: [search terms] -->
+<!-- Found: [existing code that can be reused] -->
+<!-- Not found: [gaps that require new code] -->
+
+## Migration Plan
+
+<!-- If this change requires data or configuration migration, describe the steps. -->
+<!-- Include: migration script, rollback, data validation. -->
+
+## Compatibility
+
+<!-- What existing functionality must continue to work? -->
+<!-- Are there breaking changes? If so, how are they handled? -->
+
+## Rollback Plan
+
+<!-- If this change fails in production, how do we roll back? -->
+<!-- Include: code rollback, migration rollback, feature flag. -->
+
+## Security / Privacy / Performance Notes
+
+<!-- Any security, privacy, or performance considerations for this change. -->
+<!-- - Security: [concerns and mitigations] -->
+<!-- - Privacy: [data handling, PII considerations] -->
+<!-- - Performance: [expected impact, benchmarks, monitoring] -->
+
+## Architecture Guidance
+
+<!-- Reference the architecture-thinking guide and any relevant specs. -->
+<!-- Which specs apply? Which guide principles are most relevant? -->
+
+## Alternatives Considered
+
+<!-- What other approaches were evaluated? Why were they rejected? -->
+<!-- - Alternative A: [description] | Rejected because: [reason] -->
+<!-- - Alternative B: [description] | Rejected because: [reason] -->

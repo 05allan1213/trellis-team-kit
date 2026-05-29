@@ -1,0 +1,49 @@
+# Merge Review: {{task_name}}
+
+## Verdict
+
+<!-- PASS or FAIL. FAIL means merge issues must be resolved before integrating. -->
+
+- [ ] **PASS** — Safe to merge. No conflicts, no duplicates, interfaces consistent.
+- [ ] **FAIL** — Merge issues found. List them below.
+
+## Conflict Resolution Check
+
+<!-- Are there merge conflicts? If yes, how should they be resolved? -->
+
+| Conflicting File | Ours | Theirs | Resolution Strategy |
+|-----------------|------|--------|-------------------|
+| <!-- file path --> | <!-- our change --> | <!-- their change --> | <!-- take ours / take theirs / merge both --> |
+
+## Duplicate Implementation Check
+
+<!-- Did both branches implement the same functionality? -->
+<!-- Duplicates must be reconciled before merge. -->
+
+| Functionality | Our Implementation | Their Implementation | Action |
+|--------------|-------------------|---------------------|--------|
+| <!-- feature 1 --> | <!-- file:line --> | <!-- file:line --> | <!-- keep ours / keep theirs / merge --> |
+
+## Missing Files Check
+
+<!-- Are there files that one branch expects but the other did not create? -->
+
+| Missing File | Expected By | Action |
+|-------------|-------------|--------|
+| <!-- file path --> | <!-- which code references it --> | <!-- create it / remove reference --> |
+
+## Interface Consistency Check
+
+<!-- Do shared interfaces match between branches? -->
+
+| Interface | Our Shape | Their Shape | Compatible? |
+|-----------|-----------|-------------|-------------|
+| <!-- type/API --> | <!-- signature --> | <!-- signature --> | <!-- yes / no --> |
+
+## Integration Summary
+
+<!-- After merge, what is the combined state? -->
+<!-- Summarize what the merged codebase will look like and any post-merge steps needed. -->
+
+1. <!-- Post-merge step 1 -->
+2. <!-- Post-merge step 2 -->
