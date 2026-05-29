@@ -19,7 +19,7 @@ from pathlib import Path
 
 REQUIRED_EVENTS = [
     "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
-    "SubagentStart", "SubagentStop", "Stop", "PreCompact",
+    "SubagentStart", "SubagentStop", "Stop", "PreCompact", "Notification",
 ]
 
 

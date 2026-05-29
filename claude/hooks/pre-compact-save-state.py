@@ -273,7 +273,7 @@ def main() -> int:
     try:
         input_data = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
-        input_data = {}
+        return 0
 
     cwd_str = input_data.get("cwd") or os.getcwd()
     root = _find_trellis_root(Path(cwd_str))

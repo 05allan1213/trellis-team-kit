@@ -28,6 +28,12 @@ Claude Code hook 事件的统一输出约定。
 
 ## 事件输出语义
 
+### SessionStart
+
+用于注入初始会话上下文：
+
+- `additionalContext` — 注入仓库/分支/任务概览
+
 ### PreToolUse
 
 用于工具权限控制：
@@ -74,6 +80,13 @@ Claude Code hook 事件的统一输出约定。
 用于压缩前保存状态：
 
 - `additionalContext` — 确认状态已保存
+
+### Notification
+
+用于桌面通知：
+
+- 无输出要求 — 脚本自行发送系统通知
+- `trellis-notify.sh` 支持 macOS 和 Linux
 
 ## 硬阻断 vs 软警告
 

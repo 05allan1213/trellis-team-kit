@@ -28,7 +28,6 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 
 检查命名一致性：
 
-- `docs/naming-map.md` 存在
 - 所有 agent frontmatter `name` 在 canonical agent 列表中
 - Hook 脚本引用的 agent 名称都是 canonical names
 

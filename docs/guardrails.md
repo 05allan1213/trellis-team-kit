@@ -90,4 +90,4 @@ export TRELLIS_DISABLE_HOOKS=1
 A: 检查当前 workflow state 是否正确。如果 task status 是 `planning` 但你确实需要编辑源码，先让用户明确说 "approve implementation" / "start implementation" 将状态推进到 `in_progress`。
 
 **Q: 如何查看 guardrail 日志**
-A: 每个 hook 输出 JSON 到 stdout。Claude Code 在 hook 触发时显示这些输出。可以通过设置 `TRELLIS_GUARDRAIL_LOG` 环境变量启用文件日志。
+A: 每个 hook 输出 JSON 到 stdout。Claude Code 在 hook 触发时显示这些输出。

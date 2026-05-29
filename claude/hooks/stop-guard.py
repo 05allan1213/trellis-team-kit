@@ -273,6 +273,7 @@ def _emit_block(reason: str) -> None:
 
 def _emit_warning(text: str) -> None:
     print(json.dumps({
+        "decision": "allow",
         "hookSpecificOutput": {
             "hookEventName": "Stop",
             "additionalContext": text,
@@ -288,7 +289,7 @@ def main() -> int:
     try:
         input_data = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
-        input_data = {}
+        return 0
 
     cwd_str = input_data.get("cwd") or os.getcwd()
     root = _find_trellis_root(Path(cwd_str))
@@ -329,9 +330,6 @@ def main() -> int:
 
     # --- In-progress gate checks ---
     if status.lower() == "in_progress":
-        # Check gate (trellis-check always required)
-        check_passed = _check_review_gate(task_dir, "trellis-check")  # check is special
-        # Actually check is not a review gate per se, check validation/check-results.md
         check_file = task_dir / "validation" / "check-results.md"
         check_done = False
         if check_file.is_file():
@@ -377,12 +375,6 @@ def main() -> int:
             hard_blocks.append("Build FAILED. Fix build issues before finishing.")
         elif validation["test"] == "fail":
             hard_blocks.append("Tests FAILED. Fix test failures before finishing.")
-
-        # Skipped without reason
-        for check_name in ("build", "test", "smoke"):
-            if validation[check_name] == "missing":
-                continue  # Already covered above
-            # If skipped, reason is acceptable per template format
 
         if validation["ready"] == "no":
             hard_blocks.append(

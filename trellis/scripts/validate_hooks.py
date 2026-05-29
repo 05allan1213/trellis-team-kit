@@ -29,6 +29,10 @@ REQUIRED_HOOKS = [
     "pre-compact-save-state.py",
 ]
 
+REQUIRED_SHELL_HOOKS = [
+    "trellis-notify.sh",
+]
+
 CANONICAL_AGENTS = [
     "trellis-researcher", "trellis-implementer", "trellis-checker",
     "trellis-spec-reviewer", "trellis-code-reviewer",
@@ -66,6 +70,11 @@ def validate_hooks(hooks_dir: Path) -> tuple[bool, list[str]]:
 
     # Check existence
     for hook_name in REQUIRED_HOOKS:
+        hook_path = hooks_dir / hook_name
+        if not hook_path.is_file():
+            errors.append(f"Missing hook: {hook_name}")
+
+    for hook_name in REQUIRED_SHELL_HOOKS:
         hook_path = hooks_dir / hook_name
         if not hook_path.is_file():
             errors.append(f"Missing hook: {hook_name}")

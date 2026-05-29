@@ -23,15 +23,25 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-import warnings
-warnings.filterwarnings("ignore")
-
 if sys.platform.startswith("win"):
     import io as _io
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    elif hasattr(sys.stdout, "detach"):
-        sys.stdout = _io.TextIOWrapper(sys.stdout.detach(), encoding="utf-8", errors="replace")
+    for _stream_name in ("stdin", "stdout", "stderr"):
+        _stream = getattr(sys, _stream_name, None)
+        if _stream is None:
+            continue
+        if hasattr(_stream, "reconfigure"):
+            try:
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+        elif hasattr(_stream, "detach"):
+            try:
+                setattr(
+                    sys, _stream_name,
+                    _io.TextIOWrapper(_stream.detach(), encoding="utf-8", errors="replace"),
+                )
+            except Exception:
+                pass
 
 TRELLIS_DIR = ".trellis"
 
@@ -49,11 +59,11 @@ AGENT_SPEC_UPDATER = "trellis-spec-updater"
 AGENTS_REQUIRE_TASK = (AGENT_IMPLEMENT, AGENT_CHECK)
 AGENTS_REVIEW = (
     AGENT_SPEC_REVIEWER, AGENT_CODE_REVIEWER, AGENT_ARCHITECTURE_REVIEWER,
-    AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
+    AGENT_ARCHITECTURE_DEEP_REVIEWER,
 )
 AGENTS_ALL = (
     AGENT_RESEARCH, AGENT_IMPLEMENT, AGENT_CHECK,
-) + AGENTS_REVIEW + (AGENT_SPEC_UPDATER,)
+) + AGENTS_REVIEW + (AGENT_SPEC_UPDATER, AGENT_MERGE_REVIEWER)
 
 MAX_CONTEXT_CHARS = 32000  # Limit total injected context
 
@@ -337,7 +347,7 @@ def main() -> int:
 
     try:
         input_data = json.load(sys.stdin)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValueError):
         return 0
 
     # SubagentStart event: extract agent_type first (official field), backward compatible
@@ -359,33 +369,27 @@ def main() -> int:
 
     task_dir = _get_current_task(repo_root)
 
-    if subagent_type in AGENTS_REQUIRE_TASK or subagent_type in AGENTS_REVIEW or subagent_type == AGENT_SPEC_UPDATER or subagent_type == AGENT_MERGE_REVIEWER:
+    if subagent_type in AGENTS_REQUIRE_TASK or subagent_type in AGENTS_REVIEW or subagent_type in (AGENT_SPEC_UPDATER, AGENT_MERGE_REVIEWER):
         if not task_dir:
             return 0
         task_dir_full = os.path.join(repo_root, task_dir) if not os.path.isabs(task_dir) else task_dir
         if not os.path.exists(task_dir_full):
             return 0
 
-    # Build context by agent type
     additional_context = ""
 
     if subagent_type == AGENT_RESEARCH:
         additional_context = _get_research_context(repo_root, task_dir or "")
     elif subagent_type == AGENT_IMPLEMENT:
-        assert task_dir is not None
         additional_context = _get_implement_context(repo_root, task_dir)
     elif subagent_type == AGENT_CHECK:
-        assert task_dir is not None
         additional_context = _get_check_context(repo_root, task_dir)
+    elif subagent_type == AGENT_MERGE_REVIEWER:
+        additional_context = _get_merge_reviewer_context(repo_root, task_dir)
     elif subagent_type in AGENTS_REVIEW:
-        assert task_dir is not None
         additional_context = _get_review_context(repo_root, task_dir)
     elif subagent_type == AGENT_SPEC_UPDATER:
-        assert task_dir is not None
         additional_context = _get_spec_updater_context(repo_root, task_dir)
-    elif subagent_type == AGENT_MERGE_REVIEWER:
-        assert task_dir is not None
-        additional_context = _get_merge_reviewer_context(repo_root, task_dir)
     else:
         return 0
 

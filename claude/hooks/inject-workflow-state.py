@@ -239,10 +239,8 @@ def _enforce_consent_warnings(breadcrumb_key: str, body: str) -> str:
             "Do NOT spawn implementer. Do NOT run task.py start. "
             "WAIT for user to explicitly approve implementation."
         )
-        if "Do NOT edit source code" not in body:
+        if approval_line not in body:
             body = approval_line + "\n" + body
-        if "Do NOT spawn implementer" not in body:
-            body = body + "\n" + approval_line
     return body
 
 
@@ -253,7 +251,7 @@ def main() -> int:
     try:
         data = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
-        data = {}
+        return 0
 
     cwd_str = data.get("cwd") or os.getcwd()
     cwd = Path(cwd_str)

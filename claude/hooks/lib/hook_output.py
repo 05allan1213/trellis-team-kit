@@ -63,24 +63,17 @@ def pretool_warn(reason: str, event_name: str = "PreToolUse") -> None:
 def block(reason: str, event_name: str = "Stop") -> None:
     """Hard block: the session/subagent cannot proceed."""
     _emit({
+        "decision": "block",
+        "reason": reason,
         "hookSpecificOutput": {
             "hookEventName": event_name,
-            "decision": "block",
-            "reason": reason,
         }
     })
     sys.exit(0)
 
 
 def allow(reason: str | None = None, event_name: str = "Stop") -> None:
-    """Allow the action to proceed."""
-    output: dict = {
-        "hookEventName": event_name,
-        "decision": "allow",
-    }
-    if reason:
-        output["reason"] = reason
-    _emit({"hookSpecificOutput": output})
+    """Allow the action to proceed. Exit 0 with no output (default allow)."""
     sys.exit(0)
 
 

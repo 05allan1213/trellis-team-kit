@@ -87,6 +87,8 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 - `validate_claude_settings.py` — settings.json schema 检查
 - `validate_naming_map.py` — 命名一致性检查
 - `validate_hooks.py` — hook 脚本存在性和结构检查
+
+另外可单独运行：
 - `validate_task.py <task-dir>` — 任务产物检查
 - `validate_review_gates.py <task-dir>` — review gate 完成度检查
 

@@ -36,7 +36,7 @@ cd your-project
 - `.claude/settings.json` — hook 配置和权限
 - `.claude/skills/` — 14 个可复用 skills
 - `.claude/agents/` — 9 个专用 subagents
-- `.claude/hooks/` — 8 个工作流守护 hooks
+- `.claude/hooks/` — 9 个工作流守护 hooks（含通知 hook）
 - `.claude/commands/trellis/` — slash 命令
 
 ### Spec 规范
@@ -46,9 +46,12 @@ cd your-project
 - `.trellis/templates/` — 各任务级别的产物模板
 
 ### 验证器
-- `validators/validate_task.py` — task 产物完整性检查
-- `validators/validate_workflow_state.py` — 工作流状态一致性检查
-- `validators/validate_spec_index.py` — spec 索引完整性检查
+- `.trellis/scripts/validate_runtime_hardening.py` — 总入口，运行所有静态检查
+- `.trellis/scripts/validate_claude_settings.py` — settings.json hook schema 检查
+- `.trellis/scripts/validate_naming_map.py` — 命名一致性检查
+- `.trellis/scripts/validate_hooks.py` — hook 脚本存在性和结构检查
+- `.trellis/scripts/validate_task.py` — task 产物完整性检查
+- `.trellis/scripts/validate_review_gates.py` — review gate 完成度检查
 
 ## 本地个人配置（可选）
 
@@ -69,7 +72,7 @@ cd your-project
 trellis status
 
 # 验证 spec 索引完整性
-python3 validators/validate_spec_index.py .trellis/spec/
+python3 .trellis/scripts/validate_runtime_hardening.py
 
 # 开始第一个任务：向 Claude Code 描述你想做什么
 ```
@@ -89,7 +92,7 @@ git commit -m "Initial commit"
 ```
 
 ### Hooks 不生效
-确保 Python 3.9+ 可用，且 `.claude/settings.json` 中的 hook 路径正确。Hooks 需要有执行权限：
+确保 Python 3.9+ 可用，且 `.claude/settings.json` 中的 hook 路径正确。Hook 脚本通过 `python3` 调用，不需要执行权限。如果 shell hook 不生效，检查执行权限：
 ```bash
-chmod +x .claude/hooks/*.py
+chmod +x .claude/hooks/trellis-notify.sh
 ```

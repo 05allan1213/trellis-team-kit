@@ -276,7 +276,6 @@ def main() -> int:
             f"Subagent '{subagent_type}' stopped but no output text was found. "
             f"Cannot validate output format. Subagent must produce output before stopping."
         )
-        return 0
 
     # Validate based on agent type
     missing: list[str] = []
@@ -306,8 +305,6 @@ def main() -> int:
         f"Re-run the agent with explicit output format instructions."
     )
     _emit_block(reason)
-
-    return 0
 
 
 if __name__ == "__main__":
