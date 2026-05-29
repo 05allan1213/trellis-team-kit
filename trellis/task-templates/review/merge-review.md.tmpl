@@ -1,15 +1,16 @@
 # Merge Review: {{task_name}}
 
-## Verdict
+Status:
+- [ ] PASS
+- [ ] FAIL
 
-<!-- PASS or FAIL. FAIL means merge issues must be resolved before integrating. -->
+Scope reviewed:
 
-- [ ] **PASS** — Safe to merge. No conflicts, no duplicates, interfaces consistent.
-- [ ] **FAIL** — Merge issues found. List them below.
+Commands run:
+
+Specs / files inspected:
 
 ## Conflict Resolution Check
-
-<!-- Are there merge conflicts? If yes, how should they be resolved? -->
 
 | Conflicting File | Ours | Theirs | Resolution Strategy |
 |-----------------|------|--------|-------------------|
@@ -17,16 +18,25 @@
 
 ## Duplicate Implementation Check
 
-<!-- Did both branches implement the same functionality? -->
-<!-- Duplicates must be reconciled before merge. -->
-
 | Functionality | Our Implementation | Their Implementation | Action |
 |--------------|-------------------|---------------------|--------|
 | <!-- feature 1 --> | <!-- file:line --> | <!-- file:line --> | <!-- keep ours / keep theirs / merge --> |
 
-## Missing Files Check
+## Blocking Issues
 
-<!-- Are there files that one branch expects but the other did not create? -->
+| # | File:Line | Issue | Severity | Suggested Fix |
+|---|-----------|-------|----------|---------------|
+| 1 | <!-- file:line --> | <!-- description --> | <!-- critical / high --> | <!-- how to fix --> |
+
+## Non-Blocking Issues
+
+| # | File:Line | Issue | Suggested Fix |
+|---|-----------|-------|---------------|
+| 1 | <!-- file:line --> | <!-- description --> | <!-- how to fix --> |
+
+## Required Fixes
+
+## Missing Files Check
 
 | Missing File | Expected By | Action |
 |-------------|-------------|--------|
@@ -34,16 +44,22 @@
 
 ## Interface Consistency Check
 
-<!-- Do shared interfaces match between branches? -->
-
 | Interface | Our Shape | Their Shape | Compatible? |
 |-----------|-----------|-------------|-------------|
 | <!-- type/API --> | <!-- signature --> | <!-- signature --> | <!-- yes / no --> |
 
 ## Integration Summary
 
-<!-- After merge, what is the combined state? -->
-<!-- Summarize what the merged codebase will look like and any post-merge steps needed. -->
-
 1. <!-- Post-merge step 1 -->
 2. <!-- Post-merge step 2 -->
+
+## Risk Level
+
+- [ ] low
+- [ ] medium
+- [ ] high
+
+## Rerun Required?
+
+- [ ] yes
+- [ ] no

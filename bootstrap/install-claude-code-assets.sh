@@ -2,13 +2,13 @@
 set -euo pipefail
 
 # install-claude-code-assets.sh
-# Installs team-kit v0.2 Claude Code assets into the target project.
+# Installs team-kit Claude Code assets into the target project.
 # Called by init.sh after trellis init completes.
 
 TARGET_DIR="${1:-.}"
 RAW_BASE="https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main"
 
-echo "Installing team-kit v0.2 Claude Code assets..."
+echo "Installing team-kit Claude Code assets..."
 
 # settings.json
 echo "  .claude/settings.json"
@@ -40,6 +40,10 @@ mkdir -p "$TARGET_DIR/.claude/hooks"
 for hook in session-start inject-workflow-state inject-subagent-context subagent-stop-guard stop-guard protect-dangerous-actions post-edit-reminder pre-compact-save-state; do
   curl -fsSL "$RAW_BASE/claude/hooks/$hook.py" -o "$TARGET_DIR/.claude/hooks/$hook.py"
 done
+
+# notification hook
+curl -fsSL "$RAW_BASE/claude/hooks/trellis-notify.sh" -o "$TARGET_DIR/.claude/hooks/trellis-notify.sh"
+chmod +x "$TARGET_DIR/.claude/hooks/trellis-notify.sh"
 
 # commands
 echo "  .claude/commands/"

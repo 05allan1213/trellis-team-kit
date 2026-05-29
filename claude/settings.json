@@ -31,6 +31,14 @@
             "command": "python3 .claude/hooks/protect-dangerous-actions.py"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "command": "python3 .claude/hooks/protect-dangerous-actions.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -49,12 +57,32 @@
       {
         "matcher": "",
         "command": "python3 .claude/hooks/stop-guard.py"
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh done '✅ Claude Code' '本轮已完成，等你继续'"
+          }
+        ]
       }
     ],
     "PreCompact": [
       {
         "matcher": "",
         "command": "python3 .claude/hooks/pre-compact-save-state.py"
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh attention '🤖 Claude Code' '需要你的处理'"
+          }
+        ]
       }
     ]
   },
@@ -78,6 +106,7 @@
     "allow": [
       "Bash(python3 ./.trellis/scripts/*)",
       "Bash(python3 .claude/hooks/*)",
+      "Bash(.claude/hooks/trellis-notify.sh *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",

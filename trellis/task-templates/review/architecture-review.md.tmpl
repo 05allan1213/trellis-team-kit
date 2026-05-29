@@ -1,62 +1,66 @@
 # Architecture Review: {{task_name}}
 
-## Verdict
+Status:
+- [ ] PASS
+- [ ] FAIL
 
-<!-- PASS or FAIL. FAIL means the architecture has issues that must be resolved. -->
+Scope reviewed:
 
-- [ ] **PASS** — Architecture is sound, boundaries are clear, and dependencies are correct.
-- [ ] **FAIL** — Architecture issues found. List them below.
+Commands run:
+
+Specs / files inspected:
 
 ## Dependency Direction Check
-
-<!-- Verify that dependencies point in the correct direction. -->
-<!-- UI -> Domain -> Shared. Never the reverse. -->
 
 | Dependency | From | To | Correct? |
 |------------|------|----|----------|
 | <!-- dep 1 --> | <!-- module --> | <!-- module --> | <!-- yes / no --> |
-| <!-- dep 2 --> | <!-- module --> | <!-- module --> | <!-- yes / no --> |
 
 ## Module Boundary Check
 
-<!-- Verify that each module has a clear responsibility and public API. -->
-
 | Module | Responsibility | Public API Clear? | Single Responsibility? |
 |--------|---------------|-------------------|----------------------|
-| <!-- module 1 --> | <!-- one-sentence description --> | <!-- yes / no --> | <!-- yes / no --> |
-| <!-- module 2 --> | <!-- one-sentence description --> | <!-- yes / no --> | <!-- yes / no --> |
+| <!-- module 1 --> | <!-- description --> | <!-- yes / no --> | <!-- yes / no --> |
+
+## Blocking Issues
+
+| # | File:Line | Issue | Severity | Suggested Fix |
+|---|-----------|-------|----------|---------------|
+| 1 | <!-- file:line --> | <!-- description --> | <!-- critical / high --> | <!-- how to fix --> |
+
+## Non-Blocking Issues
+
+| # | File:Line | Issue | Suggested Fix |
+|---|-----------|-------|---------------|
+| 1 | <!-- file:line --> | <!-- description --> | <!-- how to fix --> |
+
+## Required Fixes
 
 ## Abstraction Quality
-
-<!-- Are abstractions at the right level? -->
-<!-- Too high: vague, not actionable. Too low: over-specified, inflexible. -->
 
 | Abstraction | Level | Assessment |
 |-------------|-------|------------|
 | <!-- abstraction 1 --> | <!-- too high / right / too low --> | <!-- why --> |
-| <!-- abstraction 2 --> | <!-- too high / right / too low --> | <!-- why --> |
 
 ## Duplicated Concepts
 
-<!-- Are there concepts that appear in multiple modules with different names or implementations? -->
-
 | Concept | Locations | Reconciliation Needed? |
 |---------|-----------|----------------------|
-| <!-- concept 1 --> | <!-- module A, module B --> | <!-- yes: [how] / no --> |
+| <!-- concept 1 --> | <!-- module A, module B --> | <!-- yes / no --> |
 
 ## Layering Violations
-
-<!-- Are there any calls that skip layers or violate the dependency direction? -->
 
 | Violation | From | To | Fix |
 |-----------|------|----|-----|
 | <!-- violation 1 --> | <!-- layer --> | <!-- layer --> | <!-- how to fix --> |
 
-## API Contract Clarity
+## Risk Level
 
-<!-- Are API contracts between modules well-defined and stable? -->
+- [ ] low
+- [ ] medium
+- [ ] high
 
-| Contract | Between | Defined? | Stable? |
-|----------|---------|----------|---------|
-| <!-- contract 1 --> | <!-- module A <-> module B --> | <!-- yes / no --> | <!-- yes / no --> |
-| <!-- contract 2 --> | <!-- module A <-> module B --> | <!-- yes / no --> | <!-- yes / no --> |
+## Rerun Required?
+
+- [ ] yes
+- [ ] no

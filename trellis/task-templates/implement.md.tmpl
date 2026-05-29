@@ -1,9 +1,33 @@
 # Implement: {{task_name}}
 
+## Task Level
+
+Selected level:
+- [ ] L0 Pure Discussion
+- [ ] L1 Tiny Edit
+- [ ] L2 Lightweight Task
+- [ ] L3 Complex Task
+- [ ] L4 Architecture / Cross-layer Task
+- [ ] L5 Multi-agent / Worktree / Parent-child Task
+
+Rationale:
+
+Required artifacts checklist:
+- [ ] prd.md
+- [ ] design.md
+- [ ] implement.md
+- [ ] implement.jsonl
+- [ ] check.jsonl
+- [ ] research/
+- [ ] review/
+- [ ] validation/
+
 ## Development Strategy
 
-- **Mode**: <!-- executor / pair-programming / TDD -->
+- **Mode**: <!-- main-session / subagent / subagent + worktree / OMC parallel -->
 - **Branch**: <!-- feature/task-name | fix/task-name -->
+- **Worktree needed?**: <!-- yes / no -->
+- **Parent/child task?**: <!-- yes / no -->
 - **TDD**:
   - [ ] Write failing test first
   - [ ] Implement minimum code to pass
@@ -83,24 +107,39 @@
 
 ## Review Gate Contract
 
-<!-- Select which review gates apply to this task. -->
-<!-- Checked gates will be enforced before the task can finish. -->
+Contract version: team-kit
 
-### Default Gates by Level
+### Required gates (always run)
+
+- [x] trellis-check
+
+### Selected gates for this task
+
+- [ ] trellis-spec-review
+- [ ] trellis-code-review
+- [ ] trellis-code-architecture-review
+- [ ] trellis-improve-codebase-architecture deep-review
+- [ ] trellis-merge-review
+
+### Gate Defaults by Level
 
 | Gate | L1 | L2 | L3 | L4 | L5 |
 |------|----|----|----|----|-----|
-| Spec Review | - | - | optional | required | required |
-| Code Review | - | optional | required | required | required |
-| Architecture Review | - | - | optional | required | required |
-| Merge Review | - | - | if merge needed | if merge needed | required |
+| trellis-check | - | required | required | required | required |
+| trellis-spec-review | - | - | - | required | required |
+| trellis-code-review | - | - | required | required | required |
+| trellis-code-architecture-review | - | - | - | required | required |
+| trellis-improve-codebase-architecture deep-review | - | - | - | - | required |
+| trellis-merge-review | - | - | - | if merge | required |
 
-### Selected Gates for This Task
+Selection rationale: <!-- why these gates were selected -->
 
-- [ ] Spec Review
-- [ ] Code Review
-- [ ] Architecture Review
-- [ ] Merge Review
+### Failure Rule
+
+- Failed gate returns to IMPLEMENTING.
+- Do not skip a failed gate.
+- Do not mark done until all selected gates pass.
+- After fix: IMPLEMENTING → CHECKING → REVIEWING (re-run all selected gates).
 
 ## Commit Plan
 
@@ -115,6 +154,17 @@
 <!-- DO NOT PROCEED until you have explicit approval. -->
 <!-- Approval must come from the user, not the AI. -->
 
-- [ ] User has approved implementation of this plan
-- Approval received from: <!-- name -->
-- Approval timestamp: <!-- ISO 8601 -->
+Approval status:
+- [ ] not requested
+- [ ] requested
+- [ ] approved
+- [ ] rejected / needs revision
+
+Approval source:
+- user message:
+- timestamp:
+- summary approved:
+
+Allowed to run task.py start?
+- [ ] yes
+- [ ] no

@@ -138,4 +138,10 @@ All L3+ tasks must configure. Defaults:
 - Skills: `.claude/skills/`
 - Agents: `.claude/agents/`
 - Hooks: `.claude/hooks/`
+- Naming map: `docs/naming-map.md`
+- Smoke test: `docs/smoke-test.md`
+- First task guide: `docs/first-task.md`
+- Team rollout: `docs/team-rollout.md`
+- Platform appendix: `workflow/appendix-platforms.md`
+- Examples: `docs/examples/` and `examples/`
 <!-- TEAM-KIT:END -->

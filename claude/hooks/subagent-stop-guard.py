@@ -45,10 +45,20 @@ if sys.platform.startswith("win"):
 
 TRELLIS_DIR = ".trellis"
 
-AGENT_IMPLEMENT = "trellis-implement"
-AGENT_CHECK = "trellis-check"
-AGENT_RESEARCH = "trellis-research"
-AGENTS_ALL = (AGENT_IMPLEMENT, AGENT_CHECK, AGENT_RESEARCH)
+AGENT_IMPLEMENT = "trellis-implementer"
+AGENT_CHECK = "trellis-checker"
+AGENT_RESEARCH = "trellis-researcher"
+AGENT_SPEC_REVIEWER = "trellis-spec-reviewer"
+AGENT_CODE_REVIEWER = "trellis-code-reviewer"
+AGENT_ARCHITECTURE_REVIEWER = "trellis-architecture-reviewer"
+AGENT_ARCHITECTURE_DEEP_REVIEWER = "trellis-architecture-deep-reviewer"
+AGENT_MERGE_REVIEWER = "trellis-merge-reviewer"
+AGENTS_IMPLEMENT_CHECK = (AGENT_IMPLEMENT, AGENT_CHECK, AGENT_RESEARCH)
+AGENTS_REVIEW = (
+    AGENT_SPEC_REVIEWER, AGENT_CODE_REVIEWER, AGENT_ARCHITECTURE_REVIEWER,
+    AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
+)
+AGENTS_ALL = AGENTS_IMPLEMENT_CHECK + AGENTS_REVIEW
 
 
 def _find_trellis_root(start: Path) -> Optional[Path]:
@@ -187,6 +197,8 @@ def main() -> int:
         missing = _validate_implement_output(output_text)
     elif subagent_type == AGENT_CHECK:
         missing = _validate_check_output(output_text)
+    elif subagent_type in AGENTS_REVIEW:
+        missing = _validate_review_output(output_text)
     elif subagent_type == AGENT_RESEARCH:
         # Research agents have lighter format requirements; skip strict validation
         return 0

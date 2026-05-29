@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# init-local.sh — Local initialization for trellis-team-kit v0.2
+# init-local.sh — Local initialization for trellis-team-kit
 # Creates local settings, workspace directory, and personal preferences.
 # Run AFTER init.sh.
 set -euo pipefail

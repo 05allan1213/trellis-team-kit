@@ -142,7 +142,7 @@ NO_TASK
 - **Forbidden**: Edit source, `task.py start`, skip evidence and ask user directly
 - **Exit condition**: prd.md has verifiable Acceptance Criteria
 - **Next state**: PLANNING_GRILL
-- **Triggerable skills**: `trellis-brainstorm`, `trellis-research`
+- **Triggerable skills**: `trellis-brainstorm`, `trellis-researcher` (subagent)
 
 ### PLANNING_GRILL
 - **Description**: PRD challenge phase
@@ -420,7 +420,7 @@ User must explicitly say "start implementation" / "approve implementation" / "be
 - 2.4 Rollback `[on demand]`
 
 [workflow-state:in_progress]
-**Tools**: `trellis-implement` / `trellis-research` are sub-agent types only (Task/Agent tool, NOT Skill). `trellis-update-spec` is a skill. `trellis-check` exists as both; prefer the Agent form after code changes. Superpowers is a reasoning extension. oh-my-claudecode is a multi-agent parallel execution extension.
+**Tools**: `trellis-implementer` / `trellis-researcher` are sub-agent types only (Task/Agent tool, NOT Skill). `trellis-update-spec` is a skill. `trellis-check` exists as both a skill and agent (`trellis-checker`); prefer the Agent form after code changes. Superpowers is a reasoning extension. oh-my-claudecode is a multi-agent parallel execution extension.
 **Flow**: `trellis-before-dev` → decide execution mode → `trellis-implement` or OMC parallel agents → `trellis-check` → Superpowers if blocked/repeatedly failing → review gates (per contract) → `trellis-update-spec` → commit (Phase 3.2) → merge-review (if L4/L5/multi-agent) → validate → `/trellis:finish-work`.
 **Execution mode gate**: use standard Trellis sub-agents for small or tightly coupled work. Use oh-my-claudecode only when PRD is confirmed, AC are clear, the work can be split safely, and parallelism improves speed or coverage. OMC parallel mode requires explicit user confirmation before spawning.
 **Main-session default**: dispatch `trellis-implement` / `trellis-check` sub-agents — the main agent does NOT edit code by default. If oh-my-claudecode is used, the main agent still owns task context, coordination, integration, conflict resolution, and final report.
@@ -481,15 +481,13 @@ Do NOT write new code. Do NOT fix bugs. Do NOT bypass failed gates.
 
 When a user request matches one of these intents, load the corresponding skill (or dispatch the corresponding sub-agent) first — do not skip skills.
 
-[Claude Code, Cursor, OpenCode]
-
 | User intent | Route |
 |---|---|
 | New feature / unclear requirements | `trellis-brainstorm` |
 | PRD needs challenge | `trellis-grill-me` |
 | Need execution strategy | `trellis-dev-strategy` |
-| About to write code / start implementing | `trellis-before-dev` then dispatch `trellis-implement` sub-agent |
-| Finished writing / want to verify | Dispatch `trellis-check` sub-agent |
+| About to write code / start implementing | `trellis-before-dev` then dispatch `trellis-implementer` sub-agent |
+| Finished writing / want to verify | Dispatch `trellis-checker` sub-agent |
 | Need spec compliance review | `trellis-spec-review` |
 | Need code quality review | `trellis-code-review` |
 | Need architecture review | `trellis-code-architecture-review` |
@@ -498,8 +496,6 @@ When a user request matches one of these intents, load the corresponding skill (
 | Spec needs update | `trellis-update-spec` |
 | Multi-agent/OMC/worktree merge | `trellis-merge-review` |
 | Task complete, ready to wrap up | `trellis-finish-work` |
-
-[/Claude Code, Cursor, OpenCode]
 
 ### DO NOT skip skills
 
@@ -596,11 +592,9 @@ Write to `implement.md` including the Review Gate Contract.
 
 #### 1.5 Research `[optional · repeatable]`
 
-Research at any time during planning. Use `trellis-research` subagent. Output MUST be persisted to `{TASK_DIR}/research/`.
+Research at any time during planning. Use `trellis-researcher` subagent. Output MUST be persisted to `{TASK_DIR}/research/`.
 
 #### 1.6 Configure context `[required · once]`
-
-[Claude Code, Cursor, OpenCode]
 
 Curate `implement.jsonl` and `check.jsonl` with relevant spec/research files. What to include: spec files, research files. What NOT to include: code files, files about to be modified.
 
@@ -608,8 +602,6 @@ Curate `implement.jsonl` and `check.jsonl` with relevant spec/research files. Wh
 python3 ./.trellis/scripts/task.py add-context "$TASK_DIR" implement "<path>" "<reason>"
 python3 ./.trellis/scripts/task.py add-context "$TASK_DIR" check "<path>" "<reason>"
 ```
-
-[/Claude Code, Cursor, OpenCode]
 
 #### 1.7 Implementation approval `[required · once]`
 
@@ -666,27 +658,19 @@ Load `trellis-before-dev` skill. Before writing any code:
 
 OMC parallel mode requires explicit user confirmation before spawning.
 
-[Claude Code, Cursor, OpenCode]
-
 Spawn the implement sub-agent:
-- **Agent type**: `trellis-implement`
+- **Agent type**: `trellis-implementer`
 - **Task description**: Implement per prd.md, consulting `research/`; finish by running lint and type-check
-- **Dispatch prompt guard**: `Active task: <task path>`. Tell the agent it is already `trellis-implement`.
-
-[/Claude Code, Cursor, OpenCode]
+- **Dispatch prompt guard**: `Active task: <task path>`. Tell the agent it is already `trellis-implementer`.
 
 #### 2.2 Quality check `[required · repeatable]`
 
-[Claude Code, Cursor, OpenCode]
-
 Spawn the check sub-agent:
-- **Agent type**: `trellis-check`
+- **Agent type**: `trellis-checker`
 - **Task description**: Review all code changes against spec and prd; fix findings directly; ensure lint/type-check pass
-- **Dispatch prompt guard**: `Active task: <task path>`. Tell the agent it is already `trellis-check`.
+- **Dispatch prompt guard**: `Active task: <task path>`. Tell the agent it is already `trellis-checker`.
 
 The check agent outputs: PASS/FAIL, commands run, failures, fixes applied.
-
-[/Claude Code, Cursor, OpenCode]
 
 #### 2.3 Review gates `[required · repeatable]`
 

@@ -1,34 +1,138 @@
-# trellis-team-kit
+# Trellis Team Kit
 
-Claude Code 优先的 Trellis 团队 AI 编程工作流套件。在官方 Trellis 底座上融合了 Herbivore 风格的工作流纪律、Superpowers 深度推理和 OMC 并行执行。
+Claude Code 优先的 Trellis 团队 AI 编程工作流套件。
 
-## 特性
+## 这是什么
 
-- **完整状态机** — 从 NO_TASK 到 DONE 共 20 个显式状态
-- **L0-L5 任务分级** — 从纯问答到多 agent 架构，复杂度逐步递增
-- **双同意门禁** — 创建 task ≠ 批准实现，两阶段独立确认
-- **14 个阶段 skills** — brainstorm、grill-me、dev-strategy、before-dev、implement、check 以及 8 个 review skills
-- **9 个专用 subagents** — researcher、implementer、checker、5 个 reviewer、spec-updater
-- **8 个守护 hooks** — session 上下文注入、workflow 状态提醒、subagent 上下文注入、stop 守卫、危险操作保护等
-- **Review Gate Contract** — 可配置的逐任务审查门禁，PASS/FAIL 强制执行
-- **团队 AI 工作流规范** — marketplace 驱动的 spec 系统，约束 AI 行为而非个人编码风格
-- **完整吸收 Herbivore 工作流** — planning-first、artifact-first、gate-first、spec-updating、finish-separated
+trellis-team-kit 是一个**工作流套件**，架设在官方
+[Trellis](https://github.com/mindfoldhq/trellis) 任务管理系统之上，强化 AI 编程体验：
 
-## 设计哲学
+- 明确的 **21 状态工作流状态机**，Claude Code 严格遵循
+- **L0-L5 任务分级路由**，按复杂度匹配流程严格度
+- **双同意门禁**，把"创建任务"和"开始实现"彻底分开
+- **14 个阶段 skills**，覆盖 brainstorm、grill-me、design、implement、check、review 等
+- **9 个专用 subagents**，隔离执行研究、实现、检查和审查
+- **9 个守护 hooks**，注入工作流状态、阻断危险操作、强制执行门禁
+- **Review Gate Contract**，串行 PASS/FAIL 强制执行，失败回流
+- **Spec 驱动的团队知识库**，存放在 `.trellis/spec/` 作为持久化项目记忆
+
+这不是一个 prompt 包。这是一个 **Claude Code-first 的 Trellis 工作流套件**，
+hooks 注入状态，门禁可执行，产物一等公民，运行时可验证。
+
+## 为什么需要
+
+AI 编程助手强大但缺乏纪律。没有护栏时它们会：
+
+- 没理解需求就跳进实现
+- 跳过质量检查和审查
+- 跨会话忘记项目约定
+- 分不清 typo 修复和架构变更
+
+trellis-team-kit 用**规划优先、产物优先、门禁优先**的工作流解决这个问题，
+由 hooks 强制执行，不靠运气。
+
+## 架构
 
 ```text
-Trellis 掌管任务真相。
-Claude Code 掌管运行时。
-Superpowers 掌管深度推理。
-OMC 掌管执行编排。
-Specs 掌管可复用团队知识。
-Hooks 掌管状态注入和护栏。
-Skills 掌管可重复的阶段流程。
-Subagents 掌管隔离执行和审查。
-主会话掌管决策、用户沟通和最终合并。
+Trellis 掌管任务真相。       → task 状态、PRD、验收标准
+Claude Code 掌管运行时。     → 会话、hooks、subagents、skills
+Superpowers 掌管深度推理。   → 需求不清、架构权衡
+OMC 掌管并行执行。          → 多 agent 编排（可选）
+Specs 掌管团队知识。        → 可复用标准、指南、约定
+Hooks 掌管状态注入。        → 工作流面包屑、护栏、上下文
+Skills 掌管可重复阶段。     → brainstorm、grill、design、implement、check
+Subagents 掌管隔离工作。    → 研究、实现、检查、审查
+主会话掌管集成。           → 决策、用户沟通、最终合并
 ```
 
-## 快速开始
+## 完整工作流（21 步）
+
+```text
+用户需求
+  → NO_TASK
+    → TRIAGE（分类 L0-L5）
+      → TASK_CREATED（task.py create）
+        → PLANNING_PRD（brainstorm → prd.md）
+          → PLANNING_GRILL（grill-me → 挑刺 PRD）
+            → PLANNING_DESIGN（L3+ 出 design.md）
+              → PLANNING_IMPLEMENT（implement.md + review gate contract）
+                → WAITING_IMPLEMENTATION_APPROVAL
+                  → IN_PROGRESS（task.py start）
+                    → BEFORE_DEV（读取 artifacts/specs）
+                      → IMPLEMENTING
+                        → CHECKING
+                          → REVIEWING（spec → code → architecture → deep）
+                            → UPDATING_SPEC
+                              → COMMITTING
+                                → MERGE_REVIEWING（L4/L5）
+                                  → VALIDATING（build/test）
+                                    → FINISHING（归档 + 日志）
+                                      → DONE
+```
+
+每个状态都有：进入条件、必需产物、允许操作、禁止操作、退出条件、下一状态。
+
+## 任务分级（L0-L5）
+
+| 级别 | 类型 | 创建 Task | 必需产物 | 门禁 |
+|------|------|:--------:|---------|------|
+| L0 | 纯问答/解释/分析 | 否 | 无 | 无 |
+| L1 | typo/极小改动/文案 | 可选 | 可跳过 | 轻量检查 |
+| L2 | 轻量实现 | 是 | prd.md | check |
+| L3 | 普通 feature/bugfix | 是 | prd.md + implement.md + design.md（可选） | check + code-review |
+| L4 | 复杂跨层任务 | 是 | prd.md + design.md + implement.md + research | check + spec-review + code-review + architecture-review |
+| L5 | 多 agent/大重构 | 是 | 全量产物 | 全部门禁 + merge-review |
+
+**AI 不得自己判断"改动很小所以不用创建 task"。**
+
+## 双同意门禁
+
+**创建 task 的同意 ≠ 开始实现的同意。** 两个独立门禁：
+
+1. **Task 创建同意** — 用户同意创建 task → 仅进入规划阶段
+2. **实现同意** — 用户明确批准 → `task.py start` 然后写代码
+
+规划阶段：禁止编辑源码、禁止 spawn implementer、禁止 `task.py start`。
+Hooks 强制执行这些规则。
+
+## Review Gates（审查门禁）
+
+串行执行，固定顺序。选中门禁在 `implement.md` 的 Review Gate Contract 中配置：
+
+```text
+1. trellis-check          （始终必跑）
+2. trellis-spec-review    （L4+）
+3. trellis-code-review    （L3+）
+4. trellis-code-architecture-review （L4+）
+5. trellis-improve-codebase-architecture deep-review （L5）
+6. trellis-merge-review   （L5 / worktree / 多 agent）
+```
+
+每个 review 输出 PASS/FAIL 及 blocking issues。任何 FAIL → 回到
+IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
+
+## 安装后你会得到什么
+
+```
+AGENTS.md                  ← AI agent 入口
+CLAUDE.md                  ← Claude Code 入口
+.team-kit-version          ← 版本标记
+.claude/
+  settings.json            ← 团队 Claude Code 配置（hooks、skills、权限）
+  skills/                  ← 14 个 Trellis 阶段 skills
+  agents/                  ← 9 个专用 subagents
+  hooks/                   ← 8 个工作流守护 hooks
+  commands/                ← Slash 命令
+.trellis/
+  workflow.md              ← 完整状态机
+  config.json              ← Team-kit 配置
+  spec/                    ← 分层团队知识库
+  templates/               ← Task 产物模板
+  tasks/                   ← 活跃和已归档任务
+  workspace/               ← 个人开发者日志
+```
+
+## 安装
 
 ### 环境要求
 
@@ -44,9 +148,14 @@ mkdir my-project && cd my-project
 bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh) 你的名字
 ```
 
-一行搞定。把 `你的名字` 换成你的英文名。
+### 已有项目
 
-如果 `raw.githubusercontent.com` 在你那边超时，用克隆方式：
+```bash
+cd existing-project
+bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh) 你的名字
+```
+
+如果 `raw.githubusercontent.com` 超时，用克隆方式：
 
 ```bash
 git clone https://github.com/05allan1213/trellis-team-kit.git ~/trellis-team-kit
@@ -54,61 +163,98 @@ mkdir my-project && cd my-project
 ~/trellis-team-kit/bootstrap/init.sh 你的名字
 ```
 
-## 初始化后你会得到什么
+### 本地个人配置
 
-```
-AGENTS.md              ← AI agent 入口
-CLAUDE.md              ← Claude Code 入口
-.claude/
-  settings.json        ← 团队 Claude Code 配置
-  skills/              ← 14 个 Trellis 阶段 skills
-  agents/              ← 9 个专用 subagents
-  hooks/               ← 8 个 workflow 守护 hooks
-  commands/            ← Slash 命令
-.trellis/
-  workflow.md          ← 完整状态机
-  spec/                ← 分层团队知识库
-  templates/           ← Task 产物模板
-  tasks/               ← 活跃和已归档任务
+团队初始化后，每个开发者运行：
+
+```bash
+bash bootstrap/init-local.sh
 ```
 
-## 日常使用
+这会创建个人工作区和日志文件。
 
-启动一个标准任务：
+## 第一个任务
 
-> 我们开始一个 Trellis 任务，走 B Create a task，不要 inline。
+见 `docs/first-task.md`，有完整的端到端步骤演示。
 
-极小改动跳过 Trellis：
+快速体验：
 
-> 跳过 Trellis，直接把 README 里的 typo 改掉。
+```
+你："我需要加一个登录页"
+Claude：分类为 L3，询问："要为这个创建 Trellis task 吗？"
+你："是的，创建 task"
+Claude：创建 task，进入规划，开始 brainstorm
+  ...（brainstorm → grill-me → design → implement plan）
+Claude："PRD/design/implement plan 已准备好。批准实现吗？"
+你："批准实现"
+Claude：运行 task.py start，派发 implementer，运行 check，运行 review
+  ...（implement → check → review → update-spec → commit → validate → finish）
+Claude："任务完成。已归档。摘要：……"
+```
 
-确认规划，批准实现：
+## 安全守卫
 
-> Plan 阶段已确认，批准实现。
+8 个 hooks 保护工作流：
 
-完成任务：
+| Hook | 触发事件 | 作用 |
+|------|---------|------|
+| session-start | SessionStart | 注入仓库/分支/task 上下文 |
+| inject-workflow-state | UserPromptSubmit | 注入当前状态面包屑 |
+| inject-subagent-context | PreToolUse（Task） | 注入 artifacts 到 subagent 派发 |
+| protect-dangerous-actions | PreToolUse | 阻断 rm -rf、force push、规划期改源码 |
+| post-edit-reminder | PostToolUse | 编辑后提醒工作流约束 |
+| subagent-stop-guard | SubagentStop | 强制 review 输出含 PASS/FAIL |
+| stop-guard | Stop | 阻止过早声称"完成" |
+| pre-compact-save-state | PreCompact | 压缩前保存会话状态 |
+| trellis-notify | Notification / Stop | 桌面通知提醒 |
 
-> 进入 Finish 阶段，按 workflow Phase 3 收尾。
+## Smoke Test
 
-## 任务分级
+见 `docs/smoke-test.md`，包含 10 个场景的 smoke test 套件，
+验证 hooks、agents、skills 和护栏在 Claude Code 中正常工作。
 
-| Level | 类型 | 创建 Task | 核心产物 | 门禁 |
-|-------|------|----------|---------|------|
-| L0 | 纯问答/解释/分析 | 否 | 无 | 无 |
-| L1 | typo/极小改动/文案 | 可选 | 可跳过 | 轻量检查 |
-| L2 | 轻量实现 | 是 | prd.md | check |
-| L3 | 普通 feature/bugfix | 是 | prd.md + implement.md | check + code-review |
-| L4 | 复杂跨层任务 | 是 | prd.md + design.md + implement.md | check + spec + code + architecture |
-| L5 | 大重构/多 agent | 是 | 全量产物 | 全部门禁 + merge-review |
+## 团队推广
 
-## 更多模板
+见 `docs/team-rollout.md`，涵盖：
 
-详细的分阶段提示词模板见 `prompt.md`（标准任务、PRD 确认、OMC 并行、收尾、小修逃逸等）。
+- Dogfood → 试点 → 全团队推广路径
+- 第一周检查清单
+- 常见失败模式
+- 什么时候可以跳过 Trellis
+- Hook 误伤时如何处理
+
+## 示例
+
+见 `docs/examples/` 和 `examples/` 目录：
+
+- `01-typo-tiny-edit.md` — L1：极小改动，跳过 Trellis
+- `02-simple-bugfix.md` — L2：轻量 bugfix
+- `03-normal-feature.md` — L3：标准功能，含 design 和 review
+- `04-cross-layer-api-change.md` — L4：跨层 API 变更
+- `07-refactor.md` — L4：架构重构
+- `08-multi-agent-parent-child-task.md` — L5：多 agent parent/child
+- `examples/bugfix/` — L3 bugfix 完整产物示例
+- `examples/feature/` — L3 feature 完整产物示例
+- `examples/refactor/` — L4 重构完整产物示例
+
+## 常见问题
+
+**Q: 什么时候可以跳过 Trellis？**
+A: 只有 L0（纯问答）和 L1（typo/极小改动且明确说"跳过 Trellis"）。其他情况必须创建 task。
+
+**Q: Hook 阻断了我需要的操作怎么办？**
+A: Hooks 区分 hard block（危险操作）和 soft warning（编辑共享类型）。Soft warning 可带原因绕过。Hard block 需要显式 override。
+
+**Q: 必须用 OMC 并行模式吗？**
+A: 不。OMC 是可选的，只在 PRD 确认且工作可安全拆分时推荐。
+
+**Q: 怎么知道用哪个任务级别？**
+A: AI 在 triage 阶段分类。L2 简单改动，L3 普通功能/bugfix，L4 跨层改动，L5 多 agent 工作。
 
 ## 维护者参考
 
-| 修改目标 | 改什么 |
-|---------|--------|
+| 改什么 | 改哪里 |
+|-------|--------|
 | 团队 AI 工作流规范 | `marketplace/specs/web-app/` |
 | 团队入口文件 | `entry/` |
 | 团队工作流 | `workflow/` |
@@ -120,3 +266,9 @@ CLAUDE.md              ← Claude Code 入口
 | OMC 策略 | `omc/` |
 | 验证器 | `validators/` |
 | 文档 | `docs/` |
+
+## 版本
+
+当前：0.2.0
+
+版本历史见 `CHANGELOG.md`。

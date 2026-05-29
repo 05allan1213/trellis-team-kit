@@ -33,11 +33,24 @@ if sys.platform.startswith("win"):
 
 TRELLIS_DIR = ".trellis"
 
-AGENT_IMPLEMENT = "trellis-implement"
-AGENT_CHECK = "trellis-check"
-AGENT_RESEARCH = "trellis-research"
+AGENT_IMPLEMENT = "trellis-implementer"
+AGENT_CHECK = "trellis-checker"
+AGENT_RESEARCH = "trellis-researcher"
+AGENT_SPEC_REVIEWER = "trellis-spec-reviewer"
+AGENT_CODE_REVIEWER = "trellis-code-reviewer"
+AGENT_ARCHITECTURE_REVIEWER = "trellis-architecture-reviewer"
+AGENT_ARCHITECTURE_DEEP_REVIEWER = "trellis-architecture-deep-reviewer"
+AGENT_MERGE_REVIEWER = "trellis-merge-reviewer"
 AGENTS_REQUIRE_TASK = (AGENT_IMPLEMENT, AGENT_CHECK)
-AGENTS_ALL = (AGENT_IMPLEMENT, AGENT_CHECK, AGENT_RESEARCH)
+AGENTS_ALL = (
+    AGENT_IMPLEMENT, AGENT_CHECK, AGENT_RESEARCH,
+    AGENT_SPEC_REVIEWER, AGENT_CODE_REVIEWER, AGENT_ARCHITECTURE_REVIEWER,
+    AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
+)
+AGENTS_REVIEW = (
+    AGENT_SPEC_REVIEWER, AGENT_CODE_REVIEWER, AGENT_ARCHITECTURE_REVIEWER,
+    AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
+)
 
 
 def _find_repo_root(start_path: str) -> Optional[str]:
@@ -215,6 +228,29 @@ def _get_research_context(repo_root: str, task_dir: Optional[str]) -> str:
     return "\n\n".join(parts)
 
 
+def _get_review_context(repo_root: str, task_dir: str) -> str:
+    """Context for Reviewer Agents: prd.md + design.md + implement.md + relevant specs."""
+    parts: list[str] = []
+
+    prd = _read_file_content(repo_root, f"{task_dir}/prd.md")
+    if prd:
+        parts.append(f"=== {task_dir}/prd.md (Requirements) ===\n{prd}")
+
+    design = _read_file_content(repo_root, f"{task_dir}/design.md")
+    if design:
+        parts.append(f"=== {task_dir}/design.md (Technical Design) ===\n{design}")
+
+    impl_plan = _read_file_content(repo_root, f"{task_dir}/implement.md")
+    if impl_plan:
+        parts.append(f"=== {task_dir}/implement.md (Execution Plan) ===\n{impl_plan}")
+
+    # Also inject spec files from check.jsonl for reviewer context
+    for file_path, content in _read_jsonl_entries(repo_root, f"{task_dir}/check.jsonl"):
+        parts.append(f"=== {file_path} ===\n{content}")
+
+    return "\n\n".join(parts)
+
+
 def _build_implement_prompt(original_prompt: str, context: str) -> str:
     return (
         f"<!-- team-kit-hook-injected -->\n"
@@ -281,6 +317,50 @@ def _build_research_prompt(original_prompt: str, context: str) -> str:
         f"**Only allowed**: Describe what exists, where it is, how it works\n"
         f"**Forbidden** (unless explicitly asked): Suggest improvements, "
         f"criticize implementation, recommend refactoring, modify any files"
+    )
+
+
+def _build_review_prompt(original_prompt: str, context: str, agent_type: str) -> str:
+    """Build review agent prompt with task context."""
+    review_type_map = {
+        "trellis-spec-reviewer": "Spec Review",
+        "trellis-code-reviewer": "Code Review",
+        "trellis-architecture-reviewer": "Architecture Review",
+        "trellis-architecture-deep-reviewer": "Deep Architecture Review",
+        "trellis-merge-reviewer": "Merge Review",
+    }
+    review_type = review_type_map.get(agent_type, "Review")
+    return (
+        f"<!-- team-kit-hook-injected -->\n"
+        f"# {review_type} Agent Task\n\n"
+        f"You are the {review_type} Agent in the Team-kit pipeline.\n\n"
+        f"## Your Context\n\n{context}\n\n---\n\n"
+        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
+        f"## Output Format\n\n"
+        f"You MUST output in this format:\n\n"
+        f"```\n"
+        f"Status:\n"
+        f"- [ ] PASS\n"
+        f"- [ ] FAIL\n\n"
+        f"Scope reviewed:\n\n"
+        f"Commands run:\n\n"
+        f"Specs / files inspected:\n\n"
+        f"Blocking issues:\n\n"
+        f"Non-blocking issues:\n\n"
+        f"Required fixes:\n\n"
+        f"Risk level:\n"
+        f"- [ ] low\n"
+        f"- [ ] medium\n"
+        f"- [ ] high\n\n"
+        f"Rerun required?\n"
+        f"- [ ] yes\n"
+        f"- [ ] no\n"
+        f"```\n\n"
+        f"## Important Constraints\n\n"
+        f"- MUST output PASS or FAIL verdict\n"
+        f"- MUST list blocking issues with file:line citations\n"
+        f"- MUST list non-blocking issues separately\n"
+        f"- FAIL must include specific required fixes"
     )
 
 
@@ -384,6 +464,13 @@ def main() -> int:
         if not os.path.exists(task_dir_full):
             return 0
 
+    if subagent_type in AGENTS_REVIEW:
+        if not task_dir:
+            return 0
+        task_dir_full = os.path.join(repo_root, task_dir) if not os.path.isabs(task_dir) else task_dir
+        if not os.path.exists(task_dir_full):
+            return 0
+
     if subagent_type == AGENT_IMPLEMENT:
         assert task_dir is not None
         context = _get_implement_context(repo_root, task_dir)
@@ -395,6 +482,10 @@ def main() -> int:
     elif subagent_type == AGENT_RESEARCH:
         context = _get_research_context(repo_root, task_dir)
         new_prompt = _build_research_prompt(original_prompt, context)
+    elif subagent_type in AGENTS_REVIEW:
+        assert task_dir is not None
+        context = _get_review_context(repo_root, task_dir)
+        new_prompt = _build_review_prompt(original_prompt, context, subagent_type)
     else:
         return 0
 

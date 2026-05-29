@@ -134,6 +134,12 @@ for hook in \
   get_file "claude/hooks/$hook.py" "$TARGET_ROOT/.claude/hooks/$hook.py"
   HOOK_COUNT=$((HOOK_COUNT + 1))
 done
+
+# Install notification hook
+get_file "claude/hooks/trellis-notify.sh" "$TARGET_ROOT/.claude/hooks/trellis-notify.sh"
+chmod +x "$TARGET_ROOT/.claude/hooks/trellis-notify.sh"
+HOOK_COUNT=$((HOOK_COUNT + 1))
+
 info "  $HOOK_COUNT hooks installed"
 
 COMMAND_COUNT=0
