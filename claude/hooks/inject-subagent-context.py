@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
-Team-kit Inject Sub-agent Context Hook
+Team-kit Inject Subagent Context Hook — v0.3 Hardened
 
-When a trellis-implement/trellis-check/trellis-research subagent is spawned,
-injects task context: implement.jsonl or check.jsonl entries + prd.md +
-design.md + implement.md.
+When a trellis subagent is spawned, injects task-specific context based on
+agent type. Covers all 9 canonical agents.
 
-Must handle the case where hook didn't fire (Windows/--continue) -- the
-subagent's own context loading protocol is the fallback.
+Injection strategies:
+- researcher: task.json, prd.md, workflow state, spec index, research dir
+- implementer: task.json, prd.md, design.md, implement.md, implement.jsonl, approval
+- checker: task.json, prd.md, design.md, implement.md, check.jsonl, git diff, contract
+- reviewers: task.json, prd.md, design.md, implement.md, git diff, contract, specs
+- spec-updater: task.json, prd.md, design.md, implement.md, review results, validation, spec index
+- merge-reviewer: task.json, prd.md, design.md, implement.md, commits, validation, gate results
 
-Trigger: PreToolUse (before Task/Agent tool)
+Trigger: SubagentStart
 """
 from __future__ import annotations
 
@@ -19,11 +23,9 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Suppress warnings early
 import warnings
 warnings.filterwarnings("ignore")
 
-# Force UTF-8 on Windows
 if sys.platform.startswith("win"):
     import io as _io
     if hasattr(sys.stdout, "reconfigure"):
@@ -33,28 +35,30 @@ if sys.platform.startswith("win"):
 
 TRELLIS_DIR = ".trellis"
 
+# Canonical agent names
+AGENT_RESEARCH = "trellis-researcher"
 AGENT_IMPLEMENT = "trellis-implementer"
 AGENT_CHECK = "trellis-checker"
-AGENT_RESEARCH = "trellis-researcher"
 AGENT_SPEC_REVIEWER = "trellis-spec-reviewer"
 AGENT_CODE_REVIEWER = "trellis-code-reviewer"
 AGENT_ARCHITECTURE_REVIEWER = "trellis-architecture-reviewer"
 AGENT_ARCHITECTURE_DEEP_REVIEWER = "trellis-architecture-deep-reviewer"
 AGENT_MERGE_REVIEWER = "trellis-merge-reviewer"
+AGENT_SPEC_UPDATER = "trellis-spec-updater"
+
 AGENTS_REQUIRE_TASK = (AGENT_IMPLEMENT, AGENT_CHECK)
-AGENTS_ALL = (
-    AGENT_IMPLEMENT, AGENT_CHECK, AGENT_RESEARCH,
-    AGENT_SPEC_REVIEWER, AGENT_CODE_REVIEWER, AGENT_ARCHITECTURE_REVIEWER,
-    AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
-)
 AGENTS_REVIEW = (
     AGENT_SPEC_REVIEWER, AGENT_CODE_REVIEWER, AGENT_ARCHITECTURE_REVIEWER,
     AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
 )
+AGENTS_ALL = (
+    AGENT_RESEARCH, AGENT_IMPLEMENT, AGENT_CHECK,
+) + AGENTS_REVIEW + (AGENT_SPEC_UPDATER,)
+
+MAX_CONTEXT_CHARS = 32000  # Limit total injected context
 
 
 def _find_repo_root(start_path: str) -> Optional[str]:
-    """Find git repo root from start_path upwards."""
     current = Path(start_path).resolve()
     while current != current.parent:
         if (current / ".git").exists():
@@ -63,41 +67,7 @@ def _find_repo_root(start_path: str) -> Optional[str]:
     return None
 
 
-def _detect_platform(input_data: dict) -> Optional[str]:
-    if isinstance(input_data.get("cursor_version"), str):
-        return "cursor"
-    env_map = {
-        "CLAUDE_PROJECT_DIR": "claude",
-        "CURSOR_PROJECT_DIR": "cursor",
-        "CODEBUDDY_PROJECT_DIR": "codebuddy",
-        "FACTORY_PROJECT_DIR": "droid",
-        "GEMINI_PROJECT_DIR": "gemini",
-        "QODER_PROJECT_DIR": "qoder",
-        "KIRO_PROJECT_DIR": "kiro",
-        "COPILOT_PROJECT_DIR": "copilot",
-    }
-    for env_name, platform in env_map.items():
-        if os.environ.get(env_name):
-            return platform
-    return None
-
-
-def _get_current_task(repo_root: str, input_data: dict) -> Optional[str]:
-    """Resolve current task directory through the active task resolver."""
-    scripts_dir = Path(repo_root) / TRELLIS_DIR / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    try:
-        from common.active_task import resolve_active_task  # type: ignore[import-not-found]
-        active = resolve_active_task(
-            Path(repo_root), input_data,
-            platform=_detect_platform(input_data),
-        )
-        return active.task_path
-    except Exception:
-        pass
-
-    # Fallback: read .trellis/active-task
+def _get_current_task(repo_root: str) -> Optional[str]:
     active_file = Path(repo_root) / TRELLIS_DIR / "active-task"
     if active_file.is_file():
         try:
@@ -107,26 +77,19 @@ def _get_current_task(repo_root: str, input_data: dict) -> Optional[str]:
     return None
 
 
-def _read_file_content(base_path: str, file_path: str) -> Optional[str]:
-    """Read file content, return None if file doesn't exist."""
+def _read_file(base_path: str, file_path: str, max_chars: int = 8000) -> Optional[str]:
     full_path = os.path.join(base_path, file_path)
     if os.path.exists(full_path) and os.path.isfile(full_path):
         try:
             with open(full_path, "r", encoding="utf-8") as f:
-                return f.read()
+                content = f.read(max_chars)
+                return content
         except Exception:
             return None
     return None
 
 
-def _read_jsonl_entries(base_path: str, jsonl_path: str) -> list[tuple[str, str]]:
-    """Read all file contents referenced in a jsonl file.
-
-    Schema:
-        {"file": "path/to/file.md", "reason": "..."}
-        {"file": "path/to/dir/", "type": "directory", "reason": "..."}
-        {"_example": "..."}  # seed row -- skipped (no `file` field)
-    """
+def _read_jsonl_entries(base_path: str, jsonl_path: str, max_files: int = 20) -> list[tuple[str, str]]:
     full_path = os.path.join(base_path, jsonl_path)
     if not os.path.exists(full_path):
         return []
@@ -135,6 +98,8 @@ def _read_jsonl_entries(base_path: str, jsonl_path: str) -> list[tuple[str, str]
     try:
         with open(full_path, "r", encoding="utf-8") as f:
             for line in f:
+                if len(results) >= max_files:
+                    break
                 line = line.strip()
                 if not line:
                     continue
@@ -142,8 +107,8 @@ def _read_jsonl_entries(base_path: str, jsonl_path: str) -> list[tuple[str, str]
                     item = json.loads(line)
                     file_path = item.get("file") or item.get("path")
                     if not file_path:
-                        continue  # Seed/comment row
-                    content = _read_file_content(base_path, file_path)
+                        continue
+                    content = _read_file(base_path, file_path)
                     if content:
                         results.append((file_path, content))
                 except json.JSONDecodeError:
@@ -153,102 +118,239 @@ def _read_jsonl_entries(base_path: str, jsonl_path: str) -> list[tuple[str, str]
     return results
 
 
+def _get_spec_tree(repo_root: str) -> str:
+    spec_root = Path(repo_root) / TRELLIS_DIR / "spec"
+    if not spec_root.is_dir():
+        return "(no spec directory)"
+
+    lines = [".trellis/spec/"]
+    for pkg in sorted(spec_root.iterdir()):
+        if not pkg.is_dir() or pkg.name.startswith("."):
+            continue
+        layers = sorted(d.name for d in pkg.iterdir() if d.is_dir())
+        layer_info = f" ({', '.join(layers)})" if layers else ""
+        lines.append(f"  {pkg.name}/{layer_info}")
+    return "\n".join(lines)
+
+
+def _get_research_context(repo_root: str, task_dir: str) -> str:
+    """Researcher: task.json, prd.md, workflow state, spec index, research dir."""
+    parts: list[str] = []
+    parts.append(f"## Project Spec Structure\n```\n{_get_spec_tree(repo_root)}\n```")
+
+    prd = _read_file(repo_root, f"{task_dir}/prd.md")
+    if prd:
+        parts.append(f"## PRD\n```\n{prd[:4000]}\n```")
+
+    # List existing research files
+    research_dir = Path(repo_root) / task_dir / "research"
+    if research_dir.is_dir():
+        existing = sorted(f.name for f in research_dir.iterdir() if f.is_file())
+        if existing:
+            parts.append(f"## Existing Research Files\n{', '.join(existing)}")
+
+    return "\n\n".join(parts)
+
+
 def _get_implement_context(repo_root: str, task_dir: str) -> str:
-    """Context for Implement Agent: implement.jsonl + prd.md + design.md + implement.md."""
+    """Implementer: implement.jsonl, prd.md, design.md, implement.md, approval."""
     parts: list[str] = []
 
-    # 1. implement.jsonl entries
+    # Check approval status
+    task_json = _read_file(repo_root, f"{task_dir}/task.json")
+    if task_json:
+        try:
+            tj = json.loads(task_json)
+            status = tj.get("status", "")
+            if status.upper() in ("WAITING_IMPLEMENTATION_APPROVAL", "PLANNING_IMPLEMENT",
+                                   "PLANNING_PRD", "PLANNING_GRILL", "PLANNING_DESIGN"):
+                parts.append("**WARNING: Implementation not yet approved.** Check consent before editing source.")
+        except Exception:
+            pass
+
     for file_path, content in _read_jsonl_entries(repo_root, f"{task_dir}/implement.jsonl"):
-        parts.append(f"=== {file_path} ===\n{content}")
+        parts.append(f"### {file_path}\n```\n{content[:3000]}\n```")
 
-    # 2. prd.md
-    prd = _read_file_content(repo_root, f"{task_dir}/prd.md")
+    prd = _read_file(repo_root, f"{task_dir}/prd.md")
     if prd:
-        parts.append(f"=== {task_dir}/prd.md (Requirements) ===\n{prd}")
+        parts.append(f"## PRD (Requirements)\n```\n{prd[:4000]}\n```")
 
-    # 3. design.md
-    design = _read_file_content(repo_root, f"{task_dir}/design.md")
+    design = _read_file(repo_root, f"{task_dir}/design.md")
     if design:
-        parts.append(f"=== {task_dir}/design.md (Technical Design) ===\n{design}")
+        parts.append(f"## Design\n```\n{design[:4000]}\n```")
 
-    # 4. implement.md
-    impl_plan = _read_file_content(repo_root, f"{task_dir}/implement.md")
+    impl_plan = _read_file(repo_root, f"{task_dir}/implement.md")
     if impl_plan:
-        parts.append(f"=== {task_dir}/implement.md (Execution Plan) ===\n{impl_plan}")
+        parts.append(f"## Implement Plan\n```\n{impl_plan[:4000]}\n```")
 
     return "\n\n".join(parts)
 
 
 def _get_check_context(repo_root: str, task_dir: str) -> str:
-    """Context for Check Agent: check.jsonl + prd.md + design.md + implement.md."""
+    """Checker: check.jsonl, prd.md, design.md, implement.md, git diff, contract, validation hints."""
     parts: list[str] = []
 
     for file_path, content in _read_jsonl_entries(repo_root, f"{task_dir}/check.jsonl"):
-        parts.append(f"=== {file_path} ===\n{content}")
+        parts.append(f"### {file_path}\n```\n{content[:3000]}\n```")
 
-    prd = _read_file_content(repo_root, f"{task_dir}/prd.md")
+    prd = _read_file(repo_root, f"{task_dir}/prd.md")
     if prd:
-        parts.append(f"=== {task_dir}/prd.md (Requirements) ===\n{prd}")
+        parts.append(f"## PRD\n```\n{prd[:3000]}\n```")
 
-    design = _read_file_content(repo_root, f"{task_dir}/design.md")
-    if design:
-        parts.append(f"=== {task_dir}/design.md (Technical Design) ===\n{design}")
-
-    impl_plan = _read_file_content(repo_root, f"{task_dir}/implement.md")
+    impl_plan = _read_file(repo_root, f"{task_dir}/implement.md")
     if impl_plan:
-        parts.append(f"=== {task_dir}/implement.md (Execution Plan) ===\n{impl_plan}")
+        parts.append(f"## Implement Plan (includes Review Gate Contract)\n```\n{impl_plan[:4000]}\n```")
 
-    return "\n\n".join(parts)
+    # Git diff summary
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--stat"],
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=5, cwd=repo_root,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            parts.append(f"## Current Git Diff (stat)\n```\n{result.stdout.strip()[:2000]}\n```")
+    except Exception:
+        pass
 
-
-def _get_research_context(repo_root: str, task_dir: Optional[str]) -> str:
-    """Context for Research Agent: project spec structure overview."""
-    _ = task_dir
-    parts: list[str] = []
-
-    spec_path = f"{TRELLIS_DIR}/spec"
-    spec_root = Path(repo_root) / TRELLIS_DIR / "spec"
-
-    tree_lines = [f"{spec_path}/"]
-    if spec_root.is_dir():
-        pkg_dirs = sorted(d for d in spec_root.iterdir() if d.is_dir())
-        for i, pkg_dir in enumerate(pkg_dirs):
-            is_last = i == len(pkg_dirs) - 1
-            prefix = "+-- " if is_last else "|-- "
-            layers = sorted(d.name for d in pkg_dir.iterdir() if d.is_dir())
-            layer_info = f" ({', '.join(layers)})" if layers else ""
-            tree_lines.append(f"{prefix}{pkg_dir.name}/{layer_info}")
-
-    spec_tree = "\n".join(tree_lines)
-    parts.append(
-        f"## Project Spec Directory Structure\n\n```\n{spec_tree}\n```\n\n"
-        f"Spec files: `{spec_path}/**/*.md`\n"
-        f"Code search: Use Glob and Grep tools."
-    )
     return "\n\n".join(parts)
 
 
 def _get_review_context(repo_root: str, task_dir: str) -> str:
-    """Context for Reviewer Agents: prd.md + design.md + implement.md + relevant specs."""
+    """Reviewers: prd.md, design.md, implement.md, git diff, contract, specs, prev check."""
     parts: list[str] = []
 
-    prd = _read_file_content(repo_root, f"{task_dir}/prd.md")
+    prd = _read_file(repo_root, f"{task_dir}/prd.md")
     if prd:
-        parts.append(f"=== {task_dir}/prd.md (Requirements) ===\n{prd}")
+        parts.append(f"## PRD\n```\n{prd[:4000]}\n```")
 
-    design = _read_file_content(repo_root, f"{task_dir}/design.md")
+    design = _read_file(repo_root, f"{task_dir}/design.md")
     if design:
-        parts.append(f"=== {task_dir}/design.md (Technical Design) ===\n{design}")
+        parts.append(f"## Design\n```\n{design[:4000]}\n```")
 
-    impl_plan = _read_file_content(repo_root, f"{task_dir}/implement.md")
+    impl_plan = _read_file(repo_root, f"{task_dir}/implement.md")
     if impl_plan:
-        parts.append(f"=== {task_dir}/implement.md (Execution Plan) ===\n{impl_plan}")
+        parts.append(f"## Implement Plan (includes Review Gate Contract)\n```\n{impl_plan[:4000]}\n```")
 
-    # Also inject spec files from check.jsonl for reviewer context
-    for file_path, content in _read_jsonl_entries(repo_root, f"{task_dir}/check.jsonl"):
-        parts.append(f"=== {file_path} ===\n{content}")
+    # Previous check result
+    check_result = _read_file(repo_root, f"{task_dir}/validation/check-results.md")
+    if check_result:
+        parts.append(f"## Previous Check Result\n```\n{check_result[:3000]}\n```")
+
+    # Git diff summary
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--stat"],
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=5, cwd=repo_root,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            parts.append(f"## Git Diff (stat)\n```\n{result.stdout.strip()[:2000]}\n```")
+    except Exception:
+        pass
 
     return "\n\n".join(parts)
+
+
+def _get_spec_updater_context(repo_root: str, task_dir: str) -> str:
+    """Spec-updater: task.json, prd, design, implement, review results, validation, spec index."""
+    parts: list[str] = []
+
+    prd = _read_file(repo_root, f"{task_dir}/prd.md")
+    if prd:
+        parts.append(f"## PRD\n```\n{prd[:3000]}\n```")
+
+    impl_plan = _read_file(repo_root, f"{task_dir}/implement.md")
+    if impl_plan:
+        parts.append(f"## Implement Plan\n```\n{impl_plan[:3000]}\n```")
+
+    # Review results
+    review_dir = Path(repo_root) / task_dir / "review"
+    if review_dir.is_dir():
+        for rf in sorted(review_dir.iterdir()):
+            if rf.is_file() and rf.suffix == ".md":
+                content = _read_file(repo_root, f"{task_dir}/review/{rf.name}", max_chars=2000)
+                if content:
+                    parts.append(f"## Review: {rf.name}\n```\n{content}\n```")
+
+    # Validation results
+    val = _read_file(repo_root, f"{task_dir}/validation/results.md")
+    if val:
+        parts.append(f"## Validation Results\n```\n{val[:2000]}\n```")
+
+    # Spec index
+    parts.append(f"## Spec Index\n```\n{_get_spec_tree(repo_root)}\n```")
+
+    return "\n\n".join(parts)
+
+
+def _get_merge_reviewer_context(repo_root: str, task_dir: str) -> str:
+    """Merge-reviewer: task.json, prd, design, implement, commits, validation, gate results."""
+    parts: list[str] = []
+
+    prd = _read_file(repo_root, f"{task_dir}/prd.md")
+    if prd:
+        parts.append(f"## PRD\n```\n{prd[:3000]}\n```")
+
+    impl_plan = _read_file(repo_root, f"{task_dir}/implement.md")
+    if impl_plan:
+        parts.append(f"## Implement Plan\n```\n{impl_plan[:3000]}\n```")
+
+    # Git log
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "-20"],
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=5, cwd=repo_root,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            parts.append(f"## Recent Commits\n```\n{result.stdout.strip()[:2000]}\n```")
+    except Exception:
+        pass
+
+    # Gate results
+    review_dir = Path(repo_root) / task_dir / "review"
+    if review_dir.is_dir():
+        for rf in sorted(review_dir.iterdir()):
+            if rf.is_file() and rf.suffix == ".md":
+                content = _read_file(repo_root, f"{task_dir}/review/{rf.name}", max_chars=1500)
+                if content:
+                    parts.append(f"## Gate: {rf.name}\n```\n{content}\n```")
+
+    # Validation
+    val = _read_file(repo_root, f"{task_dir}/validation/results.md")
+    if val:
+        parts.append(f"## Validation\n```\n{val[:1500]}\n```")
+
+    return "\n\n".join(parts)
+
+
+def _build_research_prompt(original_prompt: str, context: str) -> str:
+    return (
+        f"<!-- team-kit-hook-injected -->\n"
+        f"# Research Agent Task\n\n"
+        f"You are the Research Agent in the Team-kit pipeline.\n\n"
+        f"## Core Principle\n\n"
+        f"**You do one thing: find and explain information.** "
+        f"You are a documenter, not a reviewer.\n\n"
+        f"## Project Context\n\n{context}\n\n---\n\n"
+        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
+        f"## Output Format\n\n"
+        f"- Research Question\n"
+        f"- Files / Sources inspected\n"
+        f"- Findings\n"
+        f"- Decision impact\n"
+        f"- Output file updated\n\n"
+        f"## Strict Boundaries\n\n"
+        f"**Only allowed**: Describe what exists, where it is, how it works.\n"
+        f"**Forbidden**: Suggest improvements, criticize, recommend refactoring, modify files."
+    )
 
 
 def _build_implement_prompt(original_prompt: str, context: str) -> str:
@@ -258,20 +360,17 @@ def _build_implement_prompt(original_prompt: str, context: str) -> str:
         f"You are the Implement Agent in the Team-kit pipeline.\n\n"
         f"## Your Context\n\n{context}\n\n---\n\n"
         f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Workflow\n\n"
-        f"1. **Understand specs** - All dev specs injected above, understand them\n"
-        f"2. **Understand task artifacts** - Read prd.md, design.md, implement.md\n"
-        f"3. **Implement feature** - Implement following specs and task artifacts\n"
-        f"4. **Self-check** - Ensure code quality against check specs\n\n"
-        f"## Output Format\n\n"
-        f"- Changed files: list all modified/created files\n"
-        f"- Summary: what was implemented\n"
-        f"- Validation attempted: what checks were run\n"
-        f"- Unresolved risks: any remaining concerns\n\n"
+        f"## Output Format (REQUIRED)\n\n"
+        f"- **Implementation Summary**: what was implemented\n"
+        f"- **Changed Files**: list all modified/created files\n"
+        f"- **Validation Attempted**: what checks were run\n"
+        f"- **Risks / Follow-ups**: any remaining concerns\n"
+        f"- **Did not commit**: confirm no git commit was executed\n\n"
         f"## Important Constraints\n\n"
         f"- Do NOT execute git commit, only code modifications\n"
         f"- Follow all dev specs injected above\n"
-        f"- Report list of modified/created files when done"
+        f"- Follow implement.md ordered steps\n"
+        f"- Do not expand scope beyond the task"
     )
 
 
@@ -282,46 +381,24 @@ def _build_check_prompt(original_prompt: str, context: str) -> str:
         f"You are the Check Agent in the Team-kit pipeline.\n\n"
         f"## Your Context\n\n{context}\n\n---\n\n"
         f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Workflow\n\n"
-        f"1. **Get changes** - Run `git diff --name-only` and `git diff`\n"
-        f"2. **Check against specs** - Check item by item against specs above\n"
-        f"3. **Self-fix** - Fix issues directly, do not just report\n"
-        f"4. **Run verification** - Run project lint and typecheck commands\n\n"
-        f"## Output Format\n\n"
-        f"- PASS or FAIL\n"
-        f"- Commands run\n"
-        f"- Failures found\n"
-        f"- Fixes applied\n\n"
+        f"## Output Format (REQUIRED)\n\n"
+        f"```\n"
+        f"Status:\n"
+        f"- [ ] PASS\n"
+        f"- [ ] FAIL\n\n"
+        f"Commands run:\n\n"
+        f"Failures:\n\n"
+        f"Files inspected:\n\n"
+        f"Required fixes (if FAIL):\n"
+        f"```\n\n"
         f"## Important Constraints\n\n"
         f"- Fix issues yourself, do not just report\n"
-        f"- Must execute complete checklist in check specs\n"
-        f"- Pay special attention to impact radius analysis (L1-L5)"
-    )
-
-
-def _build_research_prompt(original_prompt: str, context: str) -> str:
-    return (
-        f"# Research Agent Task\n\n"
-        f"You are the Research Agent in the Team-kit pipeline.\n\n"
-        f"## Core Principle\n\n"
-        f"**You do one thing: find and explain information.**\n"
-        f"You are a documenter, not a reviewer.\n\n"
-        f"## Project Info\n\n{context}\n\n---\n\n"
-        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Workflow\n\n"
-        f"1. **Understand query** - Determine search type and scope\n"
-        f"2. **Plan search** - List search steps\n"
-        f"3. **Execute search** - Execute searches\n"
-        f"4. **Organize results** - Output structured report\n\n"
-        f"## Strict Boundaries\n\n"
-        f"**Only allowed**: Describe what exists, where it is, how it works\n"
-        f"**Forbidden** (unless explicitly asked): Suggest improvements, "
-        f"criticize implementation, recommend refactoring, modify any files"
+        f"- MUST output PASS or FAIL verdict\n"
+        f"- Run lint/typecheck if available"
     )
 
 
 def _build_review_prompt(original_prompt: str, context: str, agent_type: str) -> str:
-    """Build review agent prompt with task context."""
     review_type_map = {
         "trellis-spec-reviewer": "Spec Review",
         "trellis-code-reviewer": "Code Review",
@@ -336,104 +413,83 @@ def _build_review_prompt(original_prompt: str, context: str, agent_type: str) ->
         f"You are the {review_type} Agent in the Team-kit pipeline.\n\n"
         f"## Your Context\n\n{context}\n\n---\n\n"
         f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Output Format\n\n"
-        f"You MUST output in this format:\n\n"
+        f"## Output Format (REQUIRED)\n\n"
         f"```\n"
         f"Status:\n"
         f"- [ ] PASS\n"
         f"- [ ] FAIL\n\n"
         f"Scope reviewed:\n\n"
-        f"Commands run:\n\n"
-        f"Specs / files inspected:\n\n"
         f"Blocking issues:\n\n"
         f"Non-blocking issues:\n\n"
-        f"Required fixes:\n\n"
-        f"Risk level:\n"
-        f"- [ ] low\n"
-        f"- [ ] medium\n"
-        f"- [ ] high\n\n"
-        f"Rerun required?\n"
-        f"- [ ] yes\n"
-        f"- [ ] no\n"
+        f"Required fixes:\n"
         f"```\n\n"
         f"## Important Constraints\n\n"
         f"- MUST output PASS or FAIL verdict\n"
-        f"- MUST list blocking issues with file:line citations\n"
+        f"- MUST list blocking issues with file citations\n"
         f"- MUST list non-blocking issues separately\n"
         f"- FAIL must include specific required fixes"
     )
 
 
-def _string_value(value) -> str:
-    if isinstance(value, str):
-        return value.strip()
-    return ""
+def _build_spec_updater_prompt(original_prompt: str, context: str) -> str:
+    return (
+        f"<!-- team-kit-hook-injected -->\n"
+        f"# Spec Update Agent Task\n\n"
+        f"You are the Spec Update Agent in the Team-kit pipeline.\n\n"
+        f"## Your Context\n\n{context}\n\n---\n\n"
+        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
+        f"## Output Format (REQUIRED)\n\n"
+        f"```\n"
+        f"Spec Update Decision:\n\n"
+        f"Need spec update:\n"
+        f"- [ ] yes\n"
+        f"- [ ] no\n\n"
+        f"Reason:\n\n"
+        f"Updated files (if yes):\n"
+        f"```\n\n"
+        f"## Important Constraints\n\n"
+        f"- MUST output Spec Update Decision\n"
+        f"- MUST state yes/no explicitly\n"
+        f"- MUST provide reason for decision"
+    )
 
 
-def _extract_subagent_name(value) -> str:
-    """Extract sub-agent name from various platform encodings."""
-    direct = _string_value(value)
-    if direct:
-        return direct
-    if not isinstance(value, dict):
-        return ""
-    for key in ("name", "subagent_type_name", "subagentTypeName"):
-        v = _string_value(value.get(key))
-        if v:
-            return v
-    custom = value.get("custom")
-    if isinstance(custom, dict):
-        v = _string_value(custom.get("name"))
-        if v:
-            return v
-    oneof = value.get("type")
-    if isinstance(oneof, dict):
-        case_name = _string_value(oneof.get("case"))
-        if case_name == "custom":
-            nested = oneof.get("value")
-            if isinstance(nested, dict):
-                v = _string_value(nested.get("name"))
-                if v:
-                    return v
-        if case_name:
-            return case_name
-    return ""
+def _build_merge_reviewer_prompt(original_prompt: str, context: str) -> str:
+    return (
+        f"<!-- team-kit-hook-injected -->\n"
+        f"# Merge Review Agent Task\n\n"
+        f"You are the Merge Review Agent in the Team-kit pipeline.\n\n"
+        f"## Your Context\n\n{context}\n\n---\n\n"
+        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
+        f"## Output Format (REQUIRED)\n\n"
+        f"```\n"
+        f"Status:\n"
+        f"- [ ] PASS\n"
+        f"- [ ] FAIL\n\n"
+        f"Scope reviewed:\n\n"
+        f"Blocking issues:\n\n"
+        f"Non-blocking issues:\n\n"
+        f"Required fixes:\n"
+        f"```\n\n"
+        f"## Important Constraints\n\n"
+        f"- MUST output PASS or FAIL verdict\n"
+        f"- Check merge conflicts, commit coherence, cross-branch consistency"
+    )
 
 
-def _extract_subagent_type(tool_input: dict) -> str:
+def _extract_subagent_name(tool_input: dict) -> str:
+    """Extract subagent name from various platform encodings."""
     for key in ("subagent_type", "subagentType", "subagent_type_name",
                 "subagentTypeName", "agent_type", "agentType", "name"):
-        name = _extract_subagent_name(tool_input.get(key))
-        if name:
-            return name
+        val = tool_input.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+        if isinstance(val, dict):
+            for k in ("name", "subagent_type_name", "subagentTypeName"):
+                v = val.get(k)
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
     return ""
-
-
-def _parse_hook_input(input_data: dict) -> tuple[str, str, dict]:
-    """Parse hook input across platform formats.
-
-    Returns (subagent_type, original_prompt, tool_input).
-    """
-    tool_input = input_data.get("tool_input", {})
-    tool_name = input_data.get("tool_name", "") or input_data.get("toolName", "")
-
-    if tool_name.lower() in ("task", "agent", "subagent"):
-        return (
-            _extract_subagent_type(tool_input),
-            tool_input.get("prompt", ""),
-            tool_input,
-        )
-
-    # Kiro: agentSpawn hook
-    agent_name = input_data.get("agent_name", "")
-    if agent_name:
-        return agent_name, tool_input.get("prompt", input_data.get("prompt", "")), tool_input
-
-    # Gemini: tool_name IS the agent name
-    if tool_name in AGENTS_ALL:
-        return tool_name, tool_input.get("prompt", ""), tool_input
-
-    return "", "", tool_input
 
 
 def main() -> int:
@@ -445,33 +501,52 @@ def main() -> int:
     except json.JSONDecodeError:
         return 0
 
-    subagent_type, original_prompt, tool_input = _parse_hook_input(input_data)
-    cwd = input_data.get("cwd", os.getcwd())
+    # Parse subagent info
+    tool_input = input_data.get("tool_input", {})
+    tool_name = input_data.get("tool_name", "") or input_data.get("toolName", "")
+    subagent_type = ""
+
+    # SubagentStart event: check agent_name
+    agent_name = input_data.get("agent_name", "")
+    if isinstance(agent_name, str) and agent_name in AGENTS_ALL:
+        subagent_type = agent_name
+
+    # Fallback: PreToolUse event for Task/Agent
+    if not subagent_type and tool_name.lower() in ("task", "agent", "subagent"):
+        subagent_type = _extract_subagent_name(tool_input)
+
+    # Gemini: tool_name IS the agent name
+    if not subagent_type and tool_name in AGENTS_ALL:
+        subagent_type = tool_name
 
     if subagent_type not in AGENTS_ALL:
         return 0
+
+    original_prompt = tool_input.get("prompt", "") or input_data.get("prompt", "")
+    cwd = input_data.get("cwd", os.getcwd())
 
     repo_root = _find_repo_root(cwd)
     if not repo_root:
         return 0
 
-    task_dir = _get_current_task(repo_root, input_data)
+    task_dir = _get_current_task(repo_root)
 
-    if subagent_type in AGENTS_REQUIRE_TASK:
+    # For agents that require a task
+    if subagent_type in AGENTS_REQUIRE_TASK or subagent_type in AGENTS_REVIEW or subagent_type == AGENT_SPEC_UPDATER or subagent_type == AGENT_MERGE_REVIEWER:
         if not task_dir:
             return 0
         task_dir_full = os.path.join(repo_root, task_dir) if not os.path.isabs(task_dir) else task_dir
         if not os.path.exists(task_dir_full):
             return 0
 
-    if subagent_type in AGENTS_REVIEW:
-        if not task_dir:
-            return 0
-        task_dir_full = os.path.join(repo_root, task_dir) if not os.path.isabs(task_dir) else task_dir
-        if not os.path.exists(task_dir_full):
-            return 0
+    # Build context by agent type
+    context = ""
+    new_prompt = ""
 
-    if subagent_type == AGENT_IMPLEMENT:
+    if subagent_type == AGENT_RESEARCH:
+        context = _get_research_context(repo_root, task_dir or "")
+        new_prompt = _build_research_prompt(original_prompt, context)
+    elif subagent_type == AGENT_IMPLEMENT:
         assert task_dir is not None
         context = _get_implement_context(repo_root, task_dir)
         new_prompt = _build_implement_prompt(original_prompt, context)
@@ -479,24 +554,38 @@ def main() -> int:
         assert task_dir is not None
         context = _get_check_context(repo_root, task_dir)
         new_prompt = _build_check_prompt(original_prompt, context)
-    elif subagent_type == AGENT_RESEARCH:
-        context = _get_research_context(repo_root, task_dir)
-        new_prompt = _build_research_prompt(original_prompt, context)
     elif subagent_type in AGENTS_REVIEW:
         assert task_dir is not None
         context = _get_review_context(repo_root, task_dir)
-        new_prompt = _build_review_prompt(original_prompt, context, subagent_type)
+        if subagent_type == AGENT_MERGE_REVIEWER:
+            new_prompt = _build_merge_reviewer_prompt(original_prompt, context)
+        else:
+            new_prompt = _build_review_prompt(original_prompt, context, subagent_type)
+    elif subagent_type == AGENT_SPEC_UPDATER:
+        assert task_dir is not None
+        context = _get_spec_updater_context(repo_root, task_dir)
+        new_prompt = _build_spec_updater_prompt(original_prompt, context)
     else:
         return 0
 
-    if not context:
-        # Hook didn't fire properly; subagent's own context loading is fallback
-        return 0
+    if not context and subagent_type in AGENTS_REQUIRE_TASK:
+        # Missing context for task-requiring agent — warn but proceed
+        pass
+
+    # Truncate if too large
+    if len(new_prompt) > MAX_CONTEXT_CHARS + len(original_prompt):
+        new_prompt = new_prompt[:MAX_CONTEXT_CHARS] + "\n\n[... context truncated ...]"
 
     updated = {**tool_input, "prompt": new_prompt}
+
+    # SubagentStart event format
+    event_name = input_data.get("hook_event_name", "") or input_data.get("hookEventName", "")
+    if not event_name:
+        event_name = "SubagentStart" if "agent_name" in input_data else "PreToolUse"
+
     output = {
         "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
+            "hookEventName": event_name,
             "permissionDecision": "allow",
             "updatedInput": updated,
         },

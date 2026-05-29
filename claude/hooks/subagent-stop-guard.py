@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-Team-kit Sub-agent Stop Guard Hook
+Team-kit Subagent Stop Guard Hook — v0.3 Hardened
 
-Validates subagent output format when a trellis sub-agent stops.
+Validates subagent output format when a trellis subagent stops.
+Returns BLOCK (not additionalContext) when required output elements are missing.
 
 Validation rules:
-- Implementer: must have changed files, summary, validation attempted, unresolved risks
+- Implementer: must have changed files, summary, validation attempted, no-commit
 - Checker: must have PASS/FAIL, commands run, failures, fixes
-- Reviewer: must have PASS/FAIL, blocking issues, non-blocking issues, exact file/spec citations
-
-If format is invalid, emits a warning.
+- Reviewer: must have PASS/FAIL, blocking issues, non-blocking issues, citations
+- Spec-updater: must have decision, need-spec-update, reason
+- Researcher: must have question, sources, findings, decision impact, output
 
 Trigger: SubagentStop
 """
@@ -21,7 +22,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Force UTF-8 on Windows
 if sys.platform.startswith("win"):
     import io as _io
     for _stream_name in ("stdin", "stdout", "stderr"):
@@ -42,9 +42,9 @@ if sys.platform.startswith("win"):
             except Exception:
                 pass
 
-
 TRELLIS_DIR = ".trellis"
 
+# Canonical agent names
 AGENT_IMPLEMENT = "trellis-implementer"
 AGENT_CHECK = "trellis-checker"
 AGENT_RESEARCH = "trellis-researcher"
@@ -53,12 +53,14 @@ AGENT_CODE_REVIEWER = "trellis-code-reviewer"
 AGENT_ARCHITECTURE_REVIEWER = "trellis-architecture-reviewer"
 AGENT_ARCHITECTURE_DEEP_REVIEWER = "trellis-architecture-deep-reviewer"
 AGENT_MERGE_REVIEWER = "trellis-merge-reviewer"
+AGENT_SPEC_UPDATER = "trellis-spec-updater"
+
 AGENTS_IMPLEMENT_CHECK = (AGENT_IMPLEMENT, AGENT_CHECK, AGENT_RESEARCH)
 AGENTS_REVIEW = (
     AGENT_SPEC_REVIEWER, AGENT_CODE_REVIEWER, AGENT_ARCHITECTURE_REVIEWER,
     AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
 )
-AGENTS_ALL = AGENTS_IMPLEMENT_CHECK + AGENTS_REVIEW
+AGENTS_ALL = AGENTS_IMPLEMENT_CHECK + AGENTS_REVIEW + (AGENT_SPEC_UPDATER,)
 
 
 def _find_trellis_root(start: Path) -> Optional[Path]:
@@ -70,67 +72,8 @@ def _find_trellis_root(start: Path) -> Optional[Path]:
     return None
 
 
-def _validate_implement_output(output_text: str) -> list[str]:
-    """Validate implementer output format. Returns list of missing elements."""
-    missing: list[str] = []
-    text_lower = output_text.lower()
-
-    if not any(kw in text_lower for kw in ("changed file", "modified file", "created file", "files changed")):
-        missing.append("changed files list")
-    if not any(kw in text_lower for kw in ("summary", "implemented", "what was implemented")):
-        missing.append("implementation summary")
-    if not any(kw in text_lower for kw in ("validation", "lint", "typecheck", "checked", "verified")):
-        missing.append("validation attempted")
-    if not any(kw in text_lower for kw in ("unresolved risk", "remaining concern", "open issue", "risk", "no unresolved")):
-        missing.append("unresolved risks statement")
-
-    return missing
-
-
-def _validate_check_output(output_text: str) -> list[str]:
-    """Validate checker output format. Returns list of missing elements."""
-    missing: list[str] = []
-    text_lower = output_text.lower()
-
-    if "pass" not in text_lower and "fail" not in text_lower:
-        missing.append("PASS/FAIL verdict")
-    if not any(kw in text_lower for kw in ("command", "ran", "executed", "ran:", "commands")):
-        missing.append("commands run")
-    if "fail" in text_lower and not any(kw in text_lower for kw in ("failure", "failed", "error")):
-        missing.append("failure details")
-    if not any(kw in text_lower for kw in ("fix", "applied", "resolved", "corrected")):
-        missing.append("fixes applied")
-
-    return missing
-
-
-def _validate_review_output(output_text: str) -> list[str]:
-    """Validate reviewer output format. Returns list of missing elements."""
-    missing: list[str] = []
-    text_lower = output_text.lower()
-
-    if "pass" not in text_lower and "fail" not in text_lower:
-        missing.append("PASS/FAIL verdict")
-    if not any(kw in text_lower for kw in ("blocking", "blocker", "critical")):
-        missing.append("blocking issues")
-    if not any(kw in text_lower for kw in ("non-blocking", "minor", "suggestion", "non blocking")):
-        missing.append("non-blocking issues")
-    # Check for file/spec citations (paths or .md references)
-    has_citation = (
-        "/" in output_text
-        or ".md" in output_text
-        or "spec" in text_lower
-        or "file" in text_lower
-    )
-    if not has_citation:
-        missing.append("exact file/spec citations")
-
-    return missing
-
-
 def _detect_subagent_type(input_data: dict) -> Optional[str]:
     """Detect which subagent type is stopping from the hook input."""
-    # Check transcript or agent name in various formats
     agent_name = input_data.get("agent_name", "")
     if isinstance(agent_name, str) and agent_name in AGENTS_ALL:
         return agent_name
@@ -139,7 +82,6 @@ def _detect_subagent_type(input_data: dict) -> Optional[str]:
     if isinstance(subagent_type, str) and subagent_type in AGENTS_ALL:
         return subagent_type
 
-    # Check tool_input for agent type
     tool_input = input_data.get("tool_input", {})
     if isinstance(tool_input, dict):
         for key in ("subagent_type", "subagentType", "name"):
@@ -151,14 +93,12 @@ def _detect_subagent_type(input_data: dict) -> Optional[str]:
 
 
 def _get_agent_output(input_data: dict) -> str:
-    """Extract the sub-agent's output text from the hook input."""
-    # Various places the output might be
+    """Extract the subagent's output text from the hook input."""
     for key in ("output", "result", "transcript", "message", "text"):
         val = input_data.get(key, "")
         if isinstance(val, str) and len(val) > 50:
             return val
 
-    # Check nested structures
     result = input_data.get("result", {})
     if isinstance(result, dict):
         for key in ("output", "text", "message", "content"):
@@ -167,6 +107,154 @@ def _get_agent_output(input_data: dict) -> str:
                 return val
 
     return ""
+
+
+# -- Validators --------------------------------------------------------------
+
+def _validate_implement_output(output_text: str) -> list[str]:
+    """Validate implementer output. Returns list of missing elements."""
+    missing: list[str] = []
+    text_lower = output_text.lower()
+
+    if not any(kw in text_lower for kw in (
+        "changed file", "modified file", "created file", "files changed",
+        "file changed", "files modified",
+    )):
+        missing.append("Changed Files list")
+
+    if not any(kw in text_lower for kw in (
+        "summary", "implemented", "what was implemented", "implementation summary",
+    )):
+        missing.append("Implementation Summary")
+
+    if not any(kw in text_lower for kw in (
+        "validation", "lint", "typecheck", "checked", "verified", "tested",
+    )):
+        missing.append("Validation Attempted")
+
+    if not any(kw in text_lower for kw in (
+        "unresolved risk", "remaining concern", "open issue", "risk",
+        "no unresolved", "follow-up", "followup",
+    )):
+        missing.append("Risks / Follow-ups")
+
+    if not any(kw in text_lower for kw in (
+        "did not commit", "no commit", "not committed", "without commit",
+    )):
+        missing.append("Did not commit confirmation")
+
+    return missing
+
+
+def _validate_check_output(output_text: str) -> list[str]:
+    """Validate checker output. Returns list of missing elements."""
+    missing: list[str] = []
+    text_lower = output_text.lower()
+
+    has_pass = any(kw in text_lower for kw in ("- [x] pass", "[x] pass", "status: pass"))
+    has_fail = any(kw in text_lower for kw in ("- [x] fail", "[x] fail", "status: fail"))
+    if not has_pass and not has_fail:
+        missing.append("Status: PASS or FAIL")
+
+    if not any(kw in text_lower for kw in ("command", "ran", "executed", "ran:", "commands")):
+        missing.append("Commands run")
+
+    if has_fail and not any(kw in text_lower for kw in ("failure", "failed", "error")):
+        missing.append("Failure details")
+
+    if not any(kw in text_lower for kw in ("fix", "applied", "resolved", "corrected", "required fix")):
+        missing.append("Required fixes (if FAIL) or fixes applied")
+
+    if not any(kw in text_lower for kw in ("file", "inspected", "checked")):
+        missing.append("Files inspected")
+
+    return missing
+
+
+def _validate_review_output(output_text: str) -> list[str]:
+    """Validate reviewer output. Returns list of missing elements."""
+    missing: list[str] = []
+    text_lower = output_text.lower()
+
+    has_pass = any(kw in text_lower for kw in ("- [x] pass", "[x] pass", "status: pass"))
+    has_fail = any(kw in text_lower for kw in ("- [x] fail", "[x] fail", "status: fail"))
+    if not has_pass and not has_fail:
+        missing.append("Status: PASS or FAIL")
+
+    if not any(kw in text_lower for kw in ("scope reviewed", "scope", "reviewed:")):
+        missing.append("Scope reviewed")
+
+    if not any(kw in text_lower for kw in ("blocking", "blocker", "critical")):
+        missing.append("Blocking issues")
+
+    if not any(kw in text_lower for kw in ("non-blocking", "minor", "suggestion", "non blocking")):
+        missing.append("Non-blocking issues")
+
+    if not any(kw in text_lower for kw in ("required fix", "fix required", "must fix", "need to fix")):
+        if has_fail:
+            missing.append("Required fixes (mandatory when FAIL)")
+
+    return missing
+
+
+def _validate_spec_updater_output(output_text: str) -> list[str]:
+    """Validate spec-updater output. Returns list of missing elements."""
+    missing: list[str] = []
+    text_lower = output_text.lower()
+
+    if "spec update decision" not in text_lower:
+        missing.append("Spec Update Decision section")
+
+    if not any(kw in text_lower for kw in ("need spec update", "spec update:")):
+        missing.append("Need spec update: yes/no")
+
+    if not any(kw in text_lower for kw in ("reason", "because", "justification")):
+        missing.append("Reason for decision")
+
+    return missing
+
+
+def _validate_research_output(output_text: str) -> list[str]:
+    """Validate researcher output. Returns list of missing elements."""
+    missing: list[str] = []
+    text_lower = output_text.lower()
+
+    if not any(kw in text_lower for kw in ("research question", "question", "query")):
+        missing.append("Research Question")
+
+    if not any(kw in text_lower for kw in ("source", "inspected", "file", "searched")):
+        missing.append("Files / Sources inspected")
+
+    if not any(kw in text_lower for kw in ("finding", "result", "discovered", "found")):
+        missing.append("Findings")
+
+    if not any(kw in text_lower for kw in ("impact", "decision", "conclusion", "recommendation")):
+        missing.append("Decision impact")
+
+    return missing
+
+
+# -- Output helpers -----------------------------------------------------------
+
+def _emit_block(reason: str) -> None:
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "SubagentStop",
+            "decision": "block",
+            "reason": reason,
+        }
+    }, ensure_ascii=False))
+    sys.exit(0)
+
+
+def _emit_warning(text: str) -> None:
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "SubagentStop",
+            "additionalContext": text,
+        }
+    }, ensure_ascii=False))
+    sys.exit(0)
 
 
 def main() -> int:
@@ -189,41 +277,60 @@ def main() -> int:
 
     output_text = _get_agent_output(input_data)
     if not output_text:
+        # Can't validate without output — warn but don't block
+        _emit_warning(
+            f"<subagent-stop-guard>\n"
+            f"Agent '{subagent_type}' stopped but no output text was found. "
+            f"Cannot validate output format.\n"
+            f"</subagent-stop-guard>"
+        )
         return 0
 
     # Validate based on agent type
     missing: list[str] = []
+    agent_label = subagent_type
+
     if subagent_type == AGENT_IMPLEMENT:
         missing = _validate_implement_output(output_text)
     elif subagent_type == AGENT_CHECK:
         missing = _validate_check_output(output_text)
     elif subagent_type in AGENTS_REVIEW:
         missing = _validate_review_output(output_text)
+    elif subagent_type == AGENT_SPEC_UPDATER:
+        missing = _validate_spec_updater_output(output_text)
     elif subagent_type == AGENT_RESEARCH:
-        # Research agents have lighter format requirements; skip strict validation
-        return 0
+        missing = _validate_research_output(output_text)
 
     if not missing:
         return 0
 
-    warning = (
-        f"<subagent-format-warning>\n"
-        f"Sub-agent '{subagent_type}' output is missing required elements:\n"
+    # Build block reason
+    reason = (
+        f"Subagent '{agent_label}' output is missing required elements:\n\n"
     )
     for item in missing:
-        warning += f"  - {item}\n"
-    warning += (
-        f"Please ensure the sub-agent follows the expected output format.\n"
-        f"</subagent-format-warning>"
+        reason += f"  - {item}\n"
+    reason += (
+        f"\nThe subagent must provide all required output elements. "
+        f"Re-run the agent with explicit output format instructions."
     )
 
-    result = {
-        "hookSpecificOutput": {
-            "hookEventName": "SubagentStop",
-            "additionalContext": warning,
-        }
-    }
-    print(json.dumps(result, ensure_ascii=False))
+    # Researcher gets soft warning unless evidence is required
+    if subagent_type == AGENT_RESEARCH:
+        warning = (
+            f"<subagent-format-warning>\n"
+            f"Subagent '{agent_label}' output is missing elements:\n"
+        )
+        for item in missing:
+            warning += f"  - {item}\n"
+        warning += (
+            f"Please ensure the research agent follows the expected output format.\n"
+            f"</subagent-format-warning>"
+        )
+        _emit_warning(warning)
+    else:
+        _emit_block(reason)
+
     return 0
 
 

@@ -3,39 +3,31 @@
     "SessionStart": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/session-start.py"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/session-start.py"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/inject-workflow-state.py"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/inject-workflow-state.py"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Task",
+        "matcher": "Edit|Write|Bash",
         "hooks": [
           {
-            "command": "python3 .claude/hooks/inject-subagent-context.py"
-          },
-          {
-            "command": "python3 .claude/hooks/protect-dangerous-actions.py"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "command": "python3 .claude/hooks/protect-dangerous-actions.py"
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
+            "type": "command",
             "command": "python3 .claude/hooks/protect-dangerous-actions.py"
           }
         ]
@@ -44,26 +36,52 @@
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
-        "command": "python3 .claude/hooks/post-edit-reminder.py"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/post-edit-reminder.py"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/inject-subagent-context.py"
+          }
+        ]
       }
     ],
     "SubagentStop": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/subagent-stop-guard.py"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/subagent-stop-guard.py"
+          }
+        ]
       }
     ],
     "Stop": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/stop-guard.py"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/stop-guard.py"
+          }
+        ]
       },
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh done '✅ Claude Code' '本轮已完成，等你继续'"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh done 'Claude Code' '本轮已完成，等你继续'"
           }
         ]
       }
@@ -71,7 +89,12 @@
     "PreCompact": [
       {
         "matcher": "",
-        "command": "python3 .claude/hooks/pre-compact-save-state.py"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/pre-compact-save-state.py"
+          }
+        ]
       }
     ],
     "Notification": [
@@ -80,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh attention '🤖 Claude Code' '需要你的处理'"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh attention 'Claude Code' '需要你的处理'"
           }
         ]
       }

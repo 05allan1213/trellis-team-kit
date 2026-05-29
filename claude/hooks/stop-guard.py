@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
-Team-kit Stop Guard Hook
+Team-kit Stop Guard Hook — v0.3 Hardened
 
-Prevents premature "done" claims. Checks that all required gates have
-passed before allowing a task to be marked as complete.
+Prevents premature "done" claims. Returns BLOCK (not additionalContext)
+when hard violations are detected.
 
-Checks:
-- Active task exists?
-- Check passed?
-- Review gates passed?
-- Spec update decision recorded?
-- Build/test done?
-- Task archived?
-- Planning phase and source was edited? -> warn about consent violation
+Hard blocks:
+- Active task exists but check not passed
+- Selected review gate missing / FAIL / no PASS/FAIL
+- Spec update decision missing
+- Validation missing / FAIL
+- Task not archived but assistant says done
+- Task in planning but assistant claims implementation completed
+- Implementation approval missing but source files were edited
+
+Soft warnings:
+- Optional review gate skipped with reason
+- Validation skipped with explicit reason
+- Spec update decision says no with reason
 
 Trigger: Stop
 """
@@ -20,6 +25,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -45,12 +52,28 @@ if sys.platform.startswith("win"):
             except Exception:
                 pass
 
-
 TRELLIS_DIR = ".trellis"
 
-# States where source editing is forbidden
-PLANNING_STATES = {"planning", "PLANNING", "PLANNING_PRD", "PLANNING_GRILL",
-                   "PLANNING_DESIGN", "PLANNING_IMPLEMENT", "WAITING_IMPLEMENTATION_APPROVAL"}
+# Review gate file mapping (canonical)
+GATE_FILE_MAP: dict[str, str] = {
+    "trellis-spec-review": "review/spec-review.md",
+    "trellis-code-review": "review/code-review.md",
+    "trellis-code-architecture-review": "review/architecture-review.md",
+    "trellis-improve-codebase-architecture deep-review": "review/architecture-deep-review.md",
+    "trellis-merge-review": "review/merge-review.md",
+}
+
+# Keywords that indicate assistant is claiming completion
+DONE_KEYWORDS = re.compile(
+    r"\b(done|finished|completed|all set|可以交付|已完成|任务完成|task complete|"
+    r"task is done|ready to finish|wrapping up)\b",
+    re.IGNORECASE,
+)
+
+PLANNING_STATES = {
+    "PLANNING_PRD", "PLANNING_GRILL", "PLANNING_DESIGN",
+    "PLANNING_IMPLEMENT", "WAITING_IMPLEMENTATION_APPROVAL",
+}
 
 
 def _find_trellis_root(start: Path) -> Optional[Path]:
@@ -62,35 +85,20 @@ def _find_trellis_root(start: Path) -> Optional[Path]:
     return None
 
 
-def _resolve_active_task(root: Path, input_data: dict) -> Optional[dict]:
-    """Resolve active task, return dict with task info."""
-    scripts_dir = root / TRELLIS_DIR / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-
-    task_path = None
+def _resolve_active_task(root: Path) -> Optional[dict]:
+    active_file = root / TRELLIS_DIR / "active-task"
+    if not active_file.is_file():
+        return None
     try:
-        from common.active_task import resolve_active_task  # type: ignore[import-not-found]
-        active = resolve_active_task(root, input_data)
-        if active and active.task_path:
-            task_path = active.task_path
-    except Exception:
-        pass
-
-    if not task_path:
-        active_file = root / TRELLIS_DIR / "active-task"
-        if active_file.is_file():
-            try:
-                task_path = active_file.read_text(encoding="utf-8").strip() or None
-            except OSError:
-                pass
-
-    if not task_path:
+        ref = active_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not ref:
         return None
 
-    task_dir = Path(task_path)
+    task_dir = Path(ref)
     if not task_dir.is_absolute():
-        task_dir = root / task_path
+        task_dir = root / ref
 
     task_json = task_dir / "task.json"
     task_data = {}
@@ -107,79 +115,134 @@ def _resolve_active_task(root: Path, input_data: dict) -> Optional[dict]:
     }
 
 
-def _check_gate_status(task_dir: Path) -> dict:
-    """Check which gates have passed based on artifact presence."""
-    gates: dict[str, bool] = {}
+def _parse_selected_gates(implement_md: Path) -> list[str]:
+    """Parse selected gates from implement.md Review Gate Contract."""
+    if not implement_md.is_file():
+        return []
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return []
 
-    # Check gate: look for PASS in check output or validation
-    validation_dir = task_dir / "validation"
-    if validation_dir.is_dir():
-        test_results = validation_dir / "test-results.md"
-        if test_results.is_file():
-            try:
-                content = test_results.read_text(encoding="utf-8").lower()
-                gates["check"] = "pass" in content
-            except OSError:
-                gates["check"] = False
-        else:
-            gates["check"] = False
-    else:
-        gates["check"] = False
-
-    # Review gates: look for PASS in review outputs
-    review_dir = task_dir / "review"
-    if review_dir.is_dir():
-        all_pass = True
-        has_reviews = False
-        for review_file in review_dir.iterdir():
-            if review_file.is_file() and review_file.suffix == ".md":
-                has_reviews = True
-                try:
-                    content = review_file.read_text(encoding="utf-8").lower()
-                    if "fail" in content and "pass" not in content.split("fail")[0][-50:]:
-                        all_pass = False
-                        break
-                except OSError:
-                    all_pass = False
-                    break
-        gates["review"] = all_pass if has_reviews else None  # None = no reviews required
-    else:
-        gates["review"] = None
-
-    # Spec update decision: check finish.md for Spec Update Decision
-    finish_md = task_dir / "finish.md"
-    if finish_md.is_file():
-        try:
-            content = finish_md.read_text(encoding="utf-8").lower()
-            gates["spec_update"] = "spec update decision" in content
-        except OSError:
-            gates["spec_update"] = False
-    else:
-        gates["spec_update"] = False
-
-    # Build/test: check validation/test-results.md
-    if validation_dir.is_dir():
-        test_results = validation_dir / "test-results.md"
-        commands_md = validation_dir / "commands.md"
-        gates["build_test"] = test_results.is_file() or commands_md.is_file()
-    else:
-        gates["build_test"] = False
-
+    gates: list[str] = []
+    in_selected = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith("selected gates:"):
+            in_selected = True
+            continue
+        if in_selected:
+            if stripped.startswith("- [") and "]" in stripped:
+                gate = stripped.split("] ", 1)[-1].strip()
+                if gate:
+                    gates.append(gate)
+            elif not stripped.startswith("-"):
+                in_selected = False
     return gates
 
 
-def _check_planning_source_violation(root: Path, task_info: dict) -> bool:
-    """Check if source files were edited during planning phase.
+def _check_review_gate(task_dir: Path, gate_name: str) -> str:
+    """Return 'pass', 'fail', 'missing', or 'no-verdict'."""
+    file_rel = GATE_FILE_MAP.get(gate_name)
+    if not file_rel:
+        return "missing"
+    gate_file = task_dir / file_rel
+    if not gate_file.is_file():
+        return "missing"
+    try:
+        content = gate_file.read_text(encoding="utf-8").lower()
+    except OSError:
+        return "missing"
 
-    This is a best-effort check using git diff. Returns True if a
-    consent violation is suspected.
-    """
-    status = task_info.get("status", "")
-    if status.lower() not in ("planning",):
-        return False
+    # Check for Status section with PASS/FAIL
+    has_status_section = "status:" in content
+    if not has_status_section:
+        return "no-verdict"
 
-    # Check if there are modified source files (not in .trellis/)
-    import subprocess
+    # Look for checked PASS or FAIL markers
+    has_pass = bool(re.search(r"-\s*\[x\]\s*pass", content))
+    has_fail = bool(re.search(r"-\s*\[x\]\s*fail", content))
+
+    if has_fail:
+        return "fail"
+    if has_pass:
+        return "pass"
+    return "no-verdict"
+
+
+def _check_validation(task_dir: Path) -> dict:
+    """Check validation status. Returns dict with build/test/smoke/ready."""
+    results: dict = {"build": "missing", "test": "missing", "smoke": "missing", "ready": "missing"}
+
+    validation_dir = task_dir / "validation"
+    if not validation_dir.is_dir():
+        return results
+
+    results_file = validation_dir / "results.md"
+    if not results_file.is_file():
+        return results
+
+    try:
+        content = results_file.read_text(encoding="utf-8").lower()
+    except OSError:
+        return results
+
+    for check in ("build", "test", "smoke"):
+        section_start = content.find(f"## {check}")
+        if section_start == -1:
+            continue
+        section = content[section_start:section_start + 500]
+        if "- [x] pass" in section:
+            results[check] = "pass"
+        elif "- [x] fail" in section:
+            results[check] = "fail"
+        elif "skipped with reason" in section:
+            results[check] = "skipped"
+
+    if "ready for finish-work?" in content:
+        if "- [x] yes" in content:
+            results["ready"] = "yes"
+        elif "- [x] no" in content:
+            results["ready"] = "no"
+
+    return results
+
+
+def _check_spec_update(task_dir: Path) -> str:
+    """Check spec update decision. Returns 'present', 'missing'."""
+    finish_md = task_dir / "finish.md"
+    if not finish_md.is_file():
+        return "missing"
+    try:
+        content = finish_md.read_text(encoding="utf-8").lower()
+    except OSError:
+        return "missing"
+    if "spec update decision" in content:
+        return "present"
+    return "missing"
+
+
+def _detect_done_intent(input_data: dict) -> bool:
+    """Check if the assistant's response contains done-intent language."""
+    # Check various fields that might contain the assistant's final message
+    for field in ("message", "text", "content", "output", "result"):
+        val = input_data.get(field, "")
+        if isinstance(val, str) and DONE_KEYWORDS.search(val):
+            return True
+
+    # Check nested
+    result = input_data.get("result", {})
+    if isinstance(result, dict):
+        for field in ("message", "text", "content", "output"):
+            val = result.get(field, "")
+            if isinstance(val, str) and DONE_KEYWORDS.search(val):
+                return True
+
+    return False
+
+
+def _check_source_edits_during_planning(root: Path) -> bool:
+    """Check if source files were edited (git diff shows changes outside .trellis/)."""
     try:
         result = subprocess.run(
             ["git", "diff", "--name-only"],
@@ -190,12 +253,32 @@ def _check_planning_source_violation(root: Path, task_info: dict) -> bool:
         if result.returncode == 0:
             for line in result.stdout.strip().splitlines():
                 line = line.strip()
-                if line and not line.startswith(".trellis/"):
+                if line and not line.startswith(".trellis/") and not line.startswith(".claude/"):
                     return True
     except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError):
         pass
-
     return False
+
+
+def _emit_block(reason: str) -> None:
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "Stop",
+            "decision": "block",
+            "reason": reason,
+        }
+    }, ensure_ascii=False))
+    sys.exit(0)
+
+
+def _emit_warning(text: str) -> None:
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "Stop",
+            "additionalContext": text,
+        }
+    }, ensure_ascii=False))
+    sys.exit(0)
 
 
 def main() -> int:
@@ -212,67 +295,131 @@ def main() -> int:
     if root is None:
         return 0
 
-    task_info = _resolve_active_task(root, input_data)
+    task_info = _resolve_active_task(root)
     if task_info is None:
         return 0  # No active task, nothing to guard
 
     status = task_info.get("status", "unknown")
     task_id = task_info.get("task_id", "unknown")
+    task_dir = task_info["task_dir"]
 
-    # If task is already completed/done, no guard needed
+    # Already done — nothing to guard
     if status.lower() in ("completed", "done"):
         return 0
 
-    warnings: list[str] = []
+    # Detect done intent
+    claiming_done = _detect_done_intent(input_data)
 
-    # Check for planning-phase source editing (consent violation)
-    if _check_planning_source_violation(root, task_info):
-        warnings.append(
-            "CONSENT VIOLATION: Source files were edited during the planning phase. "
-            "Task creation approval is NOT implementation approval. "
-            "Revert source changes and wait for implementation consent."
-        )
+    hard_blocks: list[str] = []
+    soft_warnings: list[str] = []
 
-    # For in_progress tasks, check gates
+    # --- Planning phase checks ---
+    if status.lower() == "planning" or status.upper() in PLANNING_STATES:
+        if _check_source_edits_during_planning(root):
+            hard_blocks.append(
+                "CONSENT VIOLATION: Source files were edited during the planning phase. "
+                "Task creation approval is NOT implementation approval. "
+                "Revert source changes and wait for implementation consent."
+            )
+        if claiming_done:
+            hard_blocks.append(
+                "Task is still in planning. Implementation has not started. "
+                "Do NOT claim done on an incomplete task."
+            )
+
+    # --- In-progress gate checks ---
     if status.lower() == "in_progress":
-        gates = _check_gate_status(task_info["task_dir"])
+        # Check gate (trellis-check always required)
+        check_passed = _check_review_gate(task_dir, "trellis-check")  # check is special
+        # Actually check is not a review gate per se, check validation/check-results.md
+        check_file = task_dir / "validation" / "check-results.md"
+        check_done = False
+        if check_file.is_file():
+            try:
+                c = check_file.read_text(encoding="utf-8").lower()
+                check_done = "pass" in c or "status:" in c
+            except OSError:
+                pass
 
-        if not gates.get("check"):
-            warnings.append("Check gate: NOT PASSED. Run trellis-check before claiming done.")
-        if gates.get("review") is False:
-            warnings.append("Review gates: NOT PASSED. All selected review gates must pass.")
-        if not gates.get("spec_update"):
-            warnings.append("Spec update decision: NOT RECORDED. Run trellis-update-spec first.")
-        if not gates.get("build_test"):
-            warnings.append("Build/test: NOT DONE. Run build/test or record why it cannot be executed.")
+        if not check_done:
+            hard_blocks.append("Check gate: NOT PASSED. Run trellis-check before claiming done.")
 
-    # If status is planning, remind that task is not done
-    if status.lower() == "planning":
-        warnings.append(
-            "Task is still in planning. Implementation has not started. "
-            "Do NOT claim done on an incomplete task."
-        )
+        # Selected review gates
+        implement_md = task_dir / "implement.md"
+        selected_gates = _parse_selected_gates(implement_md)
 
-    if not warnings:
-        return 0
+        for gate in selected_gates:
+            result = _check_review_gate(task_dir, gate)
+            if result == "missing":
+                hard_blocks.append(
+                    f"Selected review gate '{gate}' is missing (no review file found). "
+                    f"Run the review agent or disable the gate with reason."
+                )
+            elif result == "fail":
+                hard_blocks.append(
+                    f"Selected review gate '{gate}' FAILED. "
+                    f"Return to IMPLEMENTING, fix issues, re-check, re-review."
+                )
+            elif result == "no-verdict":
+                hard_blocks.append(
+                    f"Selected review gate '{gate}' has no PASS/FAIL verdict. "
+                    f"Reviewer must output explicit Status: PASS or FAIL."
+                )
 
-    warning_text = "<stop-guard-warning>\n"
-    warning_text += f"Task '{task_id}' is NOT done. Outstanding issues:\n"
-    for w in warnings:
-        warning_text += f"  - {w}\n"
-    warning_text += (
-        "Do NOT claim the task is complete until all gates pass and "
-        "finish-work succeeds.\n"
-        "</stop-guard-warning>"
-    )
+        # Validation check
+        validation = _check_validation(task_dir)
+        if validation["build"] == "missing" and validation["test"] == "missing":
+            hard_blocks.append(
+                "Validation missing: no build or test results recorded. "
+                "Run build/test and record results in validation/results.md."
+            )
+        elif validation["build"] == "fail":
+            hard_blocks.append("Build FAILED. Fix build issues before finishing.")
+        elif validation["test"] == "fail":
+            hard_blocks.append("Tests FAILED. Fix test failures before finishing.")
 
-    result = {
-        "hookSpecificOutput": {
-            "hookEventName": "Stop",
-            "additionalContext": warning_text,
-        }
-    }
-    print(json.dumps(result, ensure_ascii=False))
+        # Skipped without reason
+        for check_name in ("build", "test", "smoke"):
+            if validation[check_name] == "missing":
+                continue  # Already covered above
+            # If skipped, reason is acceptable per template format
+
+        if validation["ready"] == "no":
+            hard_blocks.append(
+                "Validation says 'Ready for finish-work: no'. "
+                "Address remaining issues before finishing."
+            )
+        elif validation["ready"] == "missing":
+            soft_warnings.append(
+                "Validation results exist but 'Ready for finish-work?' is not marked. "
+                "Mark it explicitly before finishing."
+            )
+
+        # Spec update decision
+        spec_decision = _check_spec_update(task_dir)
+        if spec_decision == "missing":
+            hard_blocks.append(
+                "Spec update decision missing. Run trellis-update-spec and "
+                "record the decision in finish.md."
+            )
+
+    # --- Emit results ---
+    if hard_blocks:
+        reason = f"Cannot mark task '{task_id}' as done.\n\n"
+        reason += f"Current state: {status.upper()}\n\n"
+        for i, b in enumerate(hard_blocks, 1):
+            reason += f"{i}. {b}\n"
+        reason += "\nResolve all blocking issues before finishing."
+        _emit_block(reason)
+
+    if soft_warnings:
+        warning_text = "<stop-guard-warning>\n"
+        warning_text += f"Task '{task_id}' soft warnings:\n"
+        for w in soft_warnings:
+            warning_text += f"  - {w}\n"
+        warning_text += "</stop-guard-warning>"
+        _emit_warning(warning_text)
+
     return 0
 
 

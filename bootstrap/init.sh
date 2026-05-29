@@ -69,32 +69,32 @@ if [ ! -d "$TARGET_ROOT/.git" ]; then
 fi
 
 # --- Step 1: Run trellis init with team marketplace ---
-info "Step 1/8: Running trellis init with team marketplace..."
+info "Step 1/9: Running trellis init with team marketplace..."
 trellis init -u "$DEV_NAME" --claude \
   --registry "gh:05allan1213/trellis-team-kit/marketplace" \
   --template web-app
 
 # --- Step 2: Install entry files (AGENTS.md, CLAUDE.md) ---
-info "Step 2/8: Installing entry files..."
+info "Step 2/9: Installing entry files..."
 get_file "entry/AGENTS.md" "$TARGET_ROOT/AGENTS.md"
 get_file "entry/CLAUDE.md" "$TARGET_ROOT/CLAUDE.md"
 info "  AGENTS.md installed"
 info "  CLAUDE.md installed"
 
 # --- Step 3: Install workflow ---
-info "Step 3/8: Installing workflow..."
+info "Step 3/9: Installing workflow..."
 mkdir -p "$TARGET_ROOT/.trellis"
 get_file "workflow/workflow.md" "$TARGET_ROOT/.trellis/workflow.md"
 info "  .trellis/workflow.md installed"
 
 # --- Step 4: Install claude/settings.json ---
-info "Step 4/8: Installing Claude settings..."
+info "Step 4/9: Installing Claude settings..."
 mkdir -p "$TARGET_ROOT/.claude"
 get_file "claude/settings.json" "$TARGET_ROOT/.claude/settings.json"
 info "  .claude/settings.json installed"
 
 # --- Step 5: Install skills ---
-info "Step 5/8: Installing skills..."
+info "Step 5/9: Installing skills..."
 SKILL_COUNT=0
 for skill in \
   trellis-before-dev trellis-brainstorm trellis-break-loop trellis-check \
@@ -110,7 +110,7 @@ done
 info "  $SKILL_COUNT skills installed"
 
 # --- Step 6: Install agents ---
-info "Step 6/8: Installing agents..."
+info "Step 6/9: Installing agents..."
 AGENT_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/agents"
 for agent in \
@@ -123,8 +123,8 @@ for agent in \
 done
 info "  $AGENT_COUNT agents installed"
 
-# --- Step 7: Install hooks and commands ---
-info "Step 7/8: Installing hooks and commands..."
+# --- Step 7: Install hooks, commands, and hook libs ---
+info "Step 7/9: Installing hooks, commands, and hook libs..."
 HOOK_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/hooks"
 for hook in \
@@ -140,7 +140,15 @@ get_file "claude/hooks/trellis-notify.sh" "$TARGET_ROOT/.claude/hooks/trellis-no
 chmod +x "$TARGET_ROOT/.claude/hooks/trellis-notify.sh"
 HOOK_COUNT=$((HOOK_COUNT + 1))
 
+# Install hook libs
+LIB_COUNT=0
+mkdir -p "$TARGET_ROOT/.claude/hooks/lib"
+for lib in __init__ hook_output workflow_state task_artifacts naming; do
+  get_file "claude/hooks/lib/$lib.py" "$TARGET_ROOT/.claude/hooks/lib/$lib.py"
+  LIB_COUNT=$((LIB_COUNT + 1))
+done
 info "  $HOOK_COUNT hooks installed"
+info "  $LIB_COUNT hook libs installed"
 
 COMMAND_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/commands/trellis"
@@ -150,8 +158,20 @@ for cmd in finish-work continue create-manifest; do
 done
 info "  $COMMAND_COUNT commands installed"
 
-# --- Step 8: Install specs and task templates, record version ---
-info "Step 8/8: Installing specs, templates, and recording version..."
+# --- Step 8: Install validators ---
+info "Step 8/9: Installing static validators..."
+VALIDATOR_COUNT=0
+mkdir -p "$TARGET_ROOT/.trellis/scripts"
+for v in \
+  validate_claude_settings validate_naming_map validate_hooks \
+  validate_task validate_review_gates validate_runtime_hardening; do
+  get_file "trellis/scripts/$v.py" "$TARGET_ROOT/.trellis/scripts/$v.py"
+  VALIDATOR_COUNT=$((VALIDATOR_COUNT + 1))
+done
+info "  $VALIDATOR_COUNT validators installed"
+
+# --- Step 9: Install specs, templates, and record version ---
+info "Step 9/9: Installing specs, templates, and recording version..."
 
 # Specs are already installed by trellis init --template web-app in Step 1.
 # Count what trellis init placed.
@@ -196,12 +216,20 @@ echo "    Settings:     .claude/settings.json"
 echo "    Skills:       $SKILL_COUNT"
 echo "    Agents:       $AGENT_COUNT"
 echo "    Hooks:        $HOOK_COUNT"
+echo "    Hook libs:    $LIB_COUNT"
 echo "    Commands:     $COMMAND_COUNT"
+echo "    Validators:   $VALIDATOR_COUNT"
 echo "    Spec files:   $SPEC_COUNT"
 echo "    Templates:    $TEMPLATE_COUNT"
 echo ""
 echo "  Next steps:"
-echo "    1. Review .trellis/spec/index.md for your project"
-echo "    2. Customize specs in .trellis/spec/ for your stack"
-echo "    3. Start a task: describe what you want to build"
+echo "    1. Run local setup:"
+echo "       bash bootstrap/init-local.sh <name>"
+echo ""
+echo "    2. Run static validation:"
+echo "       python3 .trellis/scripts/validate_runtime_hardening.py"
+echo ""
+echo "    3. Open Claude Code and verify hook registration."
+echo ""
+echo "    4. Real smoke test is recommended before team pilot."
 echo "=========================================="
