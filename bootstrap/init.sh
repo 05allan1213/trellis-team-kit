@@ -7,15 +7,26 @@ DEV_NAME="${1:-}"
 if [ -z "$DEV_NAME" ]; then
   echo "Usage: init.sh <developer-name>"
   echo ""
-  echo "Example: init.sh alice"
+  echo "Example:"
+  echo "  Local:  bash path/to/trellis-team-kit/bootstrap/init.sh alice"
+  echo "  Remote: bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh) alice"
   exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KIT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+RAW_BASE="https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main"
 TARGET_ROOT="$(pwd)"
 
-if [ "$TARGET_ROOT" = "$KIT_ROOT" ]; then
+# Detect execution mode: local (has real script path) or remote (piped via curl)
+if [ -f "${BASH_SOURCE[0]}" ] && [[ "${BASH_SOURCE[0]}" != "/dev/fd/"* ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  KIT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  MODE="local"
+else
+  KIT_ROOT=""
+  MODE="remote"
+fi
+
+if [ "$MODE" = "local" ] && [ "$TARGET_ROOT" = "$KIT_ROOT" ]; then
   echo "Error: do not run this script inside trellis-team-kit."
   echo "Run it from the project directory you want to initialize."
   exit 1
@@ -24,6 +35,29 @@ fi
 # --- Helpers ---
 info()  { echo "[init] $*"; }
 error() { echo "[init] ERROR: $*" >&2; exit 1; }
+
+# Get a file: local copy or remote download
+get_file() {
+  local src="$1" dst="$2"
+  if [ "$MODE" = "local" ]; then
+    cp "$KIT_ROOT/$src" "$dst"
+  else
+    curl -fsSL "$RAW_BASE/$src" -o "$dst"
+  fi
+}
+
+# Get a directory: local copy or remote download (file by file)
+get_dir() {
+  local src="$1" dst="$2" file_list="$3"
+  mkdir -p "$dst"
+  if [ "$MODE" = "local" ]; then
+    cp -R "$KIT_ROOT/$src/"* "$dst/" 2>/dev/null || true
+  else
+    for f in $file_list; do
+      curl -fsSL "$RAW_BASE/$src/$f" -o "$dst/$f"
+    done
+  fi
+}
 
 # --- Pre-flight ---
 if ! command -v trellis >/dev/null 2>&1; then
@@ -42,32 +76,35 @@ trellis init -u "$DEV_NAME" --claude \
 
 # --- Step 2: Install entry files (AGENTS.md, CLAUDE.md) ---
 info "Step 2/8: Installing entry files..."
-cp "$KIT_ROOT/entry/AGENTS.md" "$TARGET_ROOT/AGENTS.md"
-cp "$KIT_ROOT/entry/CLAUDE.md" "$TARGET_ROOT/CLAUDE.md"
+get_file "entry/AGENTS.md" "$TARGET_ROOT/AGENTS.md"
+get_file "entry/CLAUDE.md" "$TARGET_ROOT/CLAUDE.md"
 info "  AGENTS.md installed"
 info "  CLAUDE.md installed"
 
 # --- Step 3: Install workflow ---
 info "Step 3/8: Installing workflow..."
 mkdir -p "$TARGET_ROOT/.trellis"
-cp "$KIT_ROOT/workflow/workflow.md" "$TARGET_ROOT/.trellis/workflow.md"
+get_file "workflow/workflow.md" "$TARGET_ROOT/.trellis/workflow.md"
 info "  .trellis/workflow.md installed"
 
 # --- Step 4: Install claude/settings.json ---
 info "Step 4/8: Installing Claude settings..."
 mkdir -p "$TARGET_ROOT/.claude"
-cp "$KIT_ROOT/claude/settings.json" "$TARGET_ROOT/.claude/settings.json"
+get_file "claude/settings.json" "$TARGET_ROOT/.claude/settings.json"
 info "  .claude/settings.json installed"
 
 # --- Step 5: Install skills ---
 info "Step 5/8: Installing skills..."
 SKILL_COUNT=0
-for skill_dir in "$KIT_ROOT"/claude/skills/*/; do
-  [ -d "$skill_dir" ] || continue
-  skill_name=$(basename "$skill_dir")
-  target_dir="$TARGET_ROOT/.claude/skills/$skill_name"
+for skill in \
+  trellis-before-dev trellis-brainstorm trellis-break-loop trellis-check \
+  trellis-code-architecture-review trellis-code-review trellis-dev-strategy \
+  trellis-finish-work trellis-grill-me trellis-implement \
+  trellis-improve-codebase-architecture trellis-merge-review \
+  trellis-spec-review trellis-update-spec; do
+  target_dir="$TARGET_ROOT/.claude/skills/$skill"
   mkdir -p "$target_dir"
-  cp -R "$skill_dir"* "$target_dir/"
+  get_file "claude/skills/$skill/SKILL.md" "$target_dir/SKILL.md"
   SKILL_COUNT=$((SKILL_COUNT + 1))
 done
 info "  $SKILL_COUNT skills installed"
@@ -76,9 +113,12 @@ info "  $SKILL_COUNT skills installed"
 info "Step 6/8: Installing agents..."
 AGENT_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/agents"
-for agent_file in "$KIT_ROOT"/claude/agents/*.md; do
-  [ -f "$agent_file" ] || continue
-  cp "$agent_file" "$TARGET_ROOT/.claude/agents/"
+for agent in \
+  trellis-architecture-deep-reviewer trellis-architecture-reviewer \
+  trellis-checker trellis-code-reviewer trellis-implementer \
+  trellis-merge-reviewer trellis-researcher trellis-spec-reviewer \
+  trellis-spec-updater; do
+  get_file "claude/agents/$agent.md" "$TARGET_ROOT/.claude/agents/$agent.md"
   AGENT_COUNT=$((AGENT_COUNT + 1))
 done
 info "  $AGENT_COUNT agents installed"
@@ -87,20 +127,19 @@ info "  $AGENT_COUNT agents installed"
 info "Step 7/8: Installing hooks and commands..."
 HOOK_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/hooks"
-for hook_file in "$KIT_ROOT"/claude/hooks/*.py; do
-  [ -f "$hook_file" ] || continue
-  cp "$hook_file" "$TARGET_ROOT/.claude/hooks/"
+for hook in \
+  inject-subagent-context inject-workflow-state post-edit-reminder \
+  pre-compact-save-state protect-dangerous-actions session-start \
+  stop-guard subagent-stop-guard; do
+  get_file "claude/hooks/$hook.py" "$TARGET_ROOT/.claude/hooks/$hook.py"
   HOOK_COUNT=$((HOOK_COUNT + 1))
 done
 info "  $HOOK_COUNT hooks installed"
 
 COMMAND_COUNT=0
-for cmd_file in "$KIT_ROOT"/claude/commands/**/*.md; do
-  [ -f "$cmd_file" ] || continue
-  cmd_rel=${cmd_file#$KIT_ROOT/claude/commands/}
-  target_cmd="$TARGET_ROOT/.claude/commands/$cmd_rel"
-  mkdir -p "$(dirname "$target_cmd")"
-  cp "$cmd_file" "$target_cmd"
+mkdir -p "$TARGET_ROOT/.claude/commands/trellis"
+for cmd in finish-work continue create-manifest; do
+  get_file "claude/commands/trellis/$cmd.md" "$TARGET_ROOT/.claude/commands/trellis/$cmd.md"
   COMMAND_COUNT=$((COMMAND_COUNT + 1))
 done
 info "  $COMMAND_COUNT commands installed"
@@ -108,26 +147,30 @@ info "  $COMMAND_COUNT commands installed"
 # --- Step 8: Install specs and task templates, record version ---
 info "Step 8/8: Installing specs, templates, and recording version..."
 
-# Install specs from marketplace
-SPEC_COUNT=0
-mkdir -p "$TARGET_ROOT/.trellis/spec"
-if [ -d "$KIT_ROOT/marketplace/specs/web-app" ]; then
-  cp -R "$KIT_ROOT/marketplace/specs/web-app/"* "$TARGET_ROOT/.trellis/spec/"
-  SPEC_COUNT=$(find "$TARGET_ROOT/.trellis/spec" -name "*.md" | wc -l)
-fi
+# Specs are already installed by trellis init --template web-app in Step 1.
+# Count what trellis init placed.
+SPEC_COUNT=$(find "$TARGET_ROOT/.trellis/spec" -name "*.md" 2>/dev/null | wc -l)
 info "  $SPEC_COUNT spec files installed"
 
 # Install task templates
 TEMPLATE_COUNT=0
-if [ -d "$KIT_ROOT/trellis/task-templates" ]; then
-  mkdir -p "$TARGET_ROOT/.trellis/templates"
-  cp -R "$KIT_ROOT/trellis/task-templates/"* "$TARGET_ROOT/.trellis/templates/" 2>/dev/null || true
-  TEMPLATE_COUNT=$(find "$TARGET_ROOT/.trellis/templates" -name "*.tmpl" -o -name "*.md" 2>/dev/null | wc -l)
-fi
+mkdir -p "$TARGET_ROOT/.trellis/templates"
+for tmpl in \
+  prd.md.tmpl design.md.tmpl implement.md.tmpl finish.md.tmpl pr-template.md \
+  research/evidence.md.tmpl research/brainstorm.md.tmpl research/grill-me.md.tmpl \
+  research/external-docs.md.tmpl research/architecture-options.md.tmpl \
+  research/break-loop.md.tmpl research/spike-results.md.tmpl research/decision-log.md.tmpl \
+  review/spec-review.md.tmpl review/code-review.md.tmpl \
+  review/architecture-review.md.tmpl review/merge-review.md.tmpl \
+  validation/commands.md.tmpl validation/test-results.md.tmpl validation/build-results.md.tmpl; do
+  mkdir -p "$(dirname "$TARGET_ROOT/.trellis/templates/$tmpl")"
+  get_file "trellis/task-templates/$tmpl" "$TARGET_ROOT/.trellis/templates/$tmpl"
+  TEMPLATE_COUNT=$((TEMPLATE_COUNT + 1))
+done
 info "  $TEMPLATE_COUNT task templates installed"
 
 # Record version
-cp "$KIT_ROOT/VERSION" "$TARGET_ROOT/.trellis/.team-kit-version"
+get_file "VERSION" "$TARGET_ROOT/.trellis/.team-kit-version"
 echo "initialized_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$TARGET_ROOT/.trellis/.team-kit-version"
 echo "initialized_by: $DEV_NAME" >> "$TARGET_ROOT/.trellis/.team-kit-version"
 
