@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Optional
@@ -151,6 +152,116 @@ def _determine_reminders(file_path: str) -> list[str]:
     return reminders
 
 
+def _parse_declared_paths(implement_md: Path) -> list[str]:
+    if not implement_md.is_file():
+        return []
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    paths: list[str] = []
+    in_section = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        clean = stripped.lstrip("#").strip()
+        if clean.lower().startswith("files / areas likely touched") or \
+           clean.lower().startswith("files/areas likely touched"):
+            in_section = True
+            continue
+        if in_section:
+            if stripped.startswith("##"):
+                break
+            m = re.match(r"-\s*`([^`]+)`", stripped)
+            if m:
+                paths.append(m.group(1).strip())
+    return paths
+
+
+def _is_path_declared(file_path: str, declared: list[str]) -> bool:
+    norm = file_path.replace("\\", "/")
+    if norm.startswith("./"):
+        norm = norm[2:]
+    for declared_path in declared:
+        d = declared_path.replace("\\", "/")
+        if d.startswith("./"):
+            d = d[2:]
+        if norm == d or norm.startswith(d.rstrip("*").rstrip("/")):
+            return True
+        if d.endswith("/*") and norm.startswith(d[:-1]):
+            return True
+        if d.endswith("/") and norm.startswith(d):
+            return True
+    return False
+
+
+def _has_broad_declarations(declared: list[str]) -> list[str]:
+    broad_patterns = ["*", "src/*", "**/*"]
+    broad: list[str] = []
+    for d in declared:
+        norm = d.replace("\\", "/").strip("./")
+        if norm in broad_patterns or norm == "":
+            broad.append(d)
+    return broad
+
+
+def _check_scope_guard(file_path: str, root: Path) -> Optional[str]:
+    active_file = root / TRELLIS_DIR / "active-task"
+    if not active_file.is_file():
+        return None
+    try:
+        ref = active_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not ref:
+        return None
+
+    task_dir = Path(ref)
+    if not task_dir.is_absolute():
+        task_dir = root / ref
+
+    task_json = task_dir / "task.json"
+    if not task_json.is_file():
+        return None
+    try:
+        data = json.loads(task_json.read_text(encoding="utf-8"))
+        status = data.get("status", "")
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    if status.lower() != "in_progress":
+        return None
+
+    if not (task_dir / "before-dev.md").is_file():
+        return None
+
+    implement_md = task_dir / "implement.md"
+    declared = _parse_declared_paths(implement_md)
+    if not declared:
+        return None
+
+    broad = _has_broad_declarations(declared)
+    if broad:
+        return (
+            f"scope-quality: implement.md has overly broad declarations: "
+            f"{', '.join(broad)}. Scope guard is less effective with broad patterns. "
+            f"Consider using more specific paths like 'src/api/users.ts' instead of 'src/*'."
+        )
+
+    norm = file_path.replace("\\", "/")
+    if norm.startswith(".trellis/") or norm.startswith(".claude/"):
+        return None
+
+    if _is_path_declared(norm, declared):
+        return None
+
+    return (
+        f"scope-guard: File '{norm}' is NOT declared in implement.md "
+        f"'Files / Areas Likely Touched'. Declared paths: "
+        f"{', '.join(declared[:5])}{'...' if len(declared) > 5 else ''}. "
+        f"If this change is intentional, add the path to implement.md."
+    )
+
+
 def main() -> int:
     if os.environ.get("TRELLIS_HOOKS") == "0" or os.environ.get("TRELLIS_DISABLE_HOOKS") == "1":
         return 0
@@ -175,6 +286,11 @@ def main() -> int:
         return 0
 
     reminders = _determine_reminders(file_path)
+
+    scope_warning = _check_scope_guard(file_path, root)
+    if scope_warning:
+        reminders.append(scope_warning)
+
     if not reminders:
         return 0
 

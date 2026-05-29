@@ -10,6 +10,7 @@ Hard block (deny):
 - Editing .env or secrets/credentials files
 - Deleting migration files
 - Source file editing during planning phase (before implementation approval)
+- Source file editing during in_progress without before-dev.md
 - task.py start without implementation consent
 - Spawning implementer without approval
 
@@ -166,6 +167,19 @@ SOURCE_EXTS = {
     ".cs", ".scala", ".sh", ".bash", ".zsh", ".sql", ".vue", ".svelte",
 }
 
+HIGH_RISK_PATTERNS = [
+    r"(^|/)auth/",
+    r"(^|/)authentication/",
+    r"(^|/)migrations?/",
+    r"(^|/)schema\.",
+    r"(^|/)api/",
+    r"(^|/)routes/",
+    r"(^|/)endpoints/",
+    r"(^|/)(shared|common)/types",
+    r"(^|/)contracts?/",
+    r"(^|/)proto/",
+]
+
 
 def _find_trellis_root(start: Path) -> Optional[Path]:
     cur = start.resolve()
@@ -201,6 +215,22 @@ def _get_task_status(root: Path) -> Optional[str]:
     return None
 
 
+def _get_task_dir(root: Path) -> Optional[Path]:
+    active_file = root / TRELLIS_DIR / "active-task"
+    if not active_file.is_file():
+        return None
+    try:
+        ref = active_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not ref:
+        return None
+    task_dir = Path(ref)
+    if not task_dir.is_absolute():
+        task_dir = root / ref
+    return task_dir
+
+
 def _is_planning_phase(status: Optional[str]) -> bool:
     if not status:
         return False
@@ -212,6 +242,58 @@ def _is_source_file(file_path: str) -> bool:
         return False
     _, ext = os.path.splitext(file_path)
     return ext.lower() in SOURCE_EXTS
+
+
+def _parse_declared_paths(implement_md: Path) -> list[str]:
+    if not implement_md.is_file():
+        return []
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    paths: list[str] = []
+    in_section = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        clean = stripped.lstrip("#").strip()
+        if clean.lower().startswith("files / areas likely touched") or \
+           clean.lower().startswith("files/areas likely touched"):
+            in_section = True
+            continue
+        if in_section:
+            if stripped.startswith("##"):
+                break
+            m = re.match(r"-\s*`([^`]+)`", stripped)
+            if m:
+                paths.append(m.group(1).strip())
+    return paths
+
+
+def _is_path_declared(file_path: str, declared: list[str]) -> bool:
+    norm = file_path.replace("\\", "/")
+    if norm.startswith("./"):
+        norm = norm[2:]
+    for declared_path in declared:
+        d = declared_path.replace("\\", "/")
+        if d.startswith("./"):
+            d = d[2:]
+        if norm == d or norm.startswith(d.rstrip("*").rstrip("/")):
+            return True
+        if d.endswith("/*") and norm.startswith(d[:-1]):
+            return True
+        if d.endswith("/") and norm.startswith(d):
+            return True
+    return False
+
+
+def _is_high_risk_path(file_path: str) -> bool:
+    norm = file_path.replace("\\", "/")
+    if norm.startswith("./"):
+        norm = norm[2:]
+    for pattern in HIGH_RISK_PATTERNS:
+        if re.search(pattern, norm):
+            return True
+    return False
 
 
 def _check_override(input_data: dict) -> Optional[str]:
@@ -268,6 +350,37 @@ def _check_file_operation(file_path: str, tool_name: str, root: Path) -> tuple[O
                 "  Correct next step: Complete planning artifacts and wait for "
                 "user to explicitly approve implementation."
             ), True
+
+        if status and status.lower() == "in_progress":
+            task_dir = _get_task_dir(root)
+            if task_dir and not (task_dir / "before-dev.md").is_file():
+                return (
+                    "BLOCKED: Editing source files without before-dev constraints.\n"
+                    "  Current state: IN_PROGRESS\n"
+                    "  Blocked action: Write/Edit to source file\n"
+                    "  Reason: trellis-before-dev has not been completed. "
+                    "Run trellis-before-dev first to read all artifacts and "
+                    "output implementation constraints.\n"
+                    "  Correct next step: Run trellis-before-dev skill, then "
+                    "create before-dev.md in the task directory."
+                ), True
+
+            if task_dir and (task_dir / "before-dev.md").is_file():
+                implement_md = task_dir / "implement.md"
+                declared = _parse_declared_paths(implement_md)
+                if declared and not _is_path_declared(norm_path, declared):
+                    if _is_high_risk_path(norm_path):
+                        return (
+                            f"BLOCKED: Editing high-risk undeclared path: {norm_path}\n"
+                            f"  Current state: IN_PROGRESS\n"
+                            f"  Blocked action: Write/Edit to source file\n"
+                            f"  Reason: This file is in a high-risk area (auth, migration, "
+                            f"schema, API contract, shared types) and is NOT declared in "
+                            f"implement.md 'Files / Areas Likely Touched'.\n"
+                            f"  Declared paths: {', '.join(declared[:5])}{'...' if len(declared) > 5 else ''}\n"
+                            f"  Correct next step: Either add this path to implement.md, "
+                            f"or use 'override team-kit guardrail: <reason>' if intentional."
+                        ), False
 
     # Check soft warning patterns
     if tool_name in ("Write", "Edit"):

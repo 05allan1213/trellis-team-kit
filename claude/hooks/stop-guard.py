@@ -222,6 +222,27 @@ def _check_spec_update(task_dir: Path) -> str:
     return "missing"
 
 
+def _run_task_validator(root: Path, task_dir: Path, script_name: str) -> Optional[str]:
+    script = root / TRELLIS_DIR / "scripts" / script_name
+    if not script.is_file():
+        return None
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script), str(task_dir)],
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=10, cwd=str(root),
+        )
+        if result.returncode != 0:
+            output = (result.stdout or "").strip()
+            if output:
+                return output
+            return f"{script_name} failed (exit code {result.returncode})"
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError) as e:
+        return f"{script_name} error: {e}"
+    return None
+
+
 def _detect_done_intent(input_data: dict) -> bool:
     """Check if the assistant's response contains done-intent language."""
     # Check various fields that might contain the assistant's final message
@@ -394,6 +415,13 @@ def main() -> int:
                 "Spec update decision missing. Run trellis-update-spec and "
                 "record the decision in finish.md."
             )
+
+        for validator in ("validate_task.py", "validate_review_gates.py"):
+            validator_output = _run_task_validator(root, task_dir, validator)
+            if validator_output:
+                hard_blocks.append(
+                    f"{validator} FAILED:\n{validator_output}"
+                )
 
     # --- Emit results ---
     if hard_blocks:

@@ -6,29 +6,100 @@ Checks:
 - task.json exists and is valid
 - Task level is valid (L0-L5)
 - Required artifacts by level are present
+- implement.jsonl / check.jsonl must exist and be non-empty
 - Approval status
-- implement.jsonl / check.jsonl are valid JSONL
 - Review gate contract is present
 - Validation results
-- Finish marker
+- Finish marker for completed tasks
 """
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
-LEVEL_REQUIREMENTS = {
-    "L0": {"artifacts": [], "gates": []},
-    "L1": {"artifacts": [], "gates": ["check"]},
-    "L2": {"artifacts": ["prd.md"], "gates": ["check"]},
-    "L3": {"artifacts": ["prd.md", "implement.md"], "gates": ["check", "code-review"]},
-    "L4": {"artifacts": ["prd.md", "design.md", "implement.md"],
-            "gates": ["check", "spec-review", "code-review", "architecture-review"]},
-    "L5": {"artifacts": ["prd.md", "design.md", "implement.md"],
-            "gates": ["check", "spec-review", "code-review", "architecture-review",
-                       "deep-review", "merge-review"]},
+LEVEL_ARTIFACT_REQUIREMENTS: dict[str, list[str]] = {
+    "L0": [],
+    "L1": [],
+    "L2": ["prd.md", "research/grill-me.md"],
+    "L3": ["prd.md", "research/grill-me.md", "implement.md"],
+    "L4": ["prd.md", "research/grill-me.md", "implement.md", "design.md"],
+    "L5": ["prd.md", "research/grill-me.md", "implement.md", "design.md"],
 }
+
+LEVEL_JSONL_REQUIREMENTS: dict[str, list[str]] = {
+    "L0": [],
+    "L1": [],
+    "L2": ["implement.jsonl", "check.jsonl"],
+    "L3": ["implement.jsonl", "check.jsonl"],
+    "L4": ["implement.jsonl", "check.jsonl"],
+    "L5": ["implement.jsonl", "check.jsonl"],
+}
+
+
+BROAD_SCOPE_PATTERNS = [
+    r"^\*$",
+    r"^src/\*$",
+    r"^\.?/?$",
+    r"^\*\*/\*$",
+    r"^\.\./?$",
+]
+
+
+def _check_scope_quality(implement_md: Path, task_id: str, level: str) -> list[str]:
+    if not implement_md.is_file():
+        return []
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return []
+
+    paths: list[str] = []
+    in_section = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        clean = stripped.lstrip("#").strip()
+        if clean.lower().startswith("files / areas likely touched") or \
+           clean.lower().startswith("files/areas likely touched"):
+            in_section = True
+            continue
+        if in_section:
+            if stripped.startswith("##"):
+                break
+            m = re.match(r"-\s*`([^`]+)`", stripped)
+            if m:
+                paths.append(m.group(1).strip())
+
+    if not paths:
+        return []
+
+    warnings: list[str] = []
+    for p in paths:
+        norm = p.replace("\\", "/").strip("/")
+        for pattern in BROAD_SCOPE_PATTERNS:
+            if re.match(pattern, norm):
+                warnings.append(
+                    f"Task '{task_id}' ({level}): implement.md scope declaration "
+                    f"'{p}' is too broad — use more specific paths to enable "
+                    f"effective scope guarding"
+                )
+                break
+
+    return warnings
+
+
+def _check_jsonl_non_empty(path: Path) -> tuple[bool, str]:
+    if not path.is_file():
+        return False, "file does not exist"
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    return True, ""
+        return False, "file is empty (no non-blank lines)"
+    except OSError as e:
+        return False, f"cannot read: {e}"
 
 
 def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
@@ -38,7 +109,6 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
     if not task_dir.is_dir():
         return False, [f"Task directory not found: {task_dir}"]
 
-    # task.json
     task_json = task_dir / "task.json"
     if not task_json.is_file():
         return False, [f"No task.json in {task_dir}"]
@@ -54,38 +124,58 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
 
     if not level:
         errors.append(f"Task '{task_id}': missing 'level' field")
-    elif level not in LEVEL_REQUIREMENTS:
+    elif level not in LEVEL_ARTIFACT_REQUIREMENTS:
         errors.append(f"Task '{task_id}': invalid level '{level}'")
 
     if not status:
         errors.append(f"Task '{task_id}': missing 'status' field")
 
-    # Check required artifacts by level
-    if level in LEVEL_REQUIREMENTS:
-        for artifact in LEVEL_REQUIREMENTS[level]["artifacts"]:
+    is_planning = status.lower() == "planning" or status.upper() in (
+        "PLANNING_PRD", "PLANNING_GRILL", "PLANNING_DESIGN",
+        "PLANNING_IMPLEMENT", "WAITING_IMPLEMENTATION_APPROVAL",
+    )
+
+    if level in LEVEL_ARTIFACT_REQUIREMENTS:
+        for artifact in LEVEL_ARTIFACT_REQUIREMENTS[level]:
             art_path = task_dir / artifact
             if not art_path.is_file():
-                if status not in ("planning",) or artifact != "design.md":
-                    errors.append(f"Task '{task_id}' ({level}): missing required artifact '{artifact}'")
+                if is_planning and artifact == "design.md":
+                    continue
+                errors.append(
+                    f"Task '{task_id}' ({level}): missing required artifact '{artifact}'"
+                )
 
-    # Validate JSONL files
+    if level in LEVEL_JSONL_REQUIREMENTS and not is_planning:
+        for jsonl_name in LEVEL_JSONL_REQUIREMENTS[level]:
+            jsonl_path = task_dir / jsonl_name
+            ok, detail = _check_jsonl_non_empty(jsonl_path)
+            if not ok:
+                errors.append(
+                    f"Task '{task_id}' ({level}): required '{jsonl_name}' {detail}"
+                )
+
     for jsonl_name in ("implement.jsonl", "check.jsonl"):
         jsonl_path = task_dir / jsonl_name
-        if jsonl_path.is_file():
-            try:
-                with open(jsonl_path, "r", encoding="utf-8") as f:
-                    for i, line in enumerate(f, 1):
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            json.loads(line)
-                        except json.JSONDecodeError:
-                            errors.append(f"Task '{task_id}': {jsonl_name} line {i} is invalid JSON")
-            except OSError:
-                errors.append(f"Task '{task_id}': cannot read {jsonl_name}")
+        if not jsonl_path.is_file():
+            continue
+        ok, _ = _check_jsonl_non_empty(jsonl_path)
+        if not ok:
+            continue
+        try:
+            with open(jsonl_path, "r", encoding="utf-8") as f:
+                for i, line in enumerate(f, 1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        json.loads(line)
+                    except json.JSONDecodeError:
+                        errors.append(
+                            f"Task '{task_id}': {jsonl_name} line {i} is invalid JSON"
+                        )
+        except OSError:
+            errors.append(f"Task '{task_id}': cannot read {jsonl_name}")
 
-    # Check review gate contract in implement.md
     implement_md = task_dir / "implement.md"
     if implement_md.is_file():
         try:
@@ -94,17 +184,57 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
             content = ""
         if "Review Gate Contract" not in content and "review gate" not in content.lower():
             if level in ("L3", "L4", "L5"):
-                warnings.append(f"Task '{task_id}': implement.md missing Review Gate Contract")
+                warnings.append(
+                    f"Task '{task_id}': implement.md missing Review Gate Contract"
+                )
 
-    # Check validation
-    validation_dir = task_dir / "validation"
-    if status.lower() in ("in_progress",) and not validation_dir.is_dir():
-        pass  # Validation not yet started
+    if level in LEVEL_ARTIFACT_REQUIREMENTS and not is_planning:
+        scope_warnings = _check_scope_quality(
+            task_dir / "implement.md", task_id, level
+        )
+        warnings.extend(scope_warnings)
 
-    # Check finish marker
     finish_md = task_dir / "finish.md"
     if status.lower() in ("completed", "done") and not finish_md.is_file():
         errors.append(f"Task '{task_id}': status is '{status}' but finish.md is missing")
+
+    before_dev_md = task_dir / "before-dev.md"
+    if status.lower() == "in_progress" and before_dev_md.is_file():
+        try:
+            bd_content = before_dev_md.read_text(encoding="utf-8")
+        except OSError:
+            bd_content = ""
+
+        scope_filled = False
+        files_filled = False
+        in_constraints = False
+        for line in bd_content.splitlines():
+            stripped = line.strip()
+            if stripped.lower().startswith("- scope:"):
+                in_constraints = True
+                val = stripped.split(":", 1)[-1].strip()
+                if val and val.lower() not in ("", "n/a", "tbd", "todo"):
+                    scope_filled = True
+            elif stripped.lower().startswith("- files likely touched:"):
+                in_constraints = True
+                val = stripped.split(":", 1)[-1].strip()
+                if val and val.lower() not in ("", "n/a", "tbd", "todo"):
+                    files_filled = True
+            elif in_constraints and stripped.startswith("-"):
+                pass
+            elif in_constraints and stripped and not stripped.startswith("-"):
+                in_constraints = False
+
+        if not scope_filled:
+            errors.append(
+                f"Task '{task_id}': before-dev.md 'Scope' field is empty — "
+                f"fill in the implementation scope before editing source code"
+            )
+        if not files_filled:
+            errors.append(
+                f"Task '{task_id}': before-dev.md 'Files likely touched' field is empty — "
+                f"declare which files will be modified before editing source code"
+            )
 
     all_issues = errors + [f"WARNING: {w}" for w in warnings]
     return len(errors) == 0, all_issues

@@ -218,6 +218,69 @@ def _resolve_breadcrumb_key(status: str, task_dir: Path) -> str:
     return _map_status_to_breadcrumb_key(status)
 
 
+def _infer_sub_phase(status: str, task_dir: Path) -> Optional[str]:
+    """Infer the precise workflow sub-phase from task state + artifacts.
+
+    Returns a human-readable sub-phase string, or None if no inference needed.
+    This supplements the breadcrumb when the breadcrumb may be stale.
+    """
+    if status == "planning":
+        has_prd = (task_dir / "prd.md").is_file()
+        has_grill = (task_dir / "research" / "grill-me.md").is_file()
+        has_design = (task_dir / "design.md").is_file()
+        has_implement = (task_dir / "implement.md").is_file()
+
+        if has_implement:
+            return "WAITING_IMPLEMENTATION_APPROVAL"
+        if has_design:
+            return "PLANNING_IMPLEMENT"
+        if has_grill:
+            return "PLANNING_DESIGN"
+        if has_prd:
+            return "PLANNING_GRILL"
+        return "PLANNING_PRD"
+
+    if status == "in_progress":
+        has_before_dev = (task_dir / "before-dev.md").is_file()
+        has_check = (task_dir / "validation" / "check-results.md").is_file()
+        has_review = (task_dir / "review").is_dir() and any(
+            (task_dir / "review").iterdir()
+        )
+        has_finish = (task_dir / "finish.md").is_file()
+
+        if has_finish:
+            return "FINISHING"
+        if has_review:
+            return "REVIEWING"
+        if has_check:
+            return "UPDATING_SPEC"
+        if has_before_dev:
+            return "IMPLEMENTING"
+        return "BEFORE_DEV"
+
+    return None
+
+
+def _build_skill_recommendation(sub_phase: Optional[str], status: str) -> str:
+    """Build a skill recommendation line based on the inferred sub-phase."""
+    recommendations = {
+        "PLANNING_PRD": "Next skill: trellis-brainstorm",
+        "PLANNING_GRILL": "Next skill: trellis-grill-me",
+        "PLANNING_DESIGN": "Next skill: trellis-improve-codebase-architecture (guidance mode)",
+        "PLANNING_IMPLEMENT": "Next skill: trellis-dev-strategy",
+        "WAITING_IMPLEMENTATION_APPROVAL": "WAIT for user to approve implementation",
+        "BEFORE_DEV": "Next skill: trellis-before-dev (MANDATORY before editing source)",
+        "IMPLEMENTING": "Next skill: trellis-implement (dispatch trellis-implementer)",
+        "CHECKING": "Next skill: trellis-check (dispatch trellis-checker)",
+        "REVIEWING": "Next skill: run selected review gates from contract",
+        "UPDATING_SPEC": "Next skill: trellis-update-spec",
+        "FINISHING": "Next skill: trellis-finish-work (/trellis:finish-work)",
+    }
+    if sub_phase and sub_phase in recommendations:
+        return recommendations[sub_phase]
+    return ""
+
+
 def _enforce_consent_warnings(breadcrumb_key: str, body: str) -> str:
     """Inject dual consent enforcement warnings into the breadcrumb body.
 
@@ -276,14 +339,23 @@ def main() -> int:
     else:
         task_path, status, source = task
         task_dir = root / task_path if not Path(task_path).is_absolute() else Path(task_path)
-        # Extract short task ID for display (directory name)
         task_id = task_dir.name
         breadcrumb_key = _resolve_breadcrumb_key(status, task_dir)
         body = templates.get(breadcrumb_key)
         if body is None:
             body = templates.get(status, "Refer to workflow.md for current step.")
         body = _enforce_consent_warnings(breadcrumb_key, body)
-        breadcrumb = f"<workflow-state>\nTask: {task_id} ({status})\n{body}\n</workflow-state>"
+
+        sub_phase = _infer_sub_phase(status, task_dir)
+        skill_rec = _build_skill_recommendation(sub_phase, status)
+
+        header = f"Task: {task_id} ({status})"
+        if sub_phase:
+            header += f"\nInferred phase: {sub_phase}"
+        if skill_rec:
+            header += f"\n{skill_rec}"
+
+        breadcrumb = f"<workflow-state>\n{header}\n{body}\n</workflow-state>"
 
     platform = _detect_platform(data)
     hook_event_name = "BeforeAgent" if platform == "gemini" else "UserPromptSubmit"

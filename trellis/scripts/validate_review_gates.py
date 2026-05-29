@@ -3,6 +3,7 @@
 validate_review_gates.py — Validate review gate completion.
 
 Checks:
+- Level-based mandatory gates are selected
 - Selected gates in implement.md
 - Required review files exist
 - Each review file has PASS/FAIL
@@ -10,6 +11,7 @@ Checks:
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -21,6 +23,36 @@ GATE_FILE_MAP: dict[str, str] = {
     "trellis-improve-codebase-architecture deep-review": "review/architecture-deep-review.md",
     "trellis-merge-review": "review/merge-review.md",
 }
+
+MANDATORY_GATES: dict[str, list[str]] = {
+    "L0": [],
+    "L1": [],
+    "L2": [],
+    "L3": ["trellis-code-review"],
+    "L4": [
+        "trellis-spec-review",
+        "trellis-code-review",
+        "trellis-code-architecture-review",
+    ],
+    "L5": [
+        "trellis-spec-review",
+        "trellis-code-review",
+        "trellis-code-architecture-review",
+        "trellis-improve-codebase-architecture deep-review",
+        "trellis-merge-review",
+    ],
+}
+
+
+def _read_task_level(task_dir: Path) -> str:
+    task_json = task_dir / "task.json"
+    if not task_json.is_file():
+        return ""
+    try:
+        data = json.loads(task_json.read_text(encoding="utf-8"))
+        return data.get("level", "")
+    except (json.JSONDecodeError, OSError):
+        return ""
 
 
 def parse_selected_gates(implement_md: Path) -> list[str]:
@@ -51,11 +83,28 @@ def parse_selected_gates(implement_md: Path) -> list[str]:
 def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
     errors: list[str] = []
 
+    if not task_dir.is_dir():
+        return False, [f"Task directory not found: {task_dir}"]
+
+    task_json = task_dir / "task.json"
+    if not task_json.is_file():
+        return False, [f"No task.json in {task_dir}"]
+
+    level = _read_task_level(task_dir)
     implement_md = task_dir / "implement.md"
     selected = parse_selected_gates(implement_md)
 
-    if not selected:
-        return True, []  # No gates selected, nothing to check
+    mandatory = MANDATORY_GATES.get(level, [])
+    if mandatory:
+        for gate in mandatory:
+            if gate not in selected:
+                errors.append(
+                    f"Level {level} requires gate '{gate}' but it is not selected "
+                    f"in implement.md Review Gate Contract"
+                )
+
+    if not selected and not mandatory:
+        return True, []
 
     for gate in selected:
         file_rel = GATE_FILE_MAP.get(gate)
