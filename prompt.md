@@ -74,19 +74,21 @@ Plan 阶段要求：
 
 ---
 
-## 2. PRD 确认模板：进入 Execute + Check
+## 2. PRD 确认模板：进入 Execute + Check + Review
 
 ```text
 Plan 阶段已确认。
 
-请进入 Execute + Check。
+请进入 Execute + Check + Review。
 
 执行要求：
 1. 如果 task 尚未 start，请先执行 task.py start，进入 in_progress。
-2. 严格按照 prd.md 和 Acceptance Criteria 实现。
-3. 默认使用 trellis-implement → trellis-check subagent 路径。
-4. 不要 main session 直接改代码，除非我明确说 "do it inline" / "no sub-agent" / "你直接改"。
-5. 不要扩大范围，不要实现 PRD 之外的内容。
+2. 运行 trellis-before-dev 读取所有 artifacts，输出 before-dev.md 约束。
+3. 严格按照 prd.md 和 Acceptance Criteria 实现。
+4. 默认使用 trellis-implement → trellis-check → Review Gates subagent 路径。
+5. Check 通过后，自动按 implement.md 的 Review Gate Contract 执行审查门禁。
+6. 不要 main session 直接改代码，除非我明确说 "do it inline" / "no sub-agent" / "你直接改"。
+7. 不要扩大范围，不要实现 PRD 之外的内容。
 
 工具策略：
 1. 如果任务可以安全拆分，并且并行能明显提升效率，请先给出 OMC agent 拆分方案，等待我确认后再启用。
@@ -95,49 +97,32 @@ Plan 阶段已确认。
 4. 根据任务类型按需使用 testing / debugging / browser / review / MCP 等能力。
 5. bug 修复必须说明复现、根因、修复方式和回归验证。
 6. 涉及接口、数据或配置变更时，必须说明兼容性和风险。
+7. Review gate FAIL 时，回到 implement 修复，修复后重新跑 check，再重新跑该 review gate。禁止跳过 failed gate。
 
 完成后请给出：
 1. 实现了什么
 2. 修改了哪些文件
 3. 执行了哪些检查
-4. 是否满足 Acceptance Criteria
-5. 是否存在风险、遗留问题或需要我确认的事项
+4. 哪些 review gates 执行了，每个 gate 的 PASS/FAIL 结果
+5. 是否满足 Acceptance Criteria
+6. 是否存在风险、遗留问题或需要我确认的事项
 ```
 
 ---
 
-## 3. Review 阶段模板
+## 3. Review 补充模板（仅 Review 阶段需要重跑时使用）
 
-适用场景：Check 已通过，需要按 Review Gate Contract 执行审查门禁。
+适用场景：Execute + Check + Review 流程中 Review gate FAIL，修复后需要重跑特定 gate。
 
 模板：
 
 ```text
-进入 Review 阶段。
+重跑 Review gate：【spec-review / code-review / architecture-review / deep-review / merge-review】
 
-请按 implement.md 的 Review Gate Contract 执行审查门禁。
+修复内容：
+【说明刚才修了什么】
 
-审查要求：
-1. 按 contract 中选中的 gates 逐项执行，不要跳过任何一项。
-2. 每个 reviewer 必须输出 PASS/FAIL，并给出具体文件路径和行号。
-3. 如果 FAIL，必须列出 blocking issues 和 non-blocking issues。
-4. 如果 FAIL，回到 implement 修复，修复后重新跑 check，再重新跑该 review gate。
-5. 禁止跳过 failed gate，禁止降低标准让 gate "通过"。
-
-工具策略：
-1. trellis-check 是基础门禁，所有任务必须通过。
-2. trellis-code-review（L3+）：检查 correctness、readability、error handling、performance、tests、security、unnecessary complexity。
-3. trellis-spec-review（L4+）：检查是否违反 .trellis/spec/ 中的规范。
-4. trellis-code-architecture-review（L4+）：检查依赖方向、模块边界、抽象质量、分层违规。
-5. trellis-improve-codebase-architecture deep-review（L5）：深度架构审计。
-6. trellis-merge-review（L4/L5/多 agent/worktree）：合并后复审，检查冲突、重复实现、接口一致性。
-7. 每个 reviewer 的输出写入对应的 review/*.md 文件。
-
-完成后请给出：
-1. 哪些 review gates 执行了
-2. 每个 gate 的 PASS/FAIL 结果
-3. 如果有 FAIL，列出 blocking issues 和修复建议
-4. 全部 PASS 后，是否可以进入 spec update
+请重新执行该 review gate，确认修复是否通过。
 ```
 
 ---
@@ -204,18 +189,45 @@ Plan 阶段已确认。
 
 适用场景：Plan 完成、PRD 已确认、AC 清晰、可安全拆分、并行能明显提升效率。
 
-模板：
+拆分方案必须包含：
+
+```text
+OMC Agent 拆分方案：
+
+Agent 1: 【名称】
+  owns:     【独占修改的文件/目录，其他 agent 不可改】
+  readonly:  【只读的文件/目录，用于理解上下文】
+  shared:    【需要和其他 agent 协作的接口/类型/契约】
+
+Agent 2: 【名称】
+  owns:     【独占修改的文件/目录】
+  readonly:  【只读的文件/目录】
+  shared:    【协作接口/类型/契约】
+
+Shared Contract:
+  【agent 间共享的类型定义、API 接口、事件格式等】
+  【谁负责定义，谁负责消费】
+
+Merge-Review 计划:
+  【集成后需要检查的冲突点】
+  【shared 区域的变更需要哪些 agent 确认】
+  【是否需要 trellis-merge-review gate】
+```
+
+确认后启动：
 
 ```text
 我确认使用 OMC 并行模式。
 
 请按刚才的拆分方案启动 agents：
 1. 每个 agent 必须带上 active task path。
-2. 每个 agent 只处理自己的 assigned scope。
-3. 需要的 Skills / MCPs 由 main agent 按角色分配。
-4. main agent 负责集成、冲突解决和最终结果。
-5. 不允许扩大 PRD 范围。
-6. 集成后仍然必须走 trellis-check。
+2. 每个 agent 只处理自己的 owns scope，不修改其他 agent 的 owns 区域。
+3. shared 区域的变更必须先写入 shared contract，再由消费方 agent 读取。
+4. 需要的 Skills / MCPs 由 main agent 按角色分配。
+5. main agent 负责集成、冲突解决和最终结果。
+6. 不允许扩大 PRD 范围。
+7. 集成后仍然必须走 trellis-check。
+8. 如果拆分方案中标记了 merge-review，集成后必须走 trellis-merge-review gate。
 ```
 
 如果还没给拆分方案，先用：
@@ -223,19 +235,49 @@ Plan 阶段已确认。
 ```text
 这个任务看起来可以并行。
 
-请先给出 OMC agent 拆分方案，我确认后再启动。
+请先给出 OMC agent 拆分方案（包含 owns / readonly / shared contract / merge-review 计划），我确认后再启动。
 ```
 
 ---
 
-## 7. 团队日常最简版
+## 7. 懒人标准任务模板
+
+适用场景：不想填模板，只想说目标，让 AI 自动走完整个流程。
+
+模板：
 
 ```text
+【一句话目标】
+```
+
+AI 会自动：
+1. 判断任务等级（L2-L5）
+2. 创建 Trellis task
+3. 运行 brainstorm → grill-me → dev-strategy（按等级决定是否需要 design.md）
+4. 判断是否需要 Superpowers（需求不清 / 架构权衡 / 多方案取舍时自动启用）
+5. 判断是否建议 OMC（可安全拆分且并行能明显提升效率时给出方案，等确认）
+6. 停下来等你确认 Plan
+7. 确认后自动执行 before-dev → implement → check → review gates → update-spec → finish
+
+你只需要在两个门确认：
+1. **Plan 确认** — PRD/design/implement plan 准备好后，你说"确认"或"改一下 xxx"
+2. **OMC 确认** — 如果 AI 建议 OMC 并行，你说"确认"或"不用"
+
+其他全部自动。
+
+---
+
+## 8. 团队日常最简版
+
+```text
+懒人模式（推荐）：
+"【一句话目标】"                        ← AI 自动走完全流程
+
 标准任务：
 "我们开始一个 Trellis 任务，走 B Create a task，不要 inline。"
 
 PRD 确认：
-"Plan 阶段已确认，进入 Execute + Check。"
+"Plan 阶段已确认，进入 Execute + Check + Review。"
 
 小修：
 "小修一下，跳过 Trellis，直接改。"
