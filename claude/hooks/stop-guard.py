@@ -262,10 +262,10 @@ def _check_source_edits_during_planning(root: Path) -> bool:
 
 def _emit_block(reason: str) -> None:
     print(json.dumps({
+        "decision": "block",
+        "reason": reason,
         "hookSpecificOutput": {
             "hookEventName": "Stop",
-            "decision": "block",
-            "reason": reason,
         }
     }, ensure_ascii=False))
     sys.exit(0)

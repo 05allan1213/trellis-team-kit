@@ -238,10 +238,10 @@ def _validate_research_output(output_text: str) -> list[str]:
 
 def _emit_block(reason: str) -> None:
     print(json.dumps({
+        "decision": "block",
+        "reason": reason,
         "hookSpecificOutput": {
             "hookEventName": "SubagentStop",
-            "decision": "block",
-            "reason": reason,
         }
     }, ensure_ascii=False))
     sys.exit(0)

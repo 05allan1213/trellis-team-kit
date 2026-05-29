@@ -331,167 +331,6 @@ def _get_merge_reviewer_context(repo_root: str, task_dir: str) -> str:
     return "\n\n".join(parts)
 
 
-def _build_research_prompt(original_prompt: str, context: str) -> str:
-    return (
-        f"<!-- team-kit-hook-injected -->\n"
-        f"# Research Agent Task\n\n"
-        f"You are the Research Agent in the Team-kit pipeline.\n\n"
-        f"## Core Principle\n\n"
-        f"**You do one thing: find and explain information.** "
-        f"You are a documenter, not a reviewer.\n\n"
-        f"## Project Context\n\n{context}\n\n---\n\n"
-        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Output Format\n\n"
-        f"- Research Question\n"
-        f"- Files / Sources inspected\n"
-        f"- Findings\n"
-        f"- Decision impact\n"
-        f"- Output file updated\n\n"
-        f"## Strict Boundaries\n\n"
-        f"**Only allowed**: Describe what exists, where it is, how it works.\n"
-        f"**Forbidden**: Suggest improvements, criticize, recommend refactoring, modify files."
-    )
-
-
-def _build_implement_prompt(original_prompt: str, context: str) -> str:
-    return (
-        f"<!-- team-kit-hook-injected -->\n"
-        f"# Implement Agent Task\n\n"
-        f"You are the Implement Agent in the Team-kit pipeline.\n\n"
-        f"## Your Context\n\n{context}\n\n---\n\n"
-        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Output Format (REQUIRED)\n\n"
-        f"- **Implementation Summary**: what was implemented\n"
-        f"- **Changed Files**: list all modified/created files\n"
-        f"- **Validation Attempted**: what checks were run\n"
-        f"- **Risks / Follow-ups**: any remaining concerns\n"
-        f"- **Did not commit**: confirm no git commit was executed\n\n"
-        f"## Important Constraints\n\n"
-        f"- Do NOT execute git commit, only code modifications\n"
-        f"- Follow all dev specs injected above\n"
-        f"- Follow implement.md ordered steps\n"
-        f"- Do not expand scope beyond the task"
-    )
-
-
-def _build_check_prompt(original_prompt: str, context: str) -> str:
-    return (
-        f"<!-- team-kit-hook-injected -->\n"
-        f"# Check Agent Task\n\n"
-        f"You are the Check Agent in the Team-kit pipeline.\n\n"
-        f"## Your Context\n\n{context}\n\n---\n\n"
-        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Output Format (REQUIRED)\n\n"
-        f"```\n"
-        f"Status:\n"
-        f"- [ ] PASS\n"
-        f"- [ ] FAIL\n\n"
-        f"Commands run:\n\n"
-        f"Failures:\n\n"
-        f"Files inspected:\n\n"
-        f"Required fixes (if FAIL):\n"
-        f"```\n\n"
-        f"## Important Constraints\n\n"
-        f"- Fix issues yourself, do not just report\n"
-        f"- MUST output PASS or FAIL verdict\n"
-        f"- Run lint/typecheck if available"
-    )
-
-
-def _build_review_prompt(original_prompt: str, context: str, agent_type: str) -> str:
-    review_type_map = {
-        "trellis-spec-reviewer": "Spec Review",
-        "trellis-code-reviewer": "Code Review",
-        "trellis-architecture-reviewer": "Architecture Review",
-        "trellis-architecture-deep-reviewer": "Deep Architecture Review",
-        "trellis-merge-reviewer": "Merge Review",
-    }
-    review_type = review_type_map.get(agent_type, "Review")
-    return (
-        f"<!-- team-kit-hook-injected -->\n"
-        f"# {review_type} Agent Task\n\n"
-        f"You are the {review_type} Agent in the Team-kit pipeline.\n\n"
-        f"## Your Context\n\n{context}\n\n---\n\n"
-        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Output Format (REQUIRED)\n\n"
-        f"```\n"
-        f"Status:\n"
-        f"- [ ] PASS\n"
-        f"- [ ] FAIL\n\n"
-        f"Scope reviewed:\n\n"
-        f"Blocking issues:\n\n"
-        f"Non-blocking issues:\n\n"
-        f"Required fixes:\n"
-        f"```\n\n"
-        f"## Important Constraints\n\n"
-        f"- MUST output PASS or FAIL verdict\n"
-        f"- MUST list blocking issues with file citations\n"
-        f"- MUST list non-blocking issues separately\n"
-        f"- FAIL must include specific required fixes"
-    )
-
-
-def _build_spec_updater_prompt(original_prompt: str, context: str) -> str:
-    return (
-        f"<!-- team-kit-hook-injected -->\n"
-        f"# Spec Update Agent Task\n\n"
-        f"You are the Spec Update Agent in the Team-kit pipeline.\n\n"
-        f"## Your Context\n\n{context}\n\n---\n\n"
-        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Output Format (REQUIRED)\n\n"
-        f"```\n"
-        f"Spec Update Decision:\n\n"
-        f"Need spec update:\n"
-        f"- [ ] yes\n"
-        f"- [ ] no\n\n"
-        f"Reason:\n\n"
-        f"Updated files (if yes):\n"
-        f"```\n\n"
-        f"## Important Constraints\n\n"
-        f"- MUST output Spec Update Decision\n"
-        f"- MUST state yes/no explicitly\n"
-        f"- MUST provide reason for decision"
-    )
-
-
-def _build_merge_reviewer_prompt(original_prompt: str, context: str) -> str:
-    return (
-        f"<!-- team-kit-hook-injected -->\n"
-        f"# Merge Review Agent Task\n\n"
-        f"You are the Merge Review Agent in the Team-kit pipeline.\n\n"
-        f"## Your Context\n\n{context}\n\n---\n\n"
-        f"## Your Task\n\n{original_prompt}\n\n---\n\n"
-        f"## Output Format (REQUIRED)\n\n"
-        f"```\n"
-        f"Status:\n"
-        f"- [ ] PASS\n"
-        f"- [ ] FAIL\n\n"
-        f"Scope reviewed:\n\n"
-        f"Blocking issues:\n\n"
-        f"Non-blocking issues:\n\n"
-        f"Required fixes:\n"
-        f"```\n\n"
-        f"## Important Constraints\n\n"
-        f"- MUST output PASS or FAIL verdict\n"
-        f"- Check merge conflicts, commit coherence, cross-branch consistency"
-    )
-
-
-def _extract_subagent_name(tool_input: dict) -> str:
-    """Extract subagent name from various platform encodings."""
-    for key in ("subagent_type", "subagentType", "subagent_type_name",
-                "subagentTypeName", "agent_type", "agentType", "name"):
-        val = tool_input.get(key)
-        if isinstance(val, str) and val.strip():
-            return val.strip()
-        if isinstance(val, dict):
-            for k in ("name", "subagent_type_name", "subagentTypeName"):
-                v = val.get(k)
-                if isinstance(v, str) and v.strip():
-                    return v.strip()
-    return ""
-
-
 def main() -> int:
     if os.environ.get("TRELLIS_HOOKS") == "0" or os.environ.get("TRELLIS_DISABLE_HOOKS") == "1":
         return 0
@@ -501,28 +340,12 @@ def main() -> int:
     except json.JSONDecodeError:
         return 0
 
-    # Parse subagent info
-    tool_input = input_data.get("tool_input", {})
-    tool_name = input_data.get("tool_name", "") or input_data.get("toolName", "")
-    subagent_type = ""
-
-    # SubagentStart event: check agent_name
+    # SubagentStart event: extract agent_name directly
     agent_name = input_data.get("agent_name", "")
-    if isinstance(agent_name, str) and agent_name in AGENTS_ALL:
-        subagent_type = agent_name
-
-    # Fallback: PreToolUse event for Task/Agent
-    if not subagent_type and tool_name.lower() in ("task", "agent", "subagent"):
-        subagent_type = _extract_subagent_name(tool_input)
-
-    # Gemini: tool_name IS the agent name
-    if not subagent_type and tool_name in AGENTS_ALL:
-        subagent_type = tool_name
-
-    if subagent_type not in AGENTS_ALL:
+    if not isinstance(agent_name, str) or agent_name not in AGENTS_ALL:
         return 0
 
-    original_prompt = tool_input.get("prompt", "") or input_data.get("prompt", "")
+    subagent_type = agent_name
     cwd = input_data.get("cwd", os.getcwd())
 
     repo_root = _find_repo_root(cwd)
@@ -531,7 +354,6 @@ def main() -> int:
 
     task_dir = _get_current_task(repo_root)
 
-    # For agents that require a task
     if subagent_type in AGENTS_REQUIRE_TASK or subagent_type in AGENTS_REVIEW or subagent_type == AGENT_SPEC_UPDATER or subagent_type == AGENT_MERGE_REVIEWER:
         if not task_dir:
             return 0
@@ -540,58 +362,39 @@ def main() -> int:
             return 0
 
     # Build context by agent type
-    context = ""
-    new_prompt = ""
+    additional_context = ""
 
     if subagent_type == AGENT_RESEARCH:
-        context = _get_research_context(repo_root, task_dir or "")
-        new_prompt = _build_research_prompt(original_prompt, context)
+        additional_context = _get_research_context(repo_root, task_dir or "")
     elif subagent_type == AGENT_IMPLEMENT:
         assert task_dir is not None
-        context = _get_implement_context(repo_root, task_dir)
-        new_prompt = _build_implement_prompt(original_prompt, context)
+        additional_context = _get_implement_context(repo_root, task_dir)
     elif subagent_type == AGENT_CHECK:
         assert task_dir is not None
-        context = _get_check_context(repo_root, task_dir)
-        new_prompt = _build_check_prompt(original_prompt, context)
+        additional_context = _get_check_context(repo_root, task_dir)
     elif subagent_type in AGENTS_REVIEW:
         assert task_dir is not None
-        context = _get_review_context(repo_root, task_dir)
-        if subagent_type == AGENT_MERGE_REVIEWER:
-            new_prompt = _build_merge_reviewer_prompt(original_prompt, context)
-        else:
-            new_prompt = _build_review_prompt(original_prompt, context, subagent_type)
+        additional_context = _get_review_context(repo_root, task_dir)
     elif subagent_type == AGENT_SPEC_UPDATER:
         assert task_dir is not None
-        context = _get_spec_updater_context(repo_root, task_dir)
-        new_prompt = _build_spec_updater_prompt(original_prompt, context)
+        additional_context = _get_spec_updater_context(repo_root, task_dir)
+    elif subagent_type == AGENT_MERGE_REVIEWER:
+        assert task_dir is not None
+        additional_context = _get_merge_reviewer_context(repo_root, task_dir)
     else:
         return 0
 
-    if not context and subagent_type in AGENTS_REQUIRE_TASK:
-        # Missing context for task-requiring agent — warn but proceed
-        pass
+    if not additional_context:
+        return 0
 
-    # Truncate if too large
-    if len(new_prompt) > MAX_CONTEXT_CHARS + len(original_prompt):
-        new_prompt = new_prompt[:MAX_CONTEXT_CHARS] + "\n\n[... context truncated ...]"
-
-    updated = {**tool_input, "prompt": new_prompt}
-
-    # SubagentStart event format
-    event_name = input_data.get("hook_event_name", "") or input_data.get("hookEventName", "")
-    if not event_name:
-        event_name = "SubagentStart" if "agent_name" in input_data else "PreToolUse"
+    if len(additional_context) > MAX_CONTEXT_CHARS:
+        additional_context = additional_context[:MAX_CONTEXT_CHARS] + "\n\n[... context truncated ...]"
 
     output = {
         "hookSpecificOutput": {
-            "hookEventName": event_name,
-            "permissionDecision": "allow",
-            "updatedInput": updated,
-        },
-        "permission": "allow",
-        "updated_input": updated,
-        "updatedInput": updated,
+            "hookEventName": "SubagentStart",
+            "additionalContext": additional_context,
+        }
     }
 
     print(json.dumps(output, ensure_ascii=False))
