@@ -12,6 +12,7 @@
 在项目目录中执行：
 
 ```bash
+mkdir my-project && cd my-project && git init
 bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh) 你的名字
 ```
 
@@ -19,7 +20,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit
 
 ```bash
 git clone https://github.com/05allan1213/trellis-team-kit.git ~/trellis-team-kit
-cd your-project
+mkdir your-project && cd your-project && git init
 ~/trellis-team-kit/bootstrap/init.sh 你的名字
 ```
 
