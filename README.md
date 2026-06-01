@@ -187,7 +187,7 @@ CLAUDE.md                  ← Claude Code 入口
 ### 新项目初始化
 
 ```bash
-mkdir my-project && cd my-project
+mkdir my-project && cd my-project && git init
 bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh) 你的名字
 ```
 
@@ -202,7 +202,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit
 
 ```bash
 git clone https://github.com/05allan1213/trellis-team-kit.git ~/trellis-team-kit
-mkdir my-project && cd my-project
+mkdir my-project && cd my-project && git init
 ~/trellis-team-kit/bootstrap/init.sh 你的名字
 ```
 
@@ -211,7 +211,7 @@ mkdir my-project && cd my-project
 团队初始化后，每个开发者运行：
 
 ```bash
-bash bootstrap/init-local.sh
+bash bootstrap/init-local.sh 你的名字
 ```
 
 这会创建个人工作区和日志文件。
