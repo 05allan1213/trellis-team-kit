@@ -123,7 +123,9 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
     status = data.get("status", "")
 
     if not level:
-        errors.append(f"Task '{task_id}': missing 'level' field")
+        warnings.append(f"Task '{task_id}': missing 'level' field — "
+                        f"bootstrap/setup tasks may not have a level. "
+                        f"Skipping artifact and JSONL checks.")
     elif level not in LEVEL_ARTIFACT_REQUIREMENTS:
         errors.append(f"Task '{task_id}': invalid level '{level}'")
 

@@ -216,24 +216,6 @@ bash bootstrap/init-local.sh 你的名字
 
 这会创建个人工作区和日志文件。
 
-## 第一个任务
-
-见 `docs/first-task.md`，有完整的端到端步骤演示。
-
-快速体验：
-
-```
-你："我需要加一个登录页"
-Claude：分类为 L3，询问："要为这个创建 Trellis task 吗？"
-你："是的，创建 task"
-Claude：创建 task，进入规划，开始 brainstorm
-  ...（brainstorm → grill-me → design → implement plan）
-Claude："PRD/design/implement plan 已准备好。批准实现吗？"
-你："批准实现"
-Claude：运行 task.py start，运行 before-dev，派发 implementer
-  ...（implement → check → review → update-spec → commit → validate → finish）
-Claude："任务完成。已归档。摘要：……"
-```
 
 ## 安全守卫
 
@@ -251,24 +233,14 @@ hooks 保护工作流：
 | pre-compact-save-state | PreCompact | 压缩前保存会话状态 |
 | trellis-notify | Notification / Stop | 桌面通知提醒 |
 
-## Smoke Test
-
-见 `docs/smoke-test.md`，包含 10 个场景的 smoke test 套件，
-验证 hooks、agents、skills 和护栏在 Claude Code 中正常工作。
 
 ## 团队推广
 
-见 `docs/team-rollout.md`，涵盖：
-
-- Dogfood → 试点 → 全团队推广路径
-- 第一周检查清单
-- 常见失败模式
-- 什么时候可以跳过 Trellis
-- Hook 误伤时如何处理
+团队推广路径：Dogfood → 试点 → 全团队。第一周检查清单、常见失败模式见 Hook 和护栏的内置错误提示。
 
 ## 示例
 
-见 `docs/examples/` 和 `examples/` 目录：
+见 `examples/` 目录：
 
 - `01-typo-tiny-edit.md` — L1：极小改动，跳过 Trellis
 - `02-simple-bugfix.md` — L2：轻量 bugfix
@@ -312,16 +284,6 @@ python3 .trellis/scripts/validate_task.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/T001-xxx
 ```
 
-团队试点前建议执行真实 Claude Code smoke test。详见 `docs/smoke-test.md`。
-
-### 相关文档
-
-- [Hook 契约](docs/hook-contract.md) — hook 输出约定和格式
-- [护栏说明](docs/guardrails.md) — hard block / soft warning / override 规则
-- [运行时硬化](docs/runtime-hardening.md) — 硬化说明和已知限制
-- [验证器](docs/validators.md) — 静态验证器用法
-- [命名映射](docs/naming-map.md) — 命名映射表
-
 ## 维护者参考
 
 | 改什么 | 改哪里 |
@@ -336,7 +298,6 @@ python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/T001-xxx
 | 安装脚本 | `bootstrap/` |
 | OMC 策略 | `omc/` |
 | 验证器 | `validators/` |
-| 文档 | `docs/` |
 
 ## 版本
 

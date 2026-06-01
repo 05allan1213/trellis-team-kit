@@ -56,6 +56,7 @@ TRELLIS_DIR = ".trellis"
 
 # Review gate file mapping (canonical)
 GATE_FILE_MAP: dict[str, str] = {
+    "trellis-check": "review/check-review.md",
     "trellis-spec-review": "review/spec-review.md",
     "trellis-code-review": "review/code-review.md",
     "trellis-code-architecture-review": "review/architecture-review.md",
