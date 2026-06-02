@@ -42,6 +42,7 @@ Check is a gate. FAIL means return to IMPLEMENTING. Do not proceed to review gat
    - [ ] New function has unit test
    - [ ] Bug fix has regression test
    - [ ] Changed behavior has updated tests
+   - [ ] Observable behavior is verified and the evidence is ready for `finish.md`
 
 4. **Report and fix** — fix violations directly. Re-run checks after fixes.
 
@@ -119,6 +120,9 @@ In addition to the basic check, verify these dimensions:
 - Test coverage: PASS/FAIL — [details]
 - Rollback safety: PASS/FAIL — [details]
 
+## Observable Verification
+- [observable outcome]: PASS/FAIL — [how verified]
+
 ## Verdict
 - PASS — all checks pass
 - FAIL — blocking issues:
@@ -135,4 +139,5 @@ In addition to the basic check, verify these dimensions:
 - FAIL verdict includes specific blocking issues with file references.
 - Fixes are applied and re-checked before reporting.
 - No debug logging, suppressed errors, or unsafe type bypasses remain.
+- Observable behavior is checked alongside build/test and captured as evidence.
 - The verdict is honest — do not soften a FAIL into a PASS.

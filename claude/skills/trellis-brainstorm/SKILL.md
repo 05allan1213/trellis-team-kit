@@ -107,6 +107,9 @@ Do not invent a project-specific hierarchy. If the repository already has produc
 ## Goal and User Value
 [What this achieves and for whom]
 
+## Observable Outcomes
+[What a user or operator should be able to see, do, or verify when this works]
+
 ## Confirmed Facts
 [From evidence.md]
 

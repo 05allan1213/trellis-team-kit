@@ -60,8 +60,8 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 | Level | Type | Create Task | Required Artifacts | Execution | Gates |
 |-------|------|-------------|-------------------|-----------|-------|
 | L0 | Pure Q&A | No | None | Main session | None |
-| L1 | Typo/tiny edit | Optional | Skippable | Main session | Light check |
-| L2 | Light implementation | Yes | prd.md | Main/subagent | check |
+| L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Main session | Light check |
+| L2 | Light implementation | Recommended | prd.md | Main/subagent | check |
 | L3 | Normal feature/bugfix | Yes | prd.md + implement.md | subagent | check + code-review |
 | L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | subagent + worktree/OMC | check + spec-review + code-review + architecture-review |
 | L5 | Large refactor/multi-agent | Yes | Full artifacts | OMC + worktree + parent/child | All + merge-review |
@@ -69,10 +69,10 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 ### Triage Rules
 
 - **L0**: Answer directly, no task
-- **L1**: User must explicitly say "skip trellis" / "no task" / "just do it"
-- **L2-L5**: Default to creating a Trellis task, follow Plan → Execute + Check + Review → Finish
+- **L1**: Recommend inline when the change is clearly local, reversible, and low-risk
+- **L2-L5**: Recommend a Trellis task path, follow Plan → Execute + Check + Review → Finish
 
-**The AI must NOT decide "it's small so no task" on its own.**
+**The AI may recommend L1 inline when the scope is obviously tiny. If the scope expands, escalate to a task immediately.**
 
 ## Dual Consent Gates
 
@@ -93,7 +93,7 @@ Request → classify L0-L5 → task creation consent → task.py create
   → brainstorm (prd.md) → grill-me → design (L3+) → implement plan
   → implementation consent → task.py start
   → before-dev → implement → check → review gates (per contract)
-  → update-spec → commit → merge-review (L4/L5) → validate → finish-work
+  → update-spec + observable outcomes → commit → merge-review (L4/L5) → validate → finish-work
 ```
 
 ## Review Gate Contract

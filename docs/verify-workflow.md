@@ -30,7 +30,10 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 **检查点**：
 - [ ] Claude 不直接写代码
 - [ ] Claude 分类为 L2（轻量实现）
-- [ ] Claude 询问 "要为这个创建 Trellis task 吗？"
+- [ ] Claude 给出轻量任务建议，并询问是否创建 Trellis task
+
+**补充检查（L1 分流）**：
+- [ ] 如果输入 "把按钮文案从提交改成保存"，Claude 建议 L1 inline，不强求 task
 
 ---
 
@@ -180,6 +183,7 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 
 **检查点**：
 - [ ] `finish.md` 存在
+- [ ] `finish.md` 含 `Observable Outcomes`，且至少一条为具体可观察结果 + 验证证据
 - [ ] `validate_task.py` PASS
 - [ ] `validate_review_gates.py` PASS
 - [ ] Task 已归档

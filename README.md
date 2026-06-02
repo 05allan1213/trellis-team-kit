@@ -81,13 +81,13 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
 | 级别 | 类型 | 创建 Task | 必需产物 | 门禁 |
 |------|------|:--------:|---------|------|
 | L0 | 纯问答/解释/分析 | 否 | 无 | 无 |
-| L1 | typo/极小改动/文案 | 可选 | 可跳过 | 轻量检查 |
-| L2 | 轻量实现 | 是 | prd.md | check |
+| L1 | typo/极小改动/文案 | 可选 | AI 可建议 inline | 轻量检查 |
+| L2 | 轻量实现 | 建议 | prd.md | check |
 | L3 | 普通 feature/bugfix | 是 | prd.md + implement.md + JSONLs | check + code-review |
 | L4 | 复杂跨层任务 | 是 | prd.md + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review |
 | L5 | 多 agent/大重构 | 是 | 全量产物 | 全部门禁 + merge-review |
 
-**AI 不得自己判断"改动很小所以不用创建 task"。**
+**AI 可以在明显 L1、局部、可逆、低风险时建议 inline；一旦范围扩大、触及共享/高风险区域，立即升级为 task。**
 
 ## 双同意门禁
 
@@ -143,7 +143,7 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 
 `stop-guard` hook 在任务完成前自动运行：
 
-1. `validate_task.py` — 检查必需产物是否齐全、JSONL 是否非空、finish.md 是否存在
+1. `validate_task.py` — 检查必需产物是否齐全、JSONL 是否非空、finish.md 是否存在，且 `Observable Outcomes` 有具体结果与证据
 2. `validate_review_gates.py` — 检查 mandatory gates 是否选中、review 文件是否存在且有结论
 
 任一验证失败 → block finish。
@@ -242,7 +242,7 @@ hooks 保护工作流：
 
 见 `examples/` 目录：
 
-- `01-typo-tiny-edit.md` — L1：极小改动，跳过 Trellis
+- `01-typo-tiny-edit.md` — L1：极小改动，推荐 inline
 - `02-simple-bugfix.md` — L2：轻量 bugfix
 - `03-normal-feature.md` — L3：标准功能，含 design 和 review
 - `04-cross-layer-api-change.md` — L4：跨层 API 变更
@@ -255,7 +255,7 @@ hooks 保护工作流：
 ## 常见问题
 
 **Q: 什么时候可以跳过 Trellis？**
-A: 只有 L0（纯问答）和 L1（typo/极小改动且明确说"跳过 Trellis"）。其他情况必须创建 task。
+A: L0 直接问即可。L1 如果是明显局部、可逆、低风险的小改，AI 应先建议 inline；如果范围扩大或你要留痕，再升级成 task。L2+ 默认建议创建 task。
 
 **Q: Hook 阻断了我需要的操作怎么办？**
 A: Hooks 区分 hard block（危险操作）和 soft warning（编辑共享类型等）。Soft warning 可带原因绕过。Hard block 不可绕过。

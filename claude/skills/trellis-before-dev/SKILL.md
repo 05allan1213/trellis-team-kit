@@ -74,6 +74,9 @@ The index is NOT the goal — it points to the actual guideline files. Read thos
 - [AC 1]
 - [AC 2]
 
+## Observable Outcomes
+- [what the user or operator must be able to observe after implementation]
+
 ## Must NOT
 - [boundary from prd.md or implement.md]
 ```
@@ -83,6 +86,7 @@ The index is NOT the goal — it points to the actual guideline files. Read thos
 - All task artifacts have been read (prd.md, design.md, implement.md, JSONL entries).
 - Relevant spec files have been read (not just the index).
 - Implementation constraints are specific and actionable.
+- Observable outcomes to preserve or prove are captured before coding starts.
 - The task status is confirmed as `in_progress`.
 - No source code has been edited before this skill completes.
 

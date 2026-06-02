@@ -57,7 +57,7 @@ Goal: ensure quality, capture lessons, record work.
 
 | Step | Name | Required | Output |
 |------|------|----------|--------|
-| 3.1 | Spec update | required · once | Spec Update Decision in `finish.md` |
+| 3.1 | Finish evidence | required · once | Spec Update Decision + Observable Outcomes in `finish.md` |
 | 3.2 | Commit changes | required · once | git commits |
 | 3.3 | Merge review | conditional · once | `review/merge-review.md` |
 | 3.4 | Validation | required · once | `validation/test-results.md` |
@@ -70,5 +70,6 @@ Goal: ensure quality, capture lessons, record work.
 2. `trellis-check` PASS
 3. Selected review gates PASS
 4. Spec update decision recorded
-5. Code committed or explicitly no commit needed
-6. Build/test PASS or explicitly recorded as not executable
+5. Observable outcomes recorded with evidence
+6. Code committed or explicitly no commit needed
+7. Build/test PASS or explicitly recorded as not executable

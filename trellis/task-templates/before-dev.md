@@ -12,5 +12,6 @@
 ## Constraints
 - Scope:
 - Files likely touched:
+- Observable outcomes to prove:
 - Tests required:
 - Review gates:

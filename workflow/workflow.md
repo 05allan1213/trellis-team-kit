@@ -47,8 +47,8 @@ All tasks are classified by complexity to avoid over-engineering small tasks or 
 | Level | Type | Create Trellis task | Required artifacts | Execution mode | Required gates |
 | ----- | ---- | ------------------: | ------------------ | -------------- | -------------- |
 | L0 | Pure Q&A / explanation / analysis | No | None | Main session direct answer | None |
-| L1 | Tiny change / typo / copy | Optional | Skippable, user confirms | Main session | Light check |
-| L2 | Light implementation | Yes | `prd.md` | Main session or subagent | `trellis-check` |
+| L1 | Tiny change / typo / copy | Optional | Skippable, AI may recommend inline | Main session | Light check |
+| L2 | Light implementation | Recommended | `prd.md` | Main session or subagent | `trellis-check` |
 | L3 | Normal feature / bugfix | Yes | `prd.md` + `implement.md`, optionally `design.md` | subagent | check + code-review |
 | L4 | Complex cross-layer / API / schema / auth / infra | Yes | `prd.md` + `design.md` + `implement.md` + research | subagent + worktree / OMC | check + spec-review + code-review + architecture-review |
 | L5 | Multi-agent / parent-child / large refactor / architecture | Yes | Full artifacts | OMC + worktree + parent/child task | All gates + merge-review |
@@ -56,10 +56,10 @@ All tasks are classified by complexity to avoid over-engineering small tasks or 
 ### Triage Rules
 
 - **L0 (pure Q&A)**: answer directly, no task
-- **L1 (tiny change)**: user must explicitly say "skip trellis" / "no task" / "just do it" / "don't create a task"
-- **L2-L5 (implementation)**: default to creating a Trellis task, follow Plan → Execute + Check + Review → Finish
+- **L1 (tiny change)**: recommend inline when the change is clearly local, reversible, and low-risk
+- **L2-L5 (implementation)**: recommend a Trellis task path; move to full planning when the scope is broader, shared, or riskier
 
-**The AI must NOT decide "it's small so no task" on its own.**
+**The AI may recommend L1 inline when the scope is obviously tiny. If the scope expands, escalate to a task immediately.**
 
 ---
 
@@ -111,8 +111,8 @@ NO_TASK
 - **Entry condition**: Session start or no active task
 - **Required files**: None
 - **Allowed**: Answer L0 questions, triage
-- **Forbidden**: Create task (need consent first), edit source (unless L1 explicitly allowed)
-- **Exit condition**: Task creation consent obtained or L0/L1 confirmed
+- **Forbidden**: Create task (need consent first), edit source (unless the turn is confirmed as L1 inline)
+- **Exit condition**: Task creation consent obtained or L0/L1 route confirmed
 - **Next state**: TRIAGE
 
 ### TRIAGE
@@ -234,18 +234,18 @@ NO_TASK
 - **Triggerable skills**: `trellis-spec-review`, `trellis-code-review`, `trellis-code-architecture-review`, `trellis-improve-codebase-architecture deep-review`
 
 ### UPDATING_SPEC
-- **Description**: Spec update decision
+- **Description**: Spec update decision + finish evidence capture
 - **Entry condition**: Check + selected reviews PASS
-- **Required files**: `finish.md` (with Spec Update Decision)
-- **Allowed**: Judge whether spec update needed, execute update
-- **Forbidden**: Skip decision
-- **Exit condition**: Spec Update Decision recorded
+- **Required files**: `finish.md` (with Spec Update Decision and Observable Outcomes)
+- **Allowed**: Judge whether spec update needed, capture concrete observable outcomes and verification evidence
+- **Forbidden**: Skip the decision or finish evidence
+- **Exit condition**: Spec Update Decision and Observable Outcomes recorded
 - **Next state**: COMMITTING
 - **Triggerable skills**: `trellis-update-spec`
 
 ### COMMITTING
 - **Description**: Commit phase
-- **Entry condition**: Spec update decision done
+- **Entry condition**: Spec update decision and observable outcomes recorded
 - **Required files**: None new
 - **Allowed**: git status, classify dirty files, draft commit plan, wait for confirmation, commit
 - **Forbidden**: Push, amend, commit unrelated files, auto-commit without confirmation
@@ -369,15 +369,16 @@ Phase 3: Finish  → verify, update spec, commit, merge-review, validate, and wr
 ### Request Triage
 
 - L0 (pure Q&A): answer directly, no task
-- L1 (tiny change): ask if user wants to skip Trellis; require explicit phrase
-- L2-L5 (implementation): default to creating a Trellis task
+- L1 (tiny change): recommend inline when clearly local, reversible, and low-risk
+- L2-L5 (implementation): recommend a Trellis task path
 - User approval to create a task is NOT approval to start implementation
 
 [workflow-state:no_task]
 No active task. First classify the current turn:
 **L0 (pure Q&A)**: answer directly, no task.
-**L1 (typo/tiny edit)**: ask if user wants to skip Trellis; require explicit "skip trellis" / "no task" / "just do it" phrase.
-**L2-L5 (implementation)**: ask for task-creation consent. User approval to create a task is NOT approval to start implementation. Planning still happens first.
+**L1 (typo/tiny edit)**: recommend direct inline edit when the change is clearly local and low-risk.
+**L2 (light implementation)**: recommend a light task path.
+**L3-L5 (broader implementation)**: ask for task-creation consent. User approval to create a task is NOT approval to start implementation. Planning still happens first.
 [/workflow-state:no_task]
 
 ### Phase 1: Plan
@@ -800,8 +801,9 @@ Forbidden:
 2. `trellis-check` PASS
 3. Selected review gates PASS
 4. Spec update decision recorded
-5. Code committed or PR created (or explicitly no commit needed)
-6. Build/test PASS (or explicitly recorded as not executable)
+5. Observable outcomes recorded with evidence
+6. Code committed or PR created (or explicitly no commit needed)
+7. Build/test PASS (or explicitly recorded as not executable)
 
 Any missing precondition → finish-work refuses to execute.
 

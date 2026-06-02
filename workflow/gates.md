@@ -3,7 +3,7 @@
 ## Gate Types
 
 ### 1. Task Creation Consent
-- **Trigger**: User makes L2-L5 request
+- **Trigger**: AI recommends a standard task path (usually L2-L5)
 - **Rule**: AI must ask for task creation consent before `task.py create`
 - **Not**: Implementation approval
 
@@ -40,12 +40,17 @@
 - **Rule**: Must record whether spec update is needed, with reason
 - **Blocks**: Missing decision → no finish
 
-### 8. Build/Test Gate
+### 8. Observable Outcomes Gate
+- **Trigger**: After all check/review PASS, before finish
+- **Rule**: `finish.md` must record concrete user- or operator-visible outcomes with verification evidence
+- **Blocks**: Missing or placeholder-only outcomes → no finish
+
+### 9. Build/Test Gate
 - **Trigger**: After commit
 - **Rule**: Run build/test, or explicitly record why not executable
 - **Blocks**: Missing without explanation → no finish
 
-### 9. Finish Gate
+### 10. Finish Gate
 - **Trigger**: All preconditions met
 - **Rule**: archive task + update journal + mark done
 - **Blocks**: Any precondition missing → refuse execution

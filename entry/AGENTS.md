@@ -51,17 +51,17 @@ You own decisions, communication, dispatch, and integration. Do NOT write code d
 | Level | Type | Create Task | Required Artifacts | Gates |
 |-------|------|-------------|-------------------|-------|
 | L0 | Pure Q&A | No | None | None |
-| L1 | Typo/tiny edit | Optional | Skippable | Light check |
-| L2 | Light implementation | Yes | prd.md | check |
+| L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Light check |
+| L2 | Light implementation | Recommended | prd.md | check |
 | L3 | Normal feature/bugfix | Yes | prd.md + implement.md | check + code-review |
 | L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | check + spec-review + code-review + architecture-review |
 | L5 | Large refactor/multi-agent | Yes | Full artifacts | All + merge-review |
 
 - **L0**: Answer directly
-- **L1**: User must say "skip trellis" / "no task" / "just do it"
-- **L2-L5**: Default to creating a Trellis task
+- **L1**: Recommend inline when the change is clearly local, reversible, and low-risk
+- **L2-L5**: Recommend a Trellis task path
 
-**The AI must NOT decide "it's small so no task" on its own.**
+**The AI may recommend L1 inline when the scope is obviously tiny. If the scope expands, escalate to a task immediately.**
 
 ## Dual Consent Gates
 
@@ -75,7 +75,7 @@ Request → classify → task creation consent → task.py create
   → brainstorm → grill-me → design → implement plan
   → implementation consent → task.py start
   → before-dev → implement → check → review gates
-  → update-spec → commit → merge-review → validate → finish-work
+  → update-spec + observable outcomes → commit → merge-review → validate → finish-work
 ```
 
 ## Review Gate Contract

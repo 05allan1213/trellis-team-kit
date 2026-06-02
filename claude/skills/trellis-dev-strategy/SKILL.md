@@ -131,6 +131,7 @@ Failure rule:
 ## Validation Commands
 
 - [command to verify each step]
+- [manual or scripted check that proves a user-visible or operator-visible outcome]
 
 ## Risky Files / Rollback Points
 
@@ -142,5 +143,5 @@ Failure rule:
 - Execution mode matches task complexity (L4/L5 never defaults to main-session).
 - Review Gate Contract is complete with rationale.
 - All dimensions are decided (no "TBD" on strategy items).
-- Validation commands are concrete and runnable.
+- Validation commands are concrete, runnable, and include at least one way to prove observable outcomes.
 - `implement.md` is ready for Phase 1.6 (context configuration) and Phase 1.7 (implementation approval).

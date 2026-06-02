@@ -10,10 +10,10 @@
 **B. 任何实现 / 改代码 / 构建 / 重构 / bug 修复（L2-L5）**
 → 默认创建 Trellis task，走 Plan → Execute + Check + Review → Finish。
 
-**C. 极小改动，想跳过 Trellis（L1）**
-→ 当前消息里必须明确说："跳过 Trellis" / "no task" / "别走流程" / "小修一下" / "直接改"。
+**C. 极小改动，适合直接 Inline（L1）**
+→ AI 应先建议 direct inline edit；用户也可以明确说："跳过 Trellis" / "no task" / "别走流程" / "小修一下" / "直接改"。
 
-**AI 不能自己判断"小所以不建 task"。**
+**AI 可以在明显 L1、局部、可逆、低风险时建议不建 task；一旦范围扩大，立即升级到标准 Trellis 流程。**
 
 ---
 
@@ -162,7 +162,7 @@ Plan 阶段已确认。
 
 ## 5. 小修逃逸模板：直接 Inline，不创建 Task
 
-适用场景：改文案、改注释、改明显 typo、局部样式微调、临时验证、极小配置调整。
+适用场景：改文案、改注释、改明显 typo、局部样式微调、临时验证、极小配置调整。AI 也可以主动建议你走这条路径。
 
 模板：
 
@@ -251,8 +251,8 @@ Merge-Review 计划:
 ```
 
 AI 会自动：
-1. 判断任务等级（L2-L5）
-2. 创建 Trellis task
+1. 判断任务等级（L1-L5）
+2. 如果明显是 L1，则建议 inline；否则创建 Trellis task
 3. 运行 brainstorm → grill-me → dev-strategy（按等级决定是否需要 design.md）
 4. 判断是否需要 Superpowers（需求不清 / 架构权衡 / 多方案取舍时自动启用）
 5. 判断是否建议 OMC（可安全拆分且并行能明显提升效率时给出方案，等确认）
@@ -280,7 +280,7 @@ PRD 确认：
 "Plan 阶段已确认，进入 Execute + Check + Review。"
 
 小修：
-"小修一下，跳过 Trellis，直接改。"
+"小修一下，直接改。"
 
 结束：
 "进入 Finish 阶段，按 workflow Phase 3 收尾：update-spec，commit，finish-work。"

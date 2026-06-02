@@ -13,8 +13,9 @@ ALL of the following must be satisfied:
 2. `trellis-check` has PASS.
 3. Selected review gates have PASS.
 4. Spec update decision is recorded in `finish.md`.
-5. Code is committed, or PR is created, or explicitly no commit needed.
-6. Build/test PASS, or reason for inability is recorded.
+5. Observable outcomes are recorded in `finish.md` with verification evidence.
+6. Code is committed, or PR is created, or explicitly no commit needed.
+7. Build/test PASS, or reason for inability is recorded.
 
 Any missing precondition — finish-work refuses to execute.
 
@@ -52,6 +53,7 @@ Implementation complete? [YES/NO]
 trellis-check PASS? [YES/NO]
 Review gates PASS? [YES/NO]
 Spec update decision recorded? [YES/NO]
+Observable outcomes recorded? [YES/NO]
 Code committed? [YES/NO / N/A with reason]
 Build/test PASS? [YES/NO / N/A with reason]
 ```
@@ -106,6 +108,7 @@ The task is now DONE. No further changes should be made to this task.
 - trellis-check PASS: YES
 - Review gates PASS: YES
 - Spec update decision recorded: YES
+- Observable outcomes recorded: YES
 - Code committed: YES / N/A: [reason]
 - Build/test PASS: YES / N/A: [reason]
 
@@ -113,6 +116,10 @@ The task is now DONE. No further changes should be made to this task.
 Need spec update?
 - [ ] yes — [what was updated]
 - [ ] no — [reason]
+
+## Observable Outcomes
+- [outcome] — [evidence]
+- [outcome] — [evidence]
 
 ## Commits
 - [hash] [message]
@@ -133,7 +140,7 @@ Need spec update?
 
 ## Quality Bar
 
-- All six preconditions are verified before proceeding.
+- All seven preconditions are verified before proceeding.
 - If any precondition fails, finish-work is rejected with a clear message.
 - No code changes are made during finish-work.
 - No failed gates are bypassed.

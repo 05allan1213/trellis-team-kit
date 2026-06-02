@@ -14,12 +14,12 @@
 
 ## L1 — Tiny Change / Typo / Copy
 
-- **Create task**: Optional (user must explicitly say skip)
+- **Create task**: Optional (AI should recommend inline when the change is clearly local, reversible, and low-risk)
 - **Artifacts**: Skippable
 - **Execution**: Main session
 - **Gates**: Light check
 
-**Trigger phrases**: "skip trellis" / "no task" / "just do it" / "don't create a task"
+**Signals**: copy/text tweaks, obvious typos, tiny local style changes, one-file comment or wording updates
 
 **Examples**:
 - Fix a typo in copy
@@ -28,7 +28,7 @@
 
 ## L2 — Light Implementation
 
-- **Create task**: Yes
+- **Create task**: Recommended
 - **Artifacts**: `prd.md`
 - **Execution**: Main session or subagent
 - **Gates**: `trellis-check`
@@ -81,10 +81,10 @@
 ```
 User makes a request
 ├── Pure Q&A? → L0, answer directly
-├── Typo/copy/tiny change? → Ask if skip Trellis
-│   ├── User says skip → L1, inline
-│   └── User says create task → classify L2-L5
-├── Implementation request → Suggest creating task
+├── Typo/copy/tiny change? → Recommend L1 inline first
+│   ├── Clearly local and reversible → L1, inline
+│   └── Scope expands / user wants traceability → classify L2-L5
+├── Implementation request → Recommend task path
 │   ├── Single file / simple logic → L2
 │   ├── Multiple files / one package → L3
 │   ├── Cross-layer / API / schema / auth → L4
