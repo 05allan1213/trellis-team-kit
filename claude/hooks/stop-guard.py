@@ -9,6 +9,7 @@ Hard blocks:
 - Active task exists but check not passed
 - Selected review gate missing / FAIL / no PASS/FAIL
 - Spec update decision missing
+- Observable outcomes missing from finish.md
 - Validation missing / FAIL
 - Task not archived but assistant says done
 - Task in planning but assistant claims implementation completed
@@ -118,18 +119,72 @@ def _resolve_active_task(root: Path) -> Optional[dict]:
     }
 
 
-def _check_spec_update(task_dir: Path) -> str:
-    """Check spec update decision. Returns 'present', 'missing'."""
+def _extract_markdown_section(content: str, heading: str) -> str:
+    lines = content.splitlines()
+    target = heading.strip().lower()
+    collected: list[str] = []
+    in_section = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            current = stripped[3:].strip().lower()
+            if in_section:
+                break
+            if current == target:
+                in_section = True
+                continue
+        if in_section:
+            collected.append(line)
+
+    return "\n".join(collected).strip()
+
+
+def _has_concrete_observable_outcome(section_text: str) -> bool:
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("<!--"):
+            continue
+        if stripped.startswith("#"):
+            continue
+        if stripped.startswith("|") or re.fullmatch(r"[|:\- ]+", stripped):
+            continue
+
+        payload = re.sub(r"^(?:-|\d+\.)\s*", "", stripped).strip()
+        if not payload or "<!--" in payload:
+            continue
+
+        if re.fullmatch(
+            r"(?i)(outcome|evidence|remaining gap(?: / risk)?|risk)\s*:\s*",
+            payload,
+        ):
+            continue
+
+        return True
+    return False
+
+
+def _check_finish_requirements(task_dir: Path) -> dict[str, str]:
     finish_md = task_dir / "finish.md"
     if not finish_md.is_file():
-        return "missing"
+        return {"spec": "missing", "observable": "pending-no-file"}
+
     try:
-        content = finish_md.read_text(encoding="utf-8").lower()
+        content = finish_md.read_text(encoding="utf-8")
     except OSError:
-        return "missing"
-    if "spec update decision" in content:
-        return "present"
-    return "missing"
+        return {"spec": "missing", "observable": "missing"}
+
+    spec_section = _extract_markdown_section(content, "Spec Update Decision")
+    observable_section = _extract_markdown_section(content, "Observable Outcomes")
+
+    observable_status = "present"
+    if not observable_section or not _has_concrete_observable_outcome(observable_section):
+        observable_status = "missing"
+
+    return {
+        "spec": "present" if spec_section else "missing",
+        "observable": observable_status,
+    }
 
 
 def _run_task_validator(root: Path, task_dir: Path, script_name: str) -> Optional[str]:
@@ -342,14 +397,21 @@ def main() -> int:
                 "validation/test-results.md with '- [x] yes' or '- [x] no'."
             )
 
-        # Spec update decision
-        spec_decision = _check_spec_update(task_dir)
-        if spec_decision == "missing":
+        # Finish requirements
+        finish_requirements = _check_finish_requirements(task_dir)
+        if finish_requirements["spec"] == "missing":
             hard_blocks.append(
                 "Spec update decision missing.\n"
                 "  → To fix: Run trellis-update-spec skill, then record the decision "
                 "in finish.md by adding a '## Spec Update Decision' section with "
                 "'Need spec update? - [ ] yes / - [ ] no' and your reason."
+            )
+
+        if finish_requirements["observable"] == "missing":
+            hard_blocks.append(
+                "Observable outcomes missing from finish.md.\n"
+                "  → To fix: Add a '## Observable Outcomes' section with at least one "
+                "concrete, user- or operator-visible result and the evidence used to verify it."
             )
 
         for validator in ("validate_task.py", "validate_review_gates.py"):

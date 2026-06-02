@@ -11,6 +11,7 @@ Checks:
 - Review gate contract is present
 - Validation results
 - Finish marker for completed tasks
+- finish.md Spec Update Decision and Observable Outcomes sections
 """
 from __future__ import annotations
 
@@ -45,6 +46,80 @@ BROAD_SCOPE_PATTERNS = [
     r"^\*\*/\*$",
     r"^\.\./?$",
 ]
+
+
+def _extract_markdown_section(content: str, heading: str) -> str:
+    lines = content.splitlines()
+    target = heading.strip().lower()
+    collected: list[str] = []
+    in_section = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            current = stripped[3:].strip().lower()
+            if in_section:
+                break
+            if current == target:
+                in_section = True
+                continue
+        if in_section:
+            collected.append(line)
+
+    return "\n".join(collected).strip()
+
+
+def _has_concrete_observable_outcome(section_text: str) -> bool:
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("<!--"):
+            continue
+        if stripped.startswith("#"):
+            continue
+        if stripped.startswith("|") or re.fullmatch(r"[|:\- ]+", stripped):
+            continue
+
+        payload = re.sub(r"^(?:-|\d+\.)\s*", "", stripped).strip()
+        if not payload or "<!--" in payload:
+            continue
+
+        if re.fullmatch(
+            r"(?i)(outcome|evidence|remaining gap(?: / risk)?|risk)\s*:\s*",
+            payload,
+        ):
+            continue
+
+        return True
+    return False
+
+
+def _check_finish_requirements(finish_md: Path, task_id: str) -> list[str]:
+    if not finish_md.is_file():
+        return []
+
+    try:
+        content = finish_md.read_text(encoding="utf-8")
+    except OSError as e:
+        return [f"Task '{task_id}': cannot read finish.md: {e}"]
+
+    errors: list[str] = []
+    spec_section = _extract_markdown_section(content, "Spec Update Decision")
+    if not spec_section:
+        errors.append(
+            f"Task '{task_id}': finish.md missing 'Spec Update Decision' section"
+        )
+
+    observable_section = _extract_markdown_section(content, "Observable Outcomes")
+    if not observable_section:
+        errors.append(
+            f"Task '{task_id}': finish.md missing 'Observable Outcomes' section"
+        )
+    elif not _has_concrete_observable_outcome(observable_section):
+        errors.append(
+            f"Task '{task_id}': finish.md 'Observable Outcomes' must include at least one concrete outcome"
+        )
+
+    return errors
 
 
 def _check_scope_quality(implement_md: Path, task_id: str, level: str) -> list[str]:
@@ -199,6 +274,8 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
     finish_md = task_dir / "finish.md"
     if status.lower() in ("completed", "done") and not finish_md.is_file():
         errors.append(f"Task '{task_id}': status is '{status}' but finish.md is missing")
+    elif finish_md.is_file():
+        errors.extend(_check_finish_requirements(finish_md, task_id))
 
     before_dev_md = task_dir / "before-dev.md"
     if status.lower() == "in_progress" and before_dev_md.is_file():
