@@ -82,9 +82,9 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
 |------|------|:--------:|---------|------|
 | L0 | 纯问答/解释/分析 | 否 | 无 | 无 |
 | L1 | typo/极小改动/文案 | 可选 | 可跳过 | 轻量检查 |
-| L2 | 轻量实现 | 是 | prd.md + grill-me.md + implement.jsonl + check.jsonl | check |
-| L3 | 普通 feature/bugfix | 是 | prd.md + grill-me.md + implement.md + JSONLs | check + code-review |
-| L4 | 复杂跨层任务 | 是 | prd.md + grill-me.md + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review |
+| L2 | 轻量实现 | 是 | prd.md | check |
+| L3 | 普通 feature/bugfix | 是 | prd.md + implement.md + JSONLs | check + code-review |
+| L4 | 复杂跨层任务 | 是 | prd.md + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review |
 | L5 | 多 agent/大重构 | 是 | 全量产物 | 全部门禁 + merge-review |
 
 **AI 不得自己判断"改动很小所以不用创建 task"。**

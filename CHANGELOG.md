@@ -32,7 +32,7 @@ finish-work、continue、create-manifest
 - Task 产物：prd、design、implement、finish、before-dev
 - Research：architecture-options、brainstorm、break-loop、decision-log、evidence、external-docs、grill-me、spike-results
 - Review：spec-review、code-review、architecture-review、merge-review
-- Validation：build-results、commands、test-results、results
+- Validation：build-results、commands、test-results
 - PR 模板
 
 ### 护栏

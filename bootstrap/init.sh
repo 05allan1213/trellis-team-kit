@@ -152,7 +152,7 @@ info "  $LIB_COUNT hook libs installed"
 
 COMMAND_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/commands/trellis"
-for cmd in finish-work continue create-manifest; do
+for cmd in finish-work continue create-manifest status doctor new auto-context; do
   get_file "claude/commands/trellis/$cmd.md" "$TARGET_ROOT/.claude/commands/trellis/$cmd.md"
   COMMAND_COUNT=$((COMMAND_COUNT + 1))
 done

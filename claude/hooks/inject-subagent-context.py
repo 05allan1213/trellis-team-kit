@@ -288,7 +288,7 @@ def _get_spec_updater_context(repo_root: str, task_dir: str) -> str:
                     parts.append(f"## Review: {rf.name}\n```\n{content}\n```")
 
     # Validation results
-    val = _read_file(repo_root, f"{task_dir}/validation/results.md")
+    val = _read_file(repo_root, f"{task_dir}/validation/test-results.md")
     if val:
         parts.append(f"## Validation Results\n```\n{val[:2000]}\n```")
 
@@ -334,7 +334,7 @@ def _get_merge_reviewer_context(repo_root: str, task_dir: str) -> str:
                     parts.append(f"## Gate: {rf.name}\n```\n{content}\n```")
 
     # Validation
-    val = _read_file(repo_root, f"{task_dir}/validation/results.md")
+    val = _read_file(repo_root, f"{task_dir}/validation/test-results.md")
     if val:
         parts.append(f"## Validation\n```\n{val[:1500]}\n```")
 

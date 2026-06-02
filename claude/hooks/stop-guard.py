@@ -54,15 +54,17 @@ if sys.platform.startswith("win"):
 
 TRELLIS_DIR = ".trellis"
 
-# Review gate file mapping (canonical)
-GATE_FILE_MAP: dict[str, str] = {
-    "trellis-check": "review/check-review.md",
-    "trellis-spec-review": "review/spec-review.md",
-    "trellis-code-review": "review/code-review.md",
-    "trellis-code-architecture-review": "review/architecture-review.md",
-    "trellis-improve-codebase-architecture deep-review": "review/architecture-deep-review.md",
-    "trellis-merge-review": "review/merge-review.md",
-}
+# Import shared artifact helpers from lib/
+_HOOKS_DIR = Path(__file__).resolve().parent
+if str(_HOOKS_DIR / "lib") not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR / "lib"))
+
+from task_artifacts import (  # type: ignore[import-not-found]
+    GATE_FILE_MAP,
+    check_review_gate,
+    check_validation,
+    parse_selected_gates,
+)
 
 # Keywords that indicate assistant is claiming completion
 DONE_KEYWORDS = re.compile(
@@ -114,99 +116,6 @@ def _resolve_active_task(root: Path) -> Optional[dict]:
         "task_id": task_data.get("id", task_dir.name),
         "status": task_data.get("status", "unknown"),
     }
-
-
-def _parse_selected_gates(implement_md: Path) -> list[str]:
-    """Parse selected gates from implement.md Review Gate Contract."""
-    if not implement_md.is_file():
-        return []
-    try:
-        content = implement_md.read_text(encoding="utf-8")
-    except OSError:
-        return []
-
-    gates: list[str] = []
-    in_selected = False
-    for line in content.splitlines():
-        stripped = line.strip()
-        if stripped.lower().startswith("selected gates:"):
-            in_selected = True
-            continue
-        if in_selected:
-            if stripped.startswith("- [") and "]" in stripped:
-                gate = stripped.split("] ", 1)[-1].strip()
-                if gate:
-                    gates.append(gate)
-            elif not stripped.startswith("-"):
-                in_selected = False
-    return gates
-
-
-def _check_review_gate(task_dir: Path, gate_name: str) -> str:
-    """Return 'pass', 'fail', 'missing', or 'no-verdict'."""
-    file_rel = GATE_FILE_MAP.get(gate_name)
-    if not file_rel:
-        return "missing"
-    gate_file = task_dir / file_rel
-    if not gate_file.is_file():
-        return "missing"
-    try:
-        content = gate_file.read_text(encoding="utf-8").lower()
-    except OSError:
-        return "missing"
-
-    # Check for Status section with PASS/FAIL
-    has_status_section = "status:" in content
-    if not has_status_section:
-        return "no-verdict"
-
-    # Look for checked PASS or FAIL markers
-    has_pass = bool(re.search(r"-\s*\[x\]\s*pass", content))
-    has_fail = bool(re.search(r"-\s*\[x\]\s*fail", content))
-
-    if has_fail:
-        return "fail"
-    if has_pass:
-        return "pass"
-    return "no-verdict"
-
-
-def _check_validation(task_dir: Path) -> dict:
-    """Check validation status. Returns dict with build/test/smoke/ready."""
-    results: dict = {"build": "missing", "test": "missing", "smoke": "missing", "ready": "missing"}
-
-    validation_dir = task_dir / "validation"
-    if not validation_dir.is_dir():
-        return results
-
-    results_file = validation_dir / "results.md"
-    if not results_file.is_file():
-        return results
-
-    try:
-        content = results_file.read_text(encoding="utf-8").lower()
-    except OSError:
-        return results
-
-    for check in ("build", "test", "smoke"):
-        section_start = content.find(f"## {check}")
-        if section_start == -1:
-            continue
-        section = content[section_start:section_start + 500]
-        if "- [x] pass" in section:
-            results[check] = "pass"
-        elif "- [x] fail" in section:
-            results[check] = "fail"
-        elif "skipped with reason" in section:
-            results[check] = "skipped"
-
-    if "ready for finish-work?" in content:
-        if "- [x] yes" in content:
-            results["ready"] = "yes"
-        elif "- [x] no" in content:
-            results["ready"] = "no"
-
-    return results
 
 
 def _check_spec_update(task_dir: Path) -> str:
@@ -341,13 +250,15 @@ def main() -> int:
         if _check_source_edits_during_planning(root):
             hard_blocks.append(
                 "CONSENT VIOLATION: Source files were edited during the planning phase. "
-                "Task creation approval is NOT implementation approval. "
-                "Revert source changes and wait for implementation consent."
+                "Task creation approval is NOT implementation approval.\n"
+                "  → To fix: Revert source changes with 'git checkout -- <file>' "
+                "and wait for user to explicitly approve implementation."
             )
         if claiming_done:
             hard_blocks.append(
-                "Task is still in planning. Implementation has not started. "
-                "Do NOT claim done on an incomplete task."
+                "Task is still in planning. Implementation has not started.\n"
+                "  → To fix: Complete planning artifacts (prd.md, implement.md), "
+                "then ask user to approve implementation before claiming done."
             )
 
     # --- In-progress gate checks ---
@@ -357,71 +268,97 @@ def main() -> int:
         if check_file.is_file():
             try:
                 c = check_file.read_text(encoding="utf-8").lower()
-                check_done = "pass" in c or "status:" in c
+                check_done = "- [x] pass" in c or "- [x] fail" in c
             except OSError:
                 pass
 
         if not check_done:
-            hard_blocks.append("Check gate: NOT PASSED. Run trellis-check before claiming done.")
+            hard_blocks.append(
+                "Check gate: NOT PASSED.\n"
+                "  → To fix: Dispatch trellis-checker sub-agent or run "
+                "'/trellis:check' to produce validation/check-results.md with a PASS verdict."
+            )
 
         # Selected review gates
         implement_md = task_dir / "implement.md"
-        selected_gates = _parse_selected_gates(implement_md)
+        selected_gates = parse_selected_gates(implement_md)
 
         for gate in selected_gates:
-            result = _check_review_gate(task_dir, gate)
+            result = check_review_gate(task_dir, gate)
             if result == "missing":
+                gate_file = GATE_FILE_MAP.get(gate, "?")
                 hard_blocks.append(
-                    f"Selected review gate '{gate}' is missing (no review file found). "
-                    f"Run the review agent or disable the gate with reason."
+                    f"Selected review gate '{gate}' is missing (no review file found).\n"
+                    f"  → To fix: Run the review agent to create '{gate_file}', "
+                    f"or edit implement.md to deselect this gate."
                 )
             elif result == "fail":
+                gate_file = GATE_FILE_MAP.get(gate, "?")
                 hard_blocks.append(
-                    f"Selected review gate '{gate}' FAILED. "
-                    f"Return to IMPLEMENTING, fix issues, re-check, re-review."
+                    f"Selected review gate '{gate}' FAILED.\n"
+                    f"  → To fix: Read '{gate_file}' for blocking issues, "
+                    f"fix them in code, re-run trellis-check, then re-run this review gate."
                 )
             elif result == "no-verdict":
+                gate_file = GATE_FILE_MAP.get(gate, "?")
                 hard_blocks.append(
-                    f"Selected review gate '{gate}' has no PASS/FAIL verdict. "
-                    f"Reviewer must output explicit Status: PASS or FAIL."
+                    f"Selected review gate '{gate}' has no PASS/FAIL verdict.\n"
+                    f"  → To fix: Open '{gate_file}' and ensure it has "
+                    f"checked checkbox verdict ('- [x] pass' or '- [x] fail')."
                 )
 
         # Validation check
-        validation = _check_validation(task_dir)
+        validation = check_validation(task_dir)
         if validation["build"] == "missing" and validation["test"] == "missing":
             hard_blocks.append(
-                "Validation missing: no build or test results recorded. "
-                "Run build/test and record results in validation/results.md."
+                "Validation missing: no build or test results recorded.\n"
+                "  → To fix: Run build/test commands and record results in "
+                "validation/test-results.md. Fill in ## Build and ## Test sections "
+                "with a checked checkbox verdict ('- [x] pass' or '- [x] fail')."
             )
         elif validation["build"] == "fail":
-            hard_blocks.append("Build FAILED. Fix build issues before finishing.")
+            hard_blocks.append(
+                "Build FAILED.\n"
+                "  → To fix: Run build command, read error output, fix build issues, "
+                "then update validation/test-results.md ## Build section to PASS."
+            )
         elif validation["test"] == "fail":
-            hard_blocks.append("Tests FAILED. Fix test failures before finishing.")
+            hard_blocks.append(
+                "Tests FAILED.\n"
+                "  → To fix: Run test command, read failure output, fix test failures, "
+                "then update validation/test-results.md ## Test section to PASS."
+            )
 
         if validation["ready"] == "no":
             hard_blocks.append(
-                "Validation says 'Ready for finish-work: no'. "
-                "Address remaining issues before finishing."
+                "Validation says 'Ready for finish-work: no'.\n"
+                "  → To fix: Address the issues listed in validation/test-results.md, "
+                "then change 'Ready for finish-work?' to '- [x] yes'."
             )
         elif validation["ready"] == "missing":
             soft_warnings.append(
-                "Validation results exist but 'Ready for finish-work?' is not marked. "
-                "Mark it explicitly before finishing."
+                "Validation results exist but 'Ready for finish-work?' is not marked.\n"
+                "  → To fix: Add '## Ready for finish-work?' section to "
+                "validation/test-results.md with '- [x] yes' or '- [x] no'."
             )
 
         # Spec update decision
         spec_decision = _check_spec_update(task_dir)
         if spec_decision == "missing":
             hard_blocks.append(
-                "Spec update decision missing. Run trellis-update-spec and "
-                "record the decision in finish.md."
+                "Spec update decision missing.\n"
+                "  → To fix: Run trellis-update-spec skill, then record the decision "
+                "in finish.md by adding a '## Spec Update Decision' section with "
+                "'Need spec update? - [ ] yes / - [ ] no' and your reason."
             )
 
         for validator in ("validate_task.py", "validate_review_gates.py"):
             validator_output = _run_task_validator(root, task_dir, validator)
             if validator_output:
                 hard_blocks.append(
-                    f"{validator} FAILED:\n{validator_output}"
+                    f"{validator} FAILED:\n{validator_output}\n"
+                    f"  → To fix: Run 'python3 .trellis/scripts/{validator} {task_dir}' "
+                    f"to see detailed errors, then address each one."
                 )
 
     # --- Emit results ---

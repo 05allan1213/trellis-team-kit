@@ -169,7 +169,7 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 **操作**：运行 build 和 test
 
 **检查点**：
-- [ ] `validation/results.md` 存在
+- [ ] `validation/test-results.md` 存在
 - [ ] Build 和 Test 均为 PASS 或 SKIPPED WITH REASON
 
 ---

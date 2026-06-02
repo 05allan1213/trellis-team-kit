@@ -3,32 +3,41 @@
 <!-- Record the actual output of each validation command. -->
 <!-- This artifact is produced during the Finish phase (step 3.4). -->
 <!-- All results must be PASS or have an explicit explanation for FAIL. -->
+<!-- Section headers are searched by hooks using line-start matching. Do not rename them. -->
+<!-- Each hook-checked section MUST have a checkbox verdict line (- [x] pass / - [x] fail) -->
+<!-- that the stop-guard hook can detect. Keep the verdict line right after the header. -->
 
-## Lint Result
+## Lint
+
+- [ ] pass
+- [ ] fail
 
 | Metric | Value |
 |--------|-------|
 | Command | <!-- the command that was run --> |
-| Status | <!-- PASS / FAIL / SKIPPED --> |
 | Errors | <!-- count --> |
 | Warnings | <!-- count --> |
 | Output | <!-- paste relevant output or "clean" --> |
 
-## TypeCheck Result
+## TypeCheck
+
+- [ ] pass
+- [ ] fail
 
 | Metric | Value |
 |--------|-------|
 | Command | <!-- the command that was run --> |
-| Status | <!-- PASS / FAIL / SKIPPED --> |
 | Errors | <!-- count --> |
 | Output | <!-- paste relevant output or "clean" --> |
 
-## Test Result
+## Test
+
+- [ ] pass
+- [ ] fail
 
 | Metric | Value |
 |--------|-------|
 | Command | <!-- the command that was run --> |
-| Status | <!-- PASS / FAIL / SKIPPED --> |
 | Tests Run | <!-- count --> |
 | Passed | <!-- count --> |
 | Failed | <!-- count --> |
@@ -36,25 +45,44 @@
 | Coverage | <!-- percentage --> |
 | Output | <!-- paste relevant output or summary --> |
 
-## Build Result
+## Build
+
+- [ ] pass
+- [ ] fail
 
 | Metric | Value |
 |--------|-------|
 | Command | <!-- the command that was run --> |
-| Status | <!-- PASS / FAIL / SKIPPED --> |
 | Build Time | <!-- duration --> |
 | Output | <!-- paste relevant output or "success" --> |
 
-## E2E Result
+## Smoke
+
+- [ ] pass
+- [ ] fail
 
 | Metric | Value |
 |--------|-------|
 | Command | <!-- the command that was run --> |
-| Status | <!-- PASS / FAIL / SKIPPED --> |
+| Output | <!-- paste relevant output or "N/A" --> |
+
+## E2E
+
+- [ ] pass
+- [ ] fail
+
+| Metric | Value |
+|--------|-------|
+| Command | <!-- the command that was run --> |
 | Tests Run | <!-- count --> |
 | Passed | <!-- count --> |
 | Failed | <!-- count --> |
 | Output | <!-- paste relevant output or "N/A" --> |
+
+## Ready for finish-work?
+
+- [ ] yes
+- [ ] no
 
 ## Overall
 

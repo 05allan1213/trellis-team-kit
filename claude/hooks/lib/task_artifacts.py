@@ -5,6 +5,7 @@ Check existence and content of task artifacts (review files, validation, gates).
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -19,7 +20,7 @@ GATE_FILE_MAP: dict[str, str] = {
 }
 
 REQUIRED_REVIEW_FIELDS = ("status", "scope reviewed", "blocking issues")
-REQUIRED_VALIDATION_FILE = "validation/results.md"
+REQUIRED_VALIDATION_FILE = "validation/test-results.md"
 
 
 def has_review_dir(task_dir: Path) -> bool:
@@ -98,7 +99,7 @@ def check_validation(task_dir: Path) -> dict:
     if not validation_dir.is_dir():
         return results
 
-    results_file = validation_dir / "results.md"
+    results_file = validation_dir / "test-results.md"
     if not results_file.is_file():
         return results
 
@@ -107,10 +108,15 @@ def check_validation(task_dir: Path) -> dict:
     except OSError:
         return results
 
+    # Use line-start anchored regex to find ## Build, ## Test, ## Smoke
+    # (not occurrences inside comments or table cells)
+    # Note: cannot use \b in rf-strings — Python interprets \b as backspace.
+    # Use (?:\n|$) to match end-of-heading instead.
     for check in ("build", "test", "smoke"):
-        section_start = content.find(f"## {check}")
-        if section_start == -1:
+        match = re.search(rf"^## {check}(?:\s|$)", content, re.MULTILINE)
+        if match is None:
             continue
+        section_start = match.start()
         section = content[section_start:section_start + 500]
         if "- [x] pass" in section:
             results[check] = "pass"
@@ -119,10 +125,13 @@ def check_validation(task_dir: Path) -> dict:
         elif "skipped with reason" in section:
             results[check] = "skipped"
 
-    if "ready for finish-work?" in content:
-        if "- [x] yes" in content:
+    # Scope ready check to the section, not global content
+    ready_match = re.search(r"^## ready for finish-work\?", content, re.MULTILINE)
+    if ready_match is not None:
+        ready_section = content[ready_match.start():ready_match.start() + 300]
+        if "- [x] yes" in ready_section:
             results["ready"] = "yes"
-        elif "- [x] no" in content:
+        elif "- [x] no" in ready_section:
             results["ready"] = "no"
 
     return results

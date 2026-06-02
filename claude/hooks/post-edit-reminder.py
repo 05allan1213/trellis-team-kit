@@ -244,7 +244,9 @@ def _check_scope_guard(file_path: str, root: Path) -> Optional[str]:
         return (
             f"scope-quality: implement.md has overly broad declarations: "
             f"{', '.join(broad)}. Scope guard is less effective with broad patterns. "
-            f"Consider using more specific paths like 'src/api/users.ts' instead of 'src/*'."
+            f"Consider using more specific paths like 'src/api/users.ts' instead of 'src/*'. "
+            f"To fix: Edit implement.md 'Files / Areas Likely Touched' section "
+            f"to list specific file paths."
         )
 
     norm = file_path.replace("\\", "/")
@@ -258,7 +260,8 @@ def _check_scope_guard(file_path: str, root: Path) -> Optional[str]:
         f"scope-guard: File '{norm}' is NOT declared in implement.md "
         f"'Files / Areas Likely Touched'. Declared paths: "
         f"{', '.join(declared[:5])}{'...' if len(declared) > 5 else ''}. "
-        f"If this change is intentional, add the path to implement.md."
+        f"If this change is intentional, add the path to implement.md "
+        f"'Files / Areas Likely Touched' section. If not, revert this edit."
     )
 
 
