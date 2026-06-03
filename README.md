@@ -159,18 +159,18 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 ```
 AGENTS.md                  ← AI agent 入口
 CLAUDE.md                  ← Claude Code 入口
-.team-kit-version          ← 版本标记
+.trellis/.team-kit-version ← 版本标记
 .claude/
   settings.json            ← 团队 Claude Code 配置（hooks、skills、权限）
   skills/                  ← 14 个 Trellis 阶段 skills
   agents/                  ← 9 个专用 subagents
-  hooks/                   ← 工作流守护 hooks
-  commands/                ← Slash 命令
+  hooks/                   ← 9 个工作流守护 hooks + 6 个 hook libs
+  commands/trellis/        ← 7 个 Slash 命令
 .trellis/
   workflow.md              ← 完整状态机
-  config.json              ← Team-kit 配置
   spec/                    ← 分层团队知识库
   templates/               ← Task 产物模板（含 before-dev.md）
+  scripts/                 ← 7 个静态验证器
   tasks/                   ← 活跃和已归档任务
   workspace/               ← 个人开发者日志
 ```
@@ -208,10 +208,10 @@ mkdir my-project && cd my-project && git init
 
 ### 本地个人配置
 
-团队初始化后，每个开发者运行：
+团队初始化后，每个开发者在项目目录中运行：
 
 ```bash
-bash bootstrap/init-local.sh 你的名字
+bash ~/trellis-team-kit/bootstrap/init-local.sh 你的名字
 ```
 
 这会创建个人工作区和日志文件。

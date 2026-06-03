@@ -295,10 +295,14 @@ def main() -> int:
         # Default: find the bundled routing_rules.json
         here = Path(__file__).resolve()
         for parent in [here] + list(here.parents):
-            candidate = parent / "trellis" / "config" / "routing_rules.json"
-            if candidate.is_file():
-                path = candidate
-                break
+            for suffix in (".trellis", "trellis"):
+                candidate = parent / suffix / "config" / "routing_rules.json"
+                if candidate.is_file():
+                    path = candidate
+                    break
+            else:
+                continue
+            break
         else:
             print("FAIL: Cannot find routing_rules.json")
             return 1

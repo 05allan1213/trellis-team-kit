@@ -143,7 +143,7 @@ HOOK_COUNT=$((HOOK_COUNT + 1))
 # Install hook libs
 LIB_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/hooks/lib"
-for lib in __init__ hook_output workflow_state task_artifacts naming; do
+for lib in __init__ hook_output workflow_state task_artifacts naming prompt_routing; do
   get_file "claude/hooks/lib/$lib.py" "$TARGET_ROOT/.claude/hooks/lib/$lib.py"
   LIB_COUNT=$((LIB_COUNT + 1))
 done
@@ -158,17 +158,22 @@ for cmd in finish-work continue create-manifest status doctor new auto-context; 
 done
 info "  $COMMAND_COUNT commands installed"
 
-# --- Step 8: Install validators ---
-info "Step 8/9: Installing static validators..."
+# --- Step 8: Install validators and config ---
+info "Step 8/9: Installing static validators and config..."
 VALIDATOR_COUNT=0
 mkdir -p "$TARGET_ROOT/.trellis/scripts"
+mkdir -p "$TARGET_ROOT/.trellis/config"
 for v in \
   validate_claude_settings validate_naming_map validate_hooks \
-  validate_task validate_review_gates validate_runtime_hardening; do
+  validate_task validate_review_gates validate_runtime_hardening \
+  validate_routing_rules; do
   get_file "trellis/scripts/$v.py" "$TARGET_ROOT/.trellis/scripts/$v.py"
   VALIDATOR_COUNT=$((VALIDATOR_COUNT + 1))
 done
+# Install config files required by validators
+get_file "trellis/config/routing_rules.json" "$TARGET_ROOT/.trellis/config/routing_rules.json"
 info "  $VALIDATOR_COUNT validators installed"
+info "  routing_rules.json installed"
 
 # --- Step 9: Install specs, templates, and record version ---
 info "Step 9/9: Installing specs, templates, and recording version..."
