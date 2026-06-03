@@ -1,0 +1,218 @@
+[
+  {
+    "prompt": "把按钮文案从提交改成保存",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "UI copy tweak — classic L1"
+  },
+  {
+    "prompt": "给 util 增一个日期格式化函数",
+    "expected_route": "L2",
+    "expected_confidence": "high",
+    "notes": "Utility function — classic L2"
+  },
+  {
+    "prompt": "把用户列表接口返回字段改一下",
+    "expected_route": "L3+",
+    "expected_confidence": "high",
+    "notes": "API contract change — L3+"
+  },
+  {
+    "prompt": "补一个颜色转换函数",
+    "expected_route": "L2",
+    "expected_confidence": "high",
+    "notes": "Utility function with color keyword — should stay L2, not L1"
+  },
+  {
+    "prompt": "调整表单字段占位符",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Form field placeholder — should be L1, not L3+ despite '字段'"
+  },
+  {
+    "prompt": "顺手改一下字段展示方式",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "Ambiguous — '字段' but no clear schema/API signal"
+  },
+  {
+    "prompt": "这个函数是什么意思?",
+    "expected_route": "L0",
+    "expected_confidence": "high",
+    "notes": "Pure question"
+  },
+  {
+    "prompt": "给订单表新增 status 字段",
+    "expected_route": "L3+",
+    "expected_confidence": "high",
+    "notes": "Database schema change — classic L3+"
+  },
+  {
+    "prompt": "把支付页按钮间距调一下",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "UI style tweak"
+  },
+  {
+    "prompt": "顺手把登录页的错误提示文案改一下",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Error message copy tweak"
+  },
+  {
+    "prompt": "补一个手机号格式化工具函数",
+    "expected_route": "L2",
+    "expected_confidence": "high",
+    "notes": "Phone number formatter — L2"
+  },
+  {
+    "prompt": "实现用户认证模块",
+    "expected_route": "L3+",
+    "expected_confidence": "high",
+    "notes": "Auth module — L3+ because of structured combination 实现+认证+模块, not because 认证 alone is a strong signal"
+  },
+  {
+    "prompt": "改一下表单字段校验提示",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "UI field validation hint — must NOT misroute to L3+ (表单 ≠ database table)"
+  },
+  {
+    "prompt": "修改图表字段颜色",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "UI chart field color — must NOT misroute to L3+ (图表 ≠ database table)"
+  },
+  {
+    "prompt": "解释一下 React useEffect 的用法",
+    "expected_route": "L0",
+    "expected_confidence": "high",
+    "notes": "Explanation question"
+  },
+  {
+    "prompt": "修改数据库表结构",
+    "expected_route": "L3+",
+    "expected_confidence": "high",
+    "notes": "Database schema — L3+"
+  },
+  {
+    "prompt": "加个校验函数",
+    "expected_route": "L2",
+    "expected_confidence": "high",
+    "notes": "Validator function — L2"
+  },
+  {
+    "prompt": "把返回字段说明改一下",
+    "expected_route": "NOT L3+",
+    "expected_confidence": null,
+    "notes": "No API context — must NOT match api_contract_change (返回字段 alone ≠ API contract)"
+  },
+  {
+    "prompt": "修改接口返回字段",
+    "expected_route": "L3+",
+    "expected_confidence": "high",
+    "notes": "接口 + 返回字段 = strong API contract signal"
+  },
+  {
+    "prompt": "重构按钮样式",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Local UI refactor — 重构 alone is not L3+, must have cross-layer context"
+  },
+  {
+    "prompt": "给 middleware 加个日志文案",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Local middleware logging — middleware alone is not L3+, must be config/permission change"
+  },
+  {
+    "prompt": "改一下 middleware 注释",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Comment changes to middleware should stay L1, not escalate to L3+"
+  },
+  {
+    "prompt": "改一下 schema 注释",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Comment changes to schema should stay L1, not escalate to L3+"
+  },
+  {
+    "prompt": "改一下 migration 注释",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Comment changes to migration should stay L1, not escalate to L3+"
+  },
+  {
+    "prompt": "修改 schema",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "Schema alone is a weak signal per design2 §8.2 — without clear structural change object, it should be UNCERTAIN"
+  },
+  {
+    "prompt": "配置 middleware 权限",
+    "expected_route": "L3+",
+    "expected_confidence": "high",
+    "notes": "Middleware permission config — cross-layer security change"
+  },
+  {
+    "prompt": "重构用户认证架构",
+    "expected_route": "L3+",
+    "expected_confidence": "high",
+    "notes": "Auth architecture refactor — L3+ because of structured combination 重构+认证+架构, not because 认证 alone is a strong signal"
+  },
+  {
+    "prompt": "调整按钮颜色",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Button color adjustment — classic L1 UI tweak"
+  },
+  {
+    "prompt": "修改样式",
+    "expected_route": "L1",
+    "expected_confidence": "high",
+    "notes": "Style modification — generic style change is L1"
+  },
+  {
+    "prompt": "改一下 middleware",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "middleware alone is weak signal per design2 §8.2 — without clear change target, should be UNCERTAIN"
+  },
+  {
+    "prompt": "调整 migration 相关说明",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "Ambiguous — 'migration' context noun with vague action '说明', should be UNCERTAIN per design2 §8.4"
+  },
+  {
+    "prompt": "更新 schema 的说明文档",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "Ambiguous — 'schema' context noun with '说明文档', direct modification target unclear, should be UNCERTAIN"
+  },
+  {
+    "prompt": "修改 auth",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "auth alone is weak signal per design2 §8.2 — without structured change object, should be UNCERTAIN"
+  },
+  {
+    "prompt": "调整认证逻辑",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "认证 alone is weak signal per design2 §8.2 — '调整逻辑' is vague, should be UNCERTAIN"
+  },
+  {
+    "prompt": "修改 middleware 权限文档",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "per design2 §8.3: high-risk context (middleware/权限) + low-risk target (文档) — must NOT escalate to L3+, but also not forced to L1; UNCERTAIN is correct"
+  },
+  {
+    "prompt": "修改中间件权限说明",
+    "expected_route": "UNCERTAIN",
+    "expected_confidence": "low",
+    "notes": "per design2 §8.3: high-risk context (中间件/权限) + low-risk target (说明) — must NOT escalate to L3+, but also not forced to L1; UNCERTAIN is correct"
+  }
+]

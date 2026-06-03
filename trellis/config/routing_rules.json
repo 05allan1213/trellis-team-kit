@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "intent_gate": {
+    "question_keywords": [
+      "what", "why", "how", "explain", "describe",
+      "介绍", "解释", "是什么", "什么意思", "怎么理解", "为什么", "什么作用",
+      "what does", "how does", "how to use", "what is"
+    ],
+    "analysis_keywords": [
+      "analyze", "analyse", "review", "evaluate", "assess", "audit", "compare",
+      "分析", "看看", "评估", "审视", "对比", "现状", "有哪些", "有什么",
+      "当前状态", "目前情况"
+    ],
+    "question_patterns": [
+      "\\?\\s*$",
+      "请解释",
+      "怎么用",
+      "是什么意思",
+      "是什么",
+      "介绍一下",
+      "分析一下",
+      "看看.*现状",
+      "评估一下"
+    ],
+    "change_keywords": [
+      "fix", "add", "change", "update", "implement", "refactor", "write", "wrap",
+      "modify", "remove", "delete", "create", "build",
+      "改", "修", "加", "新增", "实现", "重构", "删除", "调", "调整", "补", "写",
+      "封装", "添加", "替换", "迁移", "更新"
+    ]
+  },
+  "levels": {
+    "L1": [
+      {
+        "id": "ui_copy_tweak",
+        "type": "pair",
+        "verbs": ["改", "调", "优化", "替换", "修改"],
+        "objects": ["文案", "提示语", "占位符", "按钮文字", "tooltip", "toast",
+                    "placeholder", "注释", "错别字", "拼写", "校验提示", "提示"],
+        "weight": 3
+      },
+      {
+        "id": "ui_style_tweak",
+        "type": "pair",
+        "verbs": ["调", "改", "微调", "优化", "调整", "重构"],
+        "objects": ["间距", "边距", "颜色", "字号", "字重", "对齐", "圆角",
+                    "宽度", "高度", "样式"],
+        "weight": 3
+      },
+      {
+        "id": "ui_component_tweak",
+        "type": "regex",
+        "patterns": [
+          "(按钮|卡片|弹窗|页面|表单|列表|表格).{0,8}(间距|边距|颜色|字号|字重|对齐|圆角|宽度|高度|样式)",
+          "(间距|边距|颜色|字号|字重|对齐|圆角|样式).{0,8}(调|改|微调|优化|调整|重构)",
+          "(文案|提示语|占位符|注释|按钮文字).{0,8}(改|调|优化|替换)",
+          "(改|调|优化|替换).{0,8}(文案|提示语|占位符|注释|按钮文字)",
+          "(middleware|config).{0,12}(加|改|调).{0,8}(日志|文案|提示)",
+          "(日志|文案|提示).{0,8}(middleware|config)"
+        ],
+        "weight": 3
+      },
+      {
+        "id": "l1_keywords",
+        "type": "keyword",
+        "terms": [
+          "typo", "copy", "wording", "label", "错别字", "拼写",
+          "文案", "样式微调", "样式小改", "样式", "按钮文案", "小修", "直接改",
+          "间距", "边距", "字号", "圆角", "对齐", "占位符", "placeholder",
+          "tooltip", "toast", "日志"
+        ],
+        "weight": 1
+      }
+    ],
+    "L2": [
+      {
+        "id": "utility_function",
+        "type": "pair",
+        "verbs": ["补", "加", "写", "封装", "新增", "添加", "实现"],
+        "objects": ["工具函数", "辅助函数", "格式化函数", "校验函数", "解析函数",
+                    "转换函数", "映射函数", "脱敏函数", "util", "helper"],
+        "weight": 3
+      },
+      {
+        "id": "data_format_pattern",
+        "type": "regex",
+        "patterns": [
+          "(日期|时间|时间戳|手机号|邮箱|金额|脱敏|颜色).{0,8}(格式化|校验|转换|解析|脱敏)"
+        ],
+        "weight": 3
+      },
+      {
+        "id": "l2_keywords",
+        "type": "keyword",
+        "terms": [
+          "util", "helper", "tool function", "utility", "validator", "format",
+          "formatter", "date format", "工具函数", "辅助函数", "格式化函数",
+          "日期格式化", "简单 bug", "small bug", "简单修复", "lightweight",
+          "light bugfix", "脱敏函数", "解析函数", "转换函数", "映射函数",
+          "校验函数", "校验", "解析"
+        ],
+        "weight": 1
+      }
+    ],
+    "L3+": [
+      {
+        "id": "schema_change",
+        "type": "triple",
+        "subjects": ["数据表", "表结构", "数据库", "database"],
+        "verbs": ["新增", "删除", "修改", "变更", "迁移", "加", "改"],
+        "objects": ["字段", "索引", "列", "主键", "外键"],
+        "weight": 4,
+        "risk": "high"
+      },
+      {
+        "id": "api_contract_change",
+        "type": "regex",
+        "patterns": [
+          "(接口|api).{0,8}(字段|参数|返回值|返回字段|响应字段|请求参数)",
+          "(字段|参数|返回值|返回字段|响应字段|请求参数).{0,8}(改|调|修改|变更|新增|删除).{0,8}(接口|api)"
+        ],
+        "weight": 4,
+        "risk": "high"
+      },
+      {
+        "id": "l3_auth_structural",
+        "type": "regex",
+        "patterns": [
+          "(实现|配置|构建|重构|开发|新增).{0,8}(认证|鉴权|auth|authentication|authorization|权限).{0,8}(模块|系统|架构|服务|中间件|middleware)",
+          "(认证|鉴权|auth|authentication|authorization).{0,8}(模块|系统|架构|服务).{0,8}(实现|配置|构建|重构|开发|新增)",
+          "(配置|修改|调整).{0,8}(middleware|中间件).{0,8}(权限|认证|鉴权)(?!.{0,12}(文档|说明|注释|文案|日志|readme|README|doc))",
+          "(权限|认证|鉴权).{0,8}(配置|修改|调整).{0,8}(middleware|中间件)(?!.{0,12}(文档|说明|注释|文案|日志|readme|README|doc))"
+        ],
+        "weight": 4,
+        "risk": "high"
+      },
+      {
+        "id": "l3_cross_layer_strong",
+        "type": "keyword",
+        "terms": [
+          "cross-layer", "跨层", "前端和后端", "frontend and backend",
+          "多模块", "worktree", "多 agent", "共享类型", "shared type"
+        ],
+        "weight": 3,
+        "comment": "These terms inherently imply cross-layer architectural changes"
+      },
+      {
+        "id": "l3_refactor_pair",
+        "type": "pair",
+        "verbs": ["重构", "refactor", "重组", "restructure"],
+        "objects": ["架构", "模块", "服务", "系统", "接口", "数据库"],
+        "weight": 4,
+        "risk": "high"
+      },
+      {
+        "id": "l3_structured_regex",
+        "type": "regex",
+        "patterns": [
+          "(数据表|表结构|(?<!表单)(?<!图表)(?<!列表)(?<!表格)(?<!报表)(?<!水表)(?<!电表)[A-Za-z0-9_\\u4e00-\\u9fff]+表).{0,15}(加|新增|删除|修改|变更|迁移).{0,15}(字段|索引|列)",
+          "(加|新增|删除|修改|变更|迁移).{0,15}(数据表|表结构|(?<!表单)(?<!图表)(?<!列表)(?<!表格)(?<!报表)(?<!水表)(?<!电表)[A-Za-z0-9_\\u4e00-\\u9fff]+表).{0,15}(字段|索引|列)",
+          "(加|新增|删除|修改|变更|迁移).{0,15}(字段|索引|列).{0,15}(数据表|表结构|(?<!表单)(?<!图表)(?<!列表)(?<!表格)(?<!报表)(?<!水表)(?<!电表)[A-Za-z0-9_\\u4e00-\\u9fff]+表)"
+        ],
+        "weight": 4,
+        "risk": "high"
+      },
+      {
+        "id": "l3_table_structure_change",
+        "type": "pair",
+        "verbs": ["修改", "改", "新增", "删除", "变更", "迁移", "调整"],
+        "objects": ["表结构", "数据表", "数据库表"],
+        "weight": 4,
+        "risk": "high"
+      }
+    ]
+  },
+  "negative_rules": [
+    {
+      "id": "form_field_not_schema",
+      "type": "phrase",
+      "patterns": ["表单字段", "占位符", "按钮文案", "表单占位符", "输入框占位符"],
+      "apply_against": ["L3+"],
+      "weight": -3
+    },
+    {
+      "id": "color_not_always_ui",
+      "type": "phrase",
+      "patterns": ["颜色转换", "颜色转换函数", "颜色映射", "颜色解析", "颜色格式化"],
+      "apply_against": ["L1"],
+      "weight": -2
+    },
+    {
+      "id": "display_field_not_schema",
+      "type": "phrase",
+      "patterns": ["字段展示方式", "字段显示", "字段样式", "展示字段"],
+      "apply_against": ["L3+"],
+      "weight": -3
+    },
+    {
+      "id": "ui_table_not_db_table",
+      "type": "phrase",
+      "patterns": ["表单", "图表"],
+      "apply_against": ["L3+"],
+      "weight": -4
+    },
+    {
+      "id": "ui_field_context_not_schema",
+      "type": "phrase",
+      "patterns": [
+        "字段校验提示", "字段提示信息", "字段颜色", "字段样式",
+        "字段展示", "字段显示", "字段标签", "字段名显示"
+      ],
+      "apply_against": ["L3+"],
+      "weight": -4
+    }
+  ],
+  "uncertainty": {
+    "min_score": 2,
+    "min_gap": 2,
+    "prefer_escalation_for_high_risk": true
+  }
+}

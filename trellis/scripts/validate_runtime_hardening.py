@@ -68,6 +68,7 @@ def main() -> int:
         "validate_claude_settings.py",
         "validate_naming_map.py",
         "validate_hooks.py",
+        "validate_routing_rules.py",
     ]
 
     results: list[tuple[str, bool, str]] = []

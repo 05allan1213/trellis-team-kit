@@ -11,8 +11,8 @@ Key behaviors:
   Task creation approval is not implementation approval.
 - When WAITING_IMPLEMENTATION_APPROVAL, explicitly forbids source editing,
   implementer spawn, and task.py start.
-- When there is no active task, suggests an L0/L1/L2/L3+ route based on the
-  current request so tiny edits can move faster without losing the escalation path.
+- When there is no active task, uses the scorer-based router from
+  prompt_routing.py to suggest an L0/L1/L2/L3+/UNCERTAIN route.
 
 Trigger: UserPromptSubmit
 """
@@ -55,48 +55,13 @@ _TAG_RE = re.compile(
     re.DOTALL,
 )
 
-L0_QUESTION_HINTS = (
-    "what", "why", "how", "explain", "介绍", "解释", "是什么", "怎么", "为什么",
-)
-L1_HINTS = (
-    "typo", "copy", "wording", "label", "text", "文案", "错别字", "拼写", "注释",
-    "提示语", "文本文字", "样式微调", "样式小改", "按钮文案", "rename label",
-    "小修", "直接改", "no task", "skip trellis", "间距", "边距", "字号",
-    "颜色", "圆角", "对齐", "占位符", "placeholder", "tooltip", "toast",
-)
-L1_REGEX_PATTERNS = (
-    r"(按钮|卡片|弹窗|页面|表单|列表|表格).*(间距|边距|颜色|字号|字重|对齐|圆角|宽度|高度)",
-    r"(间距|边距|颜色|字号|字重|对齐|圆角).*(调|改|微调|优化)",
-    r"(调|改|微调|优化).*(间距|边距|颜色|字号|字重|对齐|圆角)",
-    r"(文案|提示语|占位符|注释|按钮文字).*(改|调|优化)",
-    r"(改|调|优化).*(文案|提示语|占位符|注释|按钮文字)",
-)
-L2_HINTS = (
-    "util", "helper", "tool function", "utility", "validator", "format", "formatter",
-    "date format", "工具函数", "辅助函数", "格式化函数", "日期格式化", "校验",
-    "简单 bug", "small bug", "简单修复", "lightweight", "light bugfix", "脱敏函数",
-    "解析函数", "转换函数", "映射函数",
-)
-L2_REGEX_PATTERNS = (
-    r"(补|加|写|封装).*(工具函数|辅助函数|格式化函数|校验函数|解析函数|转换函数|映射函数)",
-    r"(日期|时间|时间戳|手机号|邮箱|金额|脱敏).*(格式化|校验|转换|解析)",
-)
-L3_PLUS_HINTS = (
-    "api", "schema", "migration", "auth", "authentication", "authorization",
-    "frontend and backend", "cross-layer", "跨层", "接口", "数据库", "共享类型",
-    "shared type", "重构", "refactor", "多模块", "worktree", "多 agent",
-    "表结构", "数据表", "索引", "请求参数", "响应字段", "返回字段",
-)
-L3_REGEX_PATTERNS = (
-    r"(接口|api).*(字段|参数|返回值|返回字段|响应字段|请求参数)",
-    r"(数据表|表结构|[A-Za-z0-9_\u4e00-\u9fff]+表).*(加|新增|删除|修改|变更|迁移).*(字段|索引|列)",
-    r"(新增|删除|修改|变更|迁移).*(数据表|表结构|[A-Za-z0-9_\u4e00-\u9fff]+表).*(字段|索引|列)",
-    r"(权限|鉴权|认证|路由|中间件|schema|migration)",
-)
-CHANGE_HINTS = (
-    "fix", "add", "change", "update", "implement", "refactor", "write", "wrap",
-    "改", "修", "加", "新增", "实现", "重构", "删除", "调", "调整", "补", "写", "封装",
-)
+# Import the scoring-based router
+_HOOKS_DIR = Path(__file__).resolve().parent
+_LIB_DIR = _HOOKS_DIR / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+
+from prompt_routing import classify_no_task_prompt  # noqa: E402
 
 
 def _find_trellis_root(start: Path) -> Optional[Path]:
@@ -154,44 +119,14 @@ def _extract_user_prompt(input_data: dict) -> str:
     return ""
 
 
-def _contains_any(text: str, patterns: tuple[str, ...]) -> bool:
-    return any(pattern in text for pattern in patterns)
+def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
+    """Build recommendation text for turns without an active task.
 
-
-def _matches_any(text: str, patterns: tuple[str, ...]) -> bool:
-    return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
-
-
-def _classify_no_task_prompt(prompt: str) -> str:
-    """Classify a prompt into a suggested route when no active task exists."""
-    if not prompt:
-        return "generic"
-
-    lowered = prompt.lower()
-    has_change_hint = _contains_any(lowered, CHANGE_HINTS)
-
-    if not has_change_hint and ("?" in prompt or _contains_any(lowered, L0_QUESTION_HINTS)):
-        return "L0"
-
-    if _contains_any(lowered, L3_PLUS_HINTS) or _matches_any(prompt, L3_REGEX_PATTERNS):
-        return "L3+"
-
-    if _contains_any(lowered, L2_HINTS) or _matches_any(prompt, L2_REGEX_PATTERNS):
-        return "L2"
-
-    if _contains_any(lowered, L1_HINTS) or _matches_any(prompt, L1_REGEX_PATTERNS):
-        return "L1"
-
-    if has_change_hint:
-        return "L2"
-
-    return "generic"
-
-
-def _build_no_task_body(input_data: dict) -> str:
-    """Build recommendation text for turns without an active task."""
+    Uses the scorer-based router from prompt_routing.py.
+    """
     prompt = _extract_user_prompt(input_data)
-    route = _classify_no_task_prompt(prompt)
+    decision = classify_no_task_prompt(prompt, root=root)
+    route = decision.route
 
     if route == "L0":
         return (
@@ -227,6 +162,21 @@ def _build_no_task_body(input_data: dict) -> str:
             "and plan fully before implementation (PRD, design if needed, implement plan, "
             "review gates).\n"
             "Task creation approval is NOT implementation approval."
+        )
+
+    if route == "UNCERTAIN":
+        return (
+            "No active task.\n"
+            "Suggested route: UNCERTAIN — the current request has ambiguous scope.\n"
+            "Recommended next step:\n"
+            "1. FIRST, give a suggested level (L1/L2/L3+) and a one-sentence reason.\n"
+            "   - Example: 「我倾向按 L2 处理。理由：它看起来更像局部实现改动，"
+            "目前没有看到明确的 API / DB / shared contract 变更信号。」\n"
+            "2. THEN, ask the user to confirm: accept the suggestion, or choose a "
+            "different level (L1/L2/L3+), or provide more context for re-evaluation.\n"
+            "3. Do NOT start implementing until the user has confirmed the level.\n"
+            "The suggestion is a recommendation, NOT a final decision. "
+            "The user has the final say on routing level."
         )
 
     return (
@@ -475,8 +425,8 @@ def main() -> int:
     task = _resolve_active_task(root, data)
 
     if task is None:
-        # No active task
-        body = templates.get("no_task") or _build_no_task_body(data)
+        # No active task — use scorer-based router
+        body = templates.get("no_task") or _build_no_task_body(data, root=root)
         breadcrumb = f"<workflow-state>\nStatus: no_task\n{body}\n</workflow-state>"
     else:
         task_path, status, source = task
