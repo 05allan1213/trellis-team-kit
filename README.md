@@ -307,6 +307,8 @@ A: 实现阶段前的约束文件。AI 必须先运行 trellis-before-dev skill 
 python3 .trellis/scripts/validate_runtime_hardening.py
 ```
 
+该检查同时覆盖 Claude settings、hooks、routing rules，以及 `.trellis/spec/` 根索引和链接完整性。
+
 验证单个任务：
 
 ```bash

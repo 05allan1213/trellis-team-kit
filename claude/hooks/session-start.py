@@ -104,6 +104,12 @@ def _collect_spec_indexes(trellis_dir: Path) -> list[str]:
     if not spec_dir.is_dir():
         return paths
 
+    root_index = spec_dir / "index.md"
+    if root_index.is_file():
+        paths.append(".trellis/spec/index.md")
+    else:
+        paths.append("(missing .trellis/spec/index.md)")
+
     guides_index = spec_dir / "guides" / "index.md"
     if guides_index.is_file():
         paths.append(".trellis/spec/guides/index.md")

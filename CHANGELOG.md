@@ -12,8 +12,10 @@
 ### Hook 与验证器
 
 - `claude/settings.json` 的 hook 命令统一切到 `$CLAUDE_PROJECT_DIR` 绝对路径，修复子目录 CWD 下 hook 失效的问题
+- `bootstrap/init.sh` 现在会在 `trellis init --template web-app` 之后补齐缺失的 spec overlay，修复某些 Trellis CLI 版本漏装 `.trellis/spec/index.md`、`guides/architecture-thinking.md`、`guides/review-thinking.md` 导致的 spec 入口缺失与读取循环
 - `protect-dangerous-actions.py` 现在把 `implement.md` 的 `Implementation Approval` 和 `finish.md` 的 `Finish Approval` 都当作真正门禁：未完整写回批准信息时，禁止 `task.py start`、后续源码编辑、提前写 `finish.md`、以及过早 `git commit` / `task.py archive`
 - `validate_task.py` 收紧了 task 契约：`level` 缺失升级为错误、`Observable Outcomes` 接受表格形式、JSONL 必须是可解析的 spec/research context、实现批准字段必须完整，且 `finish.md` 现在必须包含 `Finish Approval` 与 `Delivery Sync Check`
+- `validate_runtime_hardening.py` 新增 `validate_spec_index.py`，现在会直接检查 spec 根索引是否存在以及 spec 链接树是否自洽，避免坏安装进入真实使用
 - 新增 `validate_delivery_sync.py`，用于捕获“代码里已移除的公开路径仍残留在 README / docs”这类交付不同步问题
 - 新增 `validate_workflow_state.py`，用于检查归档后 journal / workspace index 占位文本、缺失 commit 信息，以及 `.omc/state/*` 运行时状态污染
 

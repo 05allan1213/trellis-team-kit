@@ -17,11 +17,15 @@ VALIDATE_TASK = REPO_ROOT / "trellis" / "scripts" / "validate_task.py"
 VALIDATE_REVIEW_GATES = REPO_ROOT / "trellis" / "scripts" / "validate_review_gates.py"
 VALIDATE_WORKFLOW_STATE = REPO_ROOT / "trellis" / "scripts" / "validate_workflow_state.py"
 VALIDATE_DELIVERY_SYNC = REPO_ROOT / "trellis" / "scripts" / "validate_delivery_sync.py"
+VALIDATE_RUNTIME_HARDENING = REPO_ROOT / "trellis" / "scripts" / "validate_runtime_hardening.py"
+VALIDATE_SPEC_INDEX = REPO_ROOT / "trellis" / "scripts" / "validate_spec_index.py"
 PREPARE_FINISH_WORKSPACE = REPO_ROOT / "trellis" / "scripts" / "prepare_finish_workspace.py"
 FINALIZE_TASK_ARCHIVE = REPO_ROOT / "trellis" / "scripts" / "finalize_task_archive.py"
 ROUTING_MODULE = REPO_ROOT / "claude" / "hooks" / "lib" / "prompt_routing.py"
 VALIDATE_RULES = REPO_ROOT / "trellis" / "scripts" / "validate_routing_rules.py"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
+SPEC_TEMPLATE_ROOT = REPO_ROOT / "marketplace" / "specs" / "web-app"
+SPEC_MANIFEST = REPO_ROOT / "trellis" / "spec-manifest.txt"
 
 
 def load_module(path: Path, name: str):
@@ -2926,6 +2930,48 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
             })
             d = self.routing.classify_no_task_prompt("test prompt", root=root)
             self.assertIsInstance(d.route, str)
+
+
+class SpecTemplateIntegrityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.validator = load_module(VALIDATE_SPEC_INDEX, "validate_spec_index_module")
+
+    def test_spec_manifest_matches_marketplace_template(self):
+        manifest_entries = [
+            line.strip()
+            for line in SPEC_MANIFEST.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        template_entries = sorted(
+            str(path.relative_to(SPEC_TEMPLATE_ROOT))
+            for path in SPEC_TEMPLATE_ROOT.rglob("*.md")
+        )
+        self.assertEqual(manifest_entries, template_entries)
+
+    def test_marketplace_template_passes_spec_index_validation(self):
+        self.assertTrue(self.validator.validate_spec_index(str(SPEC_TEMPLATE_ROOT)))
+
+    def test_missing_root_index_fails_spec_validation(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            spec_root = Path(tmpdir) / "spec"
+            (spec_root / "guides").mkdir(parents=True)
+            (spec_root / "guides" / "index.md").write_text("# Guides\n", encoding="utf-8")
+
+            self.assertFalse(self.validator.validate_spec_index(str(spec_root)))
+
+
+class RuntimeHardeningValidatorTests(unittest.TestCase):
+    def test_runtime_hardening_runs_spec_index_validation(self):
+        result = subprocess.run(
+            [sys.executable, str(VALIDATE_RUNTIME_HARDENING)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        self.assertIn("[PASS] validate_spec_index.py", result.stdout)
 
 
 if __name__ == "__main__":

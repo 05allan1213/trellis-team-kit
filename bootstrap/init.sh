@@ -79,6 +79,28 @@ get_dir() {
   fi
 }
 
+ensure_spec_overlay() {
+  local manifest tmp rel installed
+  manifest="trellis/spec-manifest.txt"
+  tmp="$(mktemp)"
+  installed=0
+
+  get_file "$manifest" "$tmp"
+  mkdir -p "$TARGET_ROOT/.trellis/spec"
+
+  while IFS= read -r rel || [ -n "$rel" ]; do
+    [ -n "$rel" ] || continue
+    mkdir -p "$(dirname "$TARGET_ROOT/.trellis/spec/$rel")"
+    if [ ! -f "$TARGET_ROOT/.trellis/spec/$rel" ]; then
+      get_file "marketplace/specs/web-app/$rel" "$TARGET_ROOT/.trellis/spec/$rel"
+      installed=$((installed + 1))
+    fi
+  done < "$tmp"
+
+  rm -f "$tmp"
+  echo "$installed"
+}
+
 # --- Pre-flight ---
 if ! command -v trellis >/dev/null 2>&1; then
   error "trellis command not found. Install it first: npm install -g @mindfoldhq/trellis"
@@ -187,6 +209,7 @@ mkdir -p "$TARGET_ROOT/.trellis/scripts"
 mkdir -p "$TARGET_ROOT/.trellis/config"
 for v in \
   validate_claude_settings validate_naming_map validate_hooks \
+  validate_spec_index \
   validate_task validate_review_gates validate_runtime_hardening \
   validate_workflow_state validate_delivery_sync \
   prepare_finish_workspace finalize_task_archive \
@@ -202,8 +225,15 @@ info "  routing_rules.json installed"
 # --- Step 9: Install specs, templates, and record version ---
 info "Step 9/9: Installing specs, templates, and recording version..."
 
-# Specs are already installed by trellis init --template web-app in Step 1.
-# Count what trellis init placed.
+# Trellis installs the spec template in Step 1, but some CLI versions currently
+# omit the root index and a subset of guide files. Overlay any missing files
+# from the team template so `.trellis/spec/index.md` is always present.
+SPEC_OVERLAY_COUNT="$(ensure_spec_overlay)"
+if [ "$SPEC_OVERLAY_COUNT" -gt 0 ]; then
+  info "  restored $SPEC_OVERLAY_COUNT missing spec files from team template"
+fi
+
+# Count the final installed spec tree after overlay.
 SPEC_COUNT=$(find "$TARGET_ROOT/.trellis/spec" -name "*.md" 2>/dev/null | wc -l)
 info "  $SPEC_COUNT spec files installed"
 

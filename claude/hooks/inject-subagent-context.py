@@ -152,6 +152,8 @@ def _get_spec_tree(repo_root: str) -> str:
         return "(no spec directory)"
 
     lines = [".trellis/spec/"]
+    if not (spec_root / "index.md").is_file():
+        lines.append("  (missing index.md)")
     for pkg in sorted(spec_root.iterdir()):
         if not pkg.is_dir() or pkg.name.startswith("."):
             continue

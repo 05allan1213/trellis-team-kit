@@ -25,6 +25,19 @@ def find_scripts_dir(start: Path) -> Path | None:
     return None
 
 
+def find_spec_dir(scripts_dir: Path) -> Path | None:
+    """Find the spec directory for either an installed project or this source repo."""
+    installed_spec_dir = scripts_dir.parent / "spec"
+    if installed_spec_dir.is_dir():
+        return installed_spec_dir
+
+    source_spec_dir = scripts_dir.parent.parent / "marketplace" / "specs" / "web-app"
+    if source_spec_dir.is_dir():
+        return source_spec_dir
+
+    return None
+
+
 def run_validator(script_path: Path, args: list[str] | None = None) -> tuple[str, bool, str]:
     """Run a validator script. Returns (name, passed, output)."""
     cmd = ["python3", str(script_path)]
@@ -64,10 +77,12 @@ def main() -> int:
     print("=" * 50)
     print()
 
+    spec_dir = find_spec_dir(scripts_dir)
     validators = [
         "validate_claude_settings.py",
         "validate_naming_map.py",
         "validate_hooks.py",
+        "validate_spec_index.py",
         "validate_routing_rules.py",
     ]
 
@@ -77,7 +92,13 @@ def main() -> int:
         if not vpath.is_file():
             results.append((vname, False, "Script not found"))
             continue
-        name, passed, output = run_validator(vpath)
+        args = None
+        if vname == "validate_spec_index.py":
+            if spec_dir is None:
+                results.append((vname, False, "Spec directory not found"))
+                continue
+            args = [str(spec_dir)]
+        name, passed, output = run_validator(vpath, args)
         results.append((name, passed, output))
 
     # Print results
