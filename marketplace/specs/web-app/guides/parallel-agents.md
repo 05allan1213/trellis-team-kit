@@ -3,6 +3,7 @@
 ## Scope
 
 This spec governs oh-my-claudecode parallel agents in Trellis Execute.
+In this workflow, OMC parallel specifically means the official `ulw/ultrawork` mode.
 It does not replace `.trellis/workflow.md`, define generic multi-agent rules, or teach OMC usage.
 
 ## Authority
@@ -11,7 +12,8 @@ Trellis owns lifecycle.
 `prd.md` owns scope.
 Acceptance Criteria own completion.
 Specs own team standards.
-oh-my-claudecode owns parallel execution only.
+Trellis native agents own the default execution path.
+oh-my-claudecode owns optional `ulw/ultrawork` parallel execution only.
 The main agent owns orchestration, integration, final check, and final report.
 
 ## Core Rules
@@ -31,7 +33,7 @@ Before OMC starts, all conditions must be true:
 
 ## Trigger Model
 
-The AI may recommend OMC when the task shape fits.
+The AI may recommend OMC when the task shape fits and Trellis-native parallel is not enough.
 The AI must not start OMC without explicit user confirmation.
 Pattern: `AI proposes -> user approves -> OMC executes -> main agent integrates -> Trellis checks`.
 Ask once before spawning workers.
@@ -83,7 +85,7 @@ Use parallel execution mode for independent implementation streams.
 Use coordinated team mode when workers need orchestration.
 Use verification-oriented mode when the work is mainly validation.
 Do not invent custom multi-agent behavior when an OMC mode already exists.
-If the correct OMC mode is unclear, use standard Trellis execution.
+If the correct OMC mode is unclear, or OMC is unavailable, use standard Trellis execution.
 
 ## Worker Assignment
 

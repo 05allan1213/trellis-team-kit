@@ -44,6 +44,14 @@ if sys.platform.startswith("win"):
                 pass
 
 TRELLIS_DIR = ".trellis"
+_HOOKS_DIR = Path(__file__).resolve().parent
+if str(_HOOKS_DIR / "lib") not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR / "lib"))
+
+from task_artifacts import (  # type: ignore[import-not-found]
+    implementation_approval_complete,
+    parse_implementation_approval,
+)
 
 # Canonical agent names
 AGENT_RESEARCH = "trellis-researcher"
@@ -99,6 +107,15 @@ def _read_file(base_path: str, file_path: str, max_chars: int = 8000) -> Optiona
     return None
 
 
+def _resolve_context_path(task_dir: str, file_path: str) -> str:
+    normalized = file_path.replace("\\", "/").strip()
+    if normalized.startswith("<task-dir>/"):
+        return f"{task_dir}/{normalized[len('<task-dir>/'):]}"
+    if normalized.startswith("$TASK_DIR/"):
+        return f"{task_dir}/{normalized[len('$TASK_DIR/'):]}"
+    return normalized
+
+
 def _read_jsonl_entries(base_path: str, jsonl_path: str, max_files: int = 20) -> list[tuple[str, str]]:
     full_path = os.path.join(base_path, jsonl_path)
     if not os.path.exists(full_path):
@@ -118,9 +135,10 @@ def _read_jsonl_entries(base_path: str, jsonl_path: str, max_files: int = 20) ->
                     file_path = item.get("file") or item.get("path")
                     if not file_path:
                         continue
-                    content = _read_file(base_path, file_path)
+                    resolved_path = _resolve_context_path(os.path.dirname(jsonl_path), str(file_path))
+                    content = _read_file(base_path, resolved_path)
                     if content:
-                        results.append((file_path, content))
+                        results.append((str(file_path), content))
                 except json.JSONDecodeError:
                     continue
     except Exception:
@@ -177,6 +195,13 @@ def _get_implement_context(repo_root: str, task_dir: str) -> str:
                 parts.append("**WARNING: Implementation not yet approved.** Check consent before editing source.")
         except Exception:
             pass
+
+    approval = parse_implementation_approval(Path(repo_root) / task_dir / "implement.md")
+    if not implementation_approval_complete(approval):
+        parts.append(
+            "**WARNING: Implementation Approval is not fully recorded in implement.md.** "
+            "Update the approval section from the user's consent before starting or continuing execution."
+        )
 
     for file_path, content in _read_jsonl_entries(repo_root, f"{task_dir}/implement.jsonl"):
         parts.append(f"### {file_path}\n```\n{content[:3000]}\n```")

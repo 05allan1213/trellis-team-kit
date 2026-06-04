@@ -2,14 +2,17 @@
 
 ## When to Use OMC
 
-oh-my-claudecode (OMC) is a parallel execution extension for trellis-team-kit. Use it only when all of the following are true:
+oh-my-claudecode (OMC) is a parallel execution extension for trellis-team-kit.
+In this workflow, OMC specifically means the official `ulw/ultrawork` mode.
+Use it only when all of the following are true:
 
 1. **Task level is L4 or L5** — complex cross-layer changes, multi-agent work, or large refactors
 2. **Parent/child task structure** — when a request contains independently verifiable deliverables
 3. **Multi-agent parallel execution** — when the PRD confirms that work can be safely split into independent streams
-4. **User explicitly confirms** — OMC parallel mode requires explicit user approval before spawning agents
+4. **User explicitly confirms** — OMC `ulw/ultrawork` requires explicit user approval before spawning agents
 
 OMC must NOT be used for L0-L3 tasks unless the user explicitly requests it with full understanding of the implications.
+If OMC is unavailable, the task must continue on the Trellis-native path instead of blocking.
 
 ## Execution Mode Hierarchy
 
@@ -19,8 +22,9 @@ The execution mode escalates based on task complexity:
 |-------|------|------|
 | L1-L2 | Main session | Direct answer or single-stream implementation |
 | L3 | Subagent | Dispatch trellis-implement / trellis-check subagents |
-| L4 | Subagent + worktree | Isolated worktree, subagent execution |
-| L5 | OMC + worktree + parent/child | Parallel agents, worktrees, coordinated integration |
+| L4 | Subagent + worktree | Default complex-task path |
+| L5 | Trellis-native parallel + worktree | Default heavy-task parallel path |
+| L5 advanced | OMC `ulw/ultrawork` + worktree + parent/child | When advanced orchestration is worth the overhead |
 
 ### Escalation Rules
 
@@ -30,12 +34,14 @@ The execution mode escalates based on task complexity:
 
 ## Prerequisites for OMC
 
-Before enabling OMC parallel execution:
+Before enabling OMC `ulw/ultrawork`:
 
 1. **Confirmed PRD** — prd.md exists with verifiable Acceptance Criteria
 2. **Clear AC** — each acceptance criterion is independently testable
 3. **Safe splitting** — workstreams have minimal overlap in source files
 4. **Explicit user confirmation** — user must approve the agent split plan
+
+If any prerequisite fails, fall back to Trellis-native subagents/worktrees.
 
 ## OMC Must Not
 

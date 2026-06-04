@@ -8,7 +8,9 @@ when hard violations are detected.
 Hard blocks:
 - Active task exists but check not passed
 - Selected review gate missing / FAIL / no PASS/FAIL
+- Finish approval missing from finish.md
 - Spec update decision missing
+- Delivery sync evidence missing from finish.md
 - Observable outcomes missing from finish.md
 - Validation missing / FAIL
 - Task not archived but assistant says done
@@ -147,7 +149,20 @@ def _has_concrete_observable_outcome(section_text: str) -> bool:
             continue
         if stripped.startswith("#"):
             continue
-        if stripped.startswith("|") or re.fullmatch(r"[|:\- ]+", stripped):
+        if stripped.startswith("|"):
+            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+            if not cells or all(not cell for cell in cells):
+                continue
+            if all(re.fullmatch(r"[:\- ]*", cell) for cell in cells):
+                continue
+            lowered_cells = [cell.lower() for cell in cells]
+            if all(
+                cell in ("#", "outcome", "evidence", "remaining gap / risk", "remaining gap/risk")
+                for cell in lowered_cells
+            ):
+                continue
+            return True
+        if re.fullmatch(r"[|:\- ]+", stripped):
             continue
 
         payload = re.sub(r"^(?:-|\d+\.)\s*", "", stripped).strip()
@@ -414,7 +429,11 @@ def main() -> int:
                 "concrete, user- or operator-visible result and the evidence used to verify it."
             )
 
-        for validator in ("validate_task.py", "validate_review_gates.py"):
+        for validator in (
+            "validate_task.py",
+            "validate_review_gates.py",
+            "validate_delivery_sync.py",
+        ):
             validator_output = _run_task_validator(root, task_dir, validator)
             if validator_output:
                 hard_blocks.append(

@@ -47,6 +47,33 @@ BROAD_SCOPE_PATTERNS = [
     r"^\.\./?$",
 ]
 
+TASK_ARTIFACT_BASENAMES = {
+    "prd.md",
+    "design.md",
+    "implement.md",
+    "finish.md",
+    "before-dev.md",
+}
+TASK_DIR_PLACEHOLDERS = ("$TASK_DIR/", "<task-dir>/")
+
+REQUIRED_DELIVERY_SYNC_ITEMS = (
+    "README / user docs reviewed",
+    "Example commands / scripts reviewed",
+    "Public API paths / contracts reviewed",
+    "Implemented vs planned status reviewed",
+)
+
+CHECK_GATE_NAMES = {"trellis-check"}
+
+
+def _find_repo_root(start: Path) -> Path | None:
+    cur = start.resolve()
+    while cur != cur.parent:
+        if (cur / ".trellis").is_dir() or (cur / "trellis").is_dir():
+            return cur
+        cur = cur.parent
+    return None
+
 
 def _extract_markdown_section(content: str, heading: str) -> str:
     lines = content.splitlines()
@@ -76,7 +103,20 @@ def _has_concrete_observable_outcome(section_text: str) -> bool:
             continue
         if stripped.startswith("#"):
             continue
-        if stripped.startswith("|") or re.fullmatch(r"[|:\- ]+", stripped):
+        if stripped.startswith("|"):
+            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+            if not cells or all(not cell for cell in cells):
+                continue
+            if all(re.fullmatch(r"[:\- ]*", cell) for cell in cells):
+                continue
+            lowered_cells = [cell.lower() for cell in cells]
+            if all(
+                cell in ("#", "outcome", "evidence", "remaining gap / risk", "remaining gap/risk")
+                for cell in lowered_cells
+            ):
+                continue
+            return True
+        if re.fullmatch(r"[|:\- ]+", stripped):
             continue
 
         payload = re.sub(r"^(?:-|\d+\.)\s*", "", stripped).strip()
@@ -117,6 +157,245 @@ def _check_finish_requirements(finish_md: Path, task_id: str) -> list[str]:
     elif not _has_concrete_observable_outcome(observable_section):
         errors.append(
             f"Task '{task_id}': finish.md 'Observable Outcomes' must include at least one concrete outcome"
+        )
+
+    errors.extend(_check_finish_approval(content, task_id))
+    errors.extend(_check_delivery_sync(content, task_id))
+
+    return errors
+
+
+def _parse_finish_approval(content: str) -> dict[str, str | bool]:
+    result: dict[str, str | bool] = {
+        "approved": False,
+        "finish_allowed": False,
+        "user_message": "",
+        "timestamp": "",
+        "summary_approved": "",
+    }
+
+    in_section = False
+    in_source = False
+    in_allowed = False
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        if lowered == "## finish approval":
+            in_section = True
+            in_source = False
+            in_allowed = False
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if not in_section:
+            continue
+        if lowered.startswith("approval source:"):
+            in_source = True
+            in_allowed = False
+            continue
+        if lowered.startswith("allowed to proceed with finish?"):
+            in_allowed = True
+            in_source = False
+            continue
+        if stripped.startswith("- [") and "]" in stripped:
+            checked = stripped.lower().startswith("- [x]")
+            label = stripped.split("] ", 1)[-1].strip().lower()
+            if label == "approved":
+                result["approved"] = checked
+            elif in_allowed and label == "yes":
+                result["finish_allowed"] = checked
+            continue
+        if in_source:
+            if lowered.startswith("- user message:"):
+                result["user_message"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- timestamp:"):
+                result["timestamp"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- summary approved:"):
+                result["summary_approved"] = stripped.split(":", 1)[-1].strip()
+    return result
+
+
+def _check_finish_approval(content: str, task_id: str) -> list[str]:
+    section = _extract_markdown_section(content, "Finish Approval")
+    if not section:
+        return [f"Task '{task_id}': finish.md missing 'Finish Approval' section"]
+
+    approval = _parse_finish_approval(content)
+    errors: list[str] = []
+    if not approval["approved"]:
+        errors.append(
+            f"Task '{task_id}': finish.md Finish Approval is not marked approved"
+        )
+    if not approval["finish_allowed"]:
+        errors.append(
+            f"Task '{task_id}': finish.md does not allow proceeding with finish"
+        )
+    for field in ("user_message", "timestamp", "summary_approved"):
+        value = str(approval.get(field, "")).strip()
+        if not value:
+            errors.append(
+                f"Task '{task_id}': finish.md Finish Approval field '{field}' is empty"
+            )
+    return errors
+
+
+def _check_delivery_sync(content: str, task_id: str) -> list[str]:
+    section = _extract_markdown_section(content, "Delivery Sync Check")
+    if not section:
+        return [f"Task '{task_id}': finish.md missing 'Delivery Sync Check' section"]
+
+    errors: list[str] = []
+    lowered = section.lower()
+    for item in REQUIRED_DELIVERY_SYNC_ITEMS:
+        pattern = re.compile(rf"-\s*\[x\]\s*{re.escape(item.lower())}")
+        if not pattern.search(lowered):
+            errors.append(
+                f"Task '{task_id}': finish.md Delivery Sync Check must mark '{item}' as reviewed"
+            )
+
+    has_files_checked = False
+    in_files = False
+    for line in section.splitlines():
+        stripped = line.strip()
+        lowered_line = stripped.lower()
+        if lowered_line.startswith("files checked:"):
+            in_files = True
+            continue
+        if not in_files:
+            continue
+        if not stripped or stripped.startswith("<!--"):
+            continue
+        if stripped.startswith("- "):
+            payload = stripped[2:].strip()
+            if payload and "<!--" not in payload:
+                has_files_checked = True
+                break
+
+    if not has_files_checked:
+        errors.append(
+            f"Task '{task_id}': finish.md Delivery Sync Check must list at least one checked file"
+        )
+
+    return errors
+
+
+def _parse_implementation_approval(implement_md: Path) -> dict[str, str | bool]:
+    result: dict[str, str | bool] = {
+        "approved": False,
+        "start_allowed": False,
+        "user_message": "",
+        "timestamp": "",
+        "summary_approved": "",
+    }
+    if not implement_md.is_file():
+        return result
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return result
+
+    in_section = False
+    in_source = False
+    in_start = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        if lowered == "## implementation approval":
+            in_section = True
+            in_source = False
+            in_start = False
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if not in_section:
+            continue
+        if lowered.startswith("approval source:"):
+            in_source = True
+            in_start = False
+            continue
+        if lowered.startswith("allowed to run task.py start?"):
+            in_start = True
+            in_source = False
+            continue
+        if stripped.startswith("- [") and "]" in stripped:
+            checked = stripped.lower().startswith("- [x]")
+            label = stripped.split("] ", 1)[-1].strip().lower()
+            if label == "approved":
+                result["approved"] = checked
+            elif in_start and label == "yes":
+                result["start_allowed"] = checked
+            continue
+        if in_source:
+            if lowered.startswith("- user message:"):
+                result["user_message"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- timestamp:"):
+                result["timestamp"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- summary approved:"):
+                result["summary_approved"] = stripped.split(":", 1)[-1].strip()
+    return result
+
+
+def _check_implementation_approval(implement_md: Path, task_id: str, status: str) -> list[str]:
+    if not implement_md.is_file():
+        return []
+    if status.lower() not in ("in_progress", "completed", "done"):
+        return []
+    approval = _parse_implementation_approval(implement_md)
+    errors: list[str] = []
+    if not approval["approved"]:
+        errors.append(
+            f"Task '{task_id}': implement.md Implementation Approval is not marked approved"
+        )
+    if not approval["start_allowed"]:
+        errors.append(
+            f"Task '{task_id}': implement.md does not allow task.py start"
+        )
+    for field in ("user_message", "timestamp", "summary_approved"):
+        value = str(approval.get(field, "")).strip()
+        if not value:
+            errors.append(
+                f"Task '{task_id}': implement.md approval field '{field}' is empty"
+            )
+    return errors
+
+
+def _check_requires_checker_pass(implement_md: Path, task_dir: Path, task_id: str, status: str, level: str) -> list[str]:
+    """For L2+ active/completed tasks, validation/check-results.md must exist and contain PASS."""
+    errors: list[str] = []
+    if level not in ("L2", "L3", "L4", "L5"):
+        return errors
+    if status.lower() not in ("in_progress", "completed", "done"):
+        return errors
+
+    check_results = task_dir / "validation" / "check-results.md"
+    if not check_results.is_file():
+        errors.append(
+            f"Task '{task_id}': trellis-check is required for {level} tasks but validation/check-results.md is missing"
+        )
+        return errors
+
+    try:
+        check_content = check_results.read_text(encoding="utf-8").lower()
+    except OSError:
+        errors.append(
+            f"Task '{task_id}': cannot read validation/check-results.md"
+        )
+        return errors
+
+    has_pass = False
+    for line in check_content.splitlines():
+        stripped = line.strip()
+        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
+            has_pass = True
+            break
+        if re.match(r"^(?:#+\s*)?(?:status|verdict)\s*:\s*pass\b", stripped):
+            has_pass = True
+            break
+
+    if not has_pass:
+        errors.append(
+            f"Task '{task_id}': validation/check-results.md exists but no PASS verdict found"
         )
 
     return errors
@@ -177,6 +456,101 @@ def _check_jsonl_non_empty(path: Path) -> tuple[bool, str]:
         return False, f"cannot read: {e}"
 
 
+def _validate_jsonl_context(
+    task_dir: Path,
+    task_id: str,
+    jsonl_name: str,
+    is_planning: bool,
+) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    task_dir_abs = task_dir.resolve()
+    jsonl_path = task_dir_abs / jsonl_name
+    if not jsonl_path.is_file():
+        return errors, warnings
+
+    repo_root = _find_repo_root(task_dir_abs)
+    task_rel = ""
+    if repo_root is not None:
+        try:
+            task_rel = task_dir_abs.relative_to(repo_root.resolve()).as_posix()
+        except ValueError:
+            task_rel = ""
+
+    try:
+        lines = jsonl_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return [f"Task '{task_id}': cannot read {jsonl_name}"], warnings
+
+    for i, raw_line in enumerate(lines, 1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            errors.append(f"Task '{task_id}': {jsonl_name} line {i} is invalid JSON")
+            continue
+
+        if not isinstance(entry, dict):
+            errors.append(f"Task '{task_id}': {jsonl_name} line {i} must be a JSON object")
+            continue
+
+        if "_example" in entry:
+            if not is_planning:
+                errors.append(
+                    f"Task '{task_id}': {jsonl_name} line {i} still contains the template example entry"
+                )
+            continue
+
+        file_ref = entry.get("file")
+        reason = entry.get("reason")
+        if not isinstance(file_ref, str) or not file_ref.strip():
+            errors.append(
+                f"Task '{task_id}': {jsonl_name} line {i} missing non-empty 'file'"
+            )
+            continue
+        if not isinstance(reason, str) or not reason.strip():
+            errors.append(
+                f"Task '{task_id}': {jsonl_name} line {i} missing non-empty 'reason'"
+            )
+
+        normalized = file_ref.replace("\\", "/").strip()
+        if normalized.startswith("./"):
+            normalized = normalized[2:]
+
+        resolved = normalized
+        for placeholder in TASK_DIR_PLACEHOLDERS:
+            if normalized.startswith(placeholder):
+                suffix = normalized[len(placeholder):]
+                resolved = f"{task_rel}/{suffix}" if task_rel else suffix
+                break
+
+        basename = Path(resolved).name.lower()
+        if basename in TASK_ARTIFACT_BASENAMES:
+            errors.append(
+                f"Task '{task_id}': {jsonl_name} line {i} references task artifact '{normalized}' "
+                f"but JSONL context must contain only spec/research files"
+            )
+
+        if task_rel:
+            allowed_prefixes = (".trellis/spec/", f"{task_rel}/research/")
+            if not resolved.startswith(allowed_prefixes):
+                errors.append(
+                    f"Task '{task_id}': {jsonl_name} line {i} points to '{normalized}', "
+                    f"which is outside allowed spec/research context"
+                )
+
+        if repo_root is not None:
+            target = repo_root / resolved
+            if not target.is_file():
+                errors.append(
+                    f"Task '{task_id}': {jsonl_name} line {i} references missing file '{normalized}'"
+                )
+
+    return errors, warnings
+
+
 def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -198,9 +572,19 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
     status = data.get("status", "")
 
     if not level:
-        warnings.append(f"Task '{task_id}': missing 'level' field — "
-                        f"bootstrap/setup tasks may not have a level. "
-                        f"Skipping artifact and JSONL checks.")
+        has_task_artifacts = any(
+            (task_dir / name).exists()
+            for name in (
+                "prd.md", "design.md", "implement.md", "finish.md",
+                "implement.jsonl", "check.jsonl",
+            )
+        )
+        if has_task_artifacts or status.lower() != "planning":
+            errors.append(f"Task '{task_id}': missing 'level' field")
+        else:
+            warnings.append(
+                f"Task '{task_id}': missing 'level' field — bootstrap/setup tasks may not have a level yet"
+            )
     elif level not in LEVEL_ARTIFACT_REQUIREMENTS:
         errors.append(f"Task '{task_id}': invalid level '{level}'")
 
@@ -232,26 +616,11 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
                 )
 
     for jsonl_name in ("implement.jsonl", "check.jsonl"):
-        jsonl_path = task_dir / jsonl_name
-        if not jsonl_path.is_file():
-            continue
-        ok, _ = _check_jsonl_non_empty(jsonl_path)
-        if not ok:
-            continue
-        try:
-            with open(jsonl_path, "r", encoding="utf-8") as f:
-                for i, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        json.loads(line)
-                    except json.JSONDecodeError:
-                        errors.append(
-                            f"Task '{task_id}': {jsonl_name} line {i} is invalid JSON"
-                        )
-        except OSError:
-            errors.append(f"Task '{task_id}': cannot read {jsonl_name}")
+        jsonl_errors, jsonl_warnings = _validate_jsonl_context(
+            task_dir, task_id, jsonl_name, is_planning
+        )
+        errors.extend(jsonl_errors)
+        warnings.extend(jsonl_warnings)
 
     implement_md = task_dir / "implement.md"
     if implement_md.is_file():
@@ -270,6 +639,16 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
             task_dir / "implement.md", task_id, level
         )
         warnings.extend(scope_warnings)
+
+    errors.extend(
+        _check_implementation_approval(task_dir / "implement.md", task_id, status)
+    )
+
+    errors.extend(
+        _check_requires_checker_pass(
+            task_dir / "implement.md", task_dir, task_id, status, level
+        )
+    )
 
     finish_md = task_dir / "finish.md"
     if status.lower() in ("completed", "done") and not finish_md.is_file():

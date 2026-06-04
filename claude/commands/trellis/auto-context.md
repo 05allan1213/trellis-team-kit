@@ -28,7 +28,7 @@ These JSONL files tell sub-agents which context files to read. Currently manual 
 3. **Generate implement.jsonl** — For each relevant file, create a JSONL entry:
    ```json
    {"file": ".trellis/spec/frontend/index.md", "reason": "Frontend spec relevant to UI changes"}
-   {"file": "<task-dir>/research/grill-me.md", "reason": "PRD challenge results"}
+   {"file": "$TASK_DIR/research/grill-me.md", "reason": "PRD challenge results"}
    {"file": ".trellis/spec/api/index.md", "reason": "API spec for endpoint changes"}
    ```
 
@@ -45,7 +45,7 @@ These JSONL files tell sub-agents which context files to read. Currently manual 
    implement.jsonl (4 entries):
      1. .trellis/spec/frontend/index.md — Frontend spec
      2. .trellis/spec/api/index.md — API spec
-     3. <task>/research/grill-me.md — PRD challenge
+     3. $TASK_DIR/research/grill-me.md — PRD challenge
      4. .trellis/spec/guides/index.md — Team guides
 
    check.jsonl (2 entries):
@@ -64,6 +64,7 @@ These JSONL files tell sub-agents which context files to read. Currently manual 
 **Rules:**
 - Never include code files that will be modified (sub-agents already see those via git diff)
 - Never include task artifacts already injected by hooks (prd.md, design.md, implement.md)
+- Use `$TASK_DIR/...` for task-local research files so the references remain valid after archive
 - Prefer spec files over research files for check.jsonl (verification focus)
 - If implement.jsonl or check.jsonl already has entries, append rather than overwrite
 - If no spec directory exists, note this and suggest creating one

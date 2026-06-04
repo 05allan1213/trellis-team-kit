@@ -21,10 +21,64 @@ GATE_FILE_MAP: dict[str, str] = {
 
 REQUIRED_REVIEW_FIELDS = ("status", "scope reviewed", "blocking issues")
 REQUIRED_VALIDATION_FILE = "validation/test-results.md"
+REQUIRED_APPROVAL_FIELDS = ("user_message", "timestamp", "summary_approved")
 
 
 def has_review_dir(task_dir: Path) -> bool:
     return (task_dir / "review").is_dir()
+
+
+def _has_status_section(content: str) -> bool:
+    return "status:" in content or bool(
+        re.search(r"^\s*(?:#+\s*)?(?:status|verdict)(?:\s*:|\s|$)", content, re.MULTILINE)
+    )
+
+
+def _extract_review_verdict(content: str) -> Optional[str]:
+    for line in content.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        inline = re.match(r"^(?:#+\s*)?(?:status|verdict)\s*:\s*(.+)$", stripped)
+        if inline:
+            payload = inline.group(1).strip()
+            if re.match(r"^fail\b", payload):
+                return "fail"
+            if re.match(r"^(?:redesign-required|redesign required)\b", payload):
+                return "fail"
+            if re.match(r"^pass\b", payload):
+                return "pass"
+        if re.match(r"^-\s*\[x\]\s*fail\b", stripped):
+            return "fail"
+        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
+            return "pass"
+
+    section_match = re.search(
+        r"^\s*#+\s*(?:status|verdict)\s*$",
+        content,
+        re.MULTILINE,
+    )
+    if not section_match:
+        return None
+
+    section = content[section_match.end():]
+    for line in section.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            break
+        if re.match(r"^-\s*\[x\]\s*fail\b", stripped):
+            return "fail"
+        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
+            return "pass"
+        if re.match(r"^fail\b(?!\s*/)", stripped):
+            return "fail"
+        if re.match(r"^(?:redesign-required|redesign required)\b", stripped):
+            return "fail"
+        if re.match(r"^pass\b(?!\s*/)", stripped):
+            return "pass"
+    return None
 
 
 def check_review_gate(task_dir: Path, gate_name: str) -> Optional[str]:
@@ -42,16 +96,13 @@ def check_review_gate(task_dir: Path, gate_name: str) -> Optional[str]:
     except OSError:
         return "missing"
 
-    has_pass = "status:" in content and any(
-        marker in content for marker in ("- [x] pass", "[x] pass")
-    )
-    has_fail = "status:" in content and any(
-        marker in content for marker in ("- [x] fail", "[x] fail")
-    )
+    if not _has_status_section(content):
+        return "no-verdict"
 
-    if has_fail:
+    verdict = _extract_review_verdict(content)
+    if verdict == "fail":
         return "fail"
-    if has_pass:
+    if verdict == "pass":
         return "pass"
     return "no-verdict"
 
@@ -78,15 +129,22 @@ def parse_selected_gates(implement_md: Path) -> list[str]:
     in_selected = False
     for line in content.splitlines():
         stripped = line.strip()
-        if stripped.lower().startswith("selected gates:"):
+        lowered = stripped.lower()
+        if lowered.startswith("selected gates:") or lowered.startswith("### selected gates"):
             in_selected = True
             continue
         if in_selected:
-            if stripped.startswith("- [") and "]" in stripped:
+            if stripped.startswith("#"):
+                in_selected = False
+                continue
+            if stripped.lower().startswith("selection rationale:"):
+                in_selected = False
+                continue
+            if stripped.lower().startswith("- [x]") and "]" in stripped:
                 gate = stripped.split("] ", 1)[-1].strip()
                 if gate:
                     gates.append(gate)
-            elif not stripped.startswith("-"):
+            elif stripped and not stripped.startswith("-"):
                 in_selected = False
     return gates
 
@@ -135,3 +193,161 @@ def check_validation(task_dir: Path) -> dict:
             results["ready"] = "no"
 
     return results
+
+
+def parse_implementation_approval(implement_md: Path) -> dict[str, str | bool]:
+    """Parse the Implementation Approval section from implement.md."""
+    result: dict[str, str | bool] = {
+        "approved": False,
+        "start_allowed": False,
+        "user_message": "",
+        "timestamp": "",
+        "summary_approved": "",
+    }
+
+    if not implement_md.is_file():
+        return result
+
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return result
+
+    in_section = False
+    in_source = False
+    in_start = False
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+
+        if lowered == "## implementation approval":
+            in_section = True
+            in_source = False
+            in_start = False
+            continue
+
+        if in_section and stripped.startswith("## "):
+            break
+
+        if not in_section:
+            continue
+
+        if lowered.startswith("approval source:"):
+            in_source = True
+            in_start = False
+            continue
+
+        if lowered.startswith("allowed to run task.py start?"):
+            in_start = True
+            in_source = False
+            continue
+
+        if stripped.startswith("- [") and "]" in stripped:
+            checked = stripped.lower().startswith("- [x]")
+            label = stripped.split("] ", 1)[-1].strip().lower()
+            if label == "approved":
+                result["approved"] = checked
+            elif in_start and label == "yes":
+                result["start_allowed"] = checked
+            continue
+
+        if in_source:
+            if lowered.startswith("- user message:"):
+                result["user_message"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- timestamp:"):
+                result["timestamp"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- summary approved:"):
+                result["summary_approved"] = stripped.split(":", 1)[-1].strip()
+
+    return result
+
+
+def implementation_approval_complete(approval: dict[str, str | bool]) -> bool:
+    """Return True when the implementation approval record is fully populated."""
+    if not approval.get("approved") or not approval.get("start_allowed"):
+        return False
+    for field in REQUIRED_APPROVAL_FIELDS:
+        value = str(approval.get(field, "")).strip()
+        if not value:
+            return False
+    return True
+
+
+def parse_finish_approval(finish_md: Path) -> dict[str, str | bool]:
+    """Parse the Finish Approval section from finish.md."""
+    result: dict[str, str | bool] = {
+        "approved": False,
+        "finish_allowed": False,
+        "user_message": "",
+        "timestamp": "",
+        "summary_approved": "",
+    }
+
+    if not finish_md.is_file():
+        return result
+
+    try:
+        content = finish_md.read_text(encoding="utf-8")
+    except OSError:
+        return result
+
+    in_section = False
+    in_source = False
+    in_allowed = False
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+
+        if lowered == "## finish approval":
+            in_section = True
+            in_source = False
+            in_allowed = False
+            continue
+
+        if in_section and stripped.startswith("## "):
+            break
+
+        if not in_section:
+            continue
+
+        if lowered.startswith("approval source:"):
+            in_source = True
+            in_allowed = False
+            continue
+
+        if lowered.startswith("allowed to proceed with finish?"):
+            in_allowed = True
+            in_source = False
+            continue
+
+        if stripped.startswith("- [") and "]" in stripped:
+            checked = stripped.lower().startswith("- [x]")
+            label = stripped.split("] ", 1)[-1].strip().lower()
+            if label == "approved":
+                result["approved"] = checked
+            elif in_allowed and label == "yes":
+                result["finish_allowed"] = checked
+            continue
+
+        if in_source:
+            if lowered.startswith("- user message:"):
+                result["user_message"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- timestamp:"):
+                result["timestamp"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- summary approved:"):
+                result["summary_approved"] = stripped.split(":", 1)[-1].strip()
+
+    return result
+
+
+def finish_approval_complete(approval: dict[str, str | bool]) -> bool:
+    """Return True when the finish approval record is fully populated."""
+    if not approval.get("approved") or not approval.get("finish_allowed"):
+        return False
+    for field in REQUIRED_APPROVAL_FIELDS:
+        value = str(approval.get(field, "")).strip()
+        if not value:
+            return False
+    return True

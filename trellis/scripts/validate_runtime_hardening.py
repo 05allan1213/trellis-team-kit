@@ -104,6 +104,8 @@ def main() -> int:
     print("Task-specific validators (require a task directory argument):")
     print(f"  python3 {scripts_dir}/validate_task.py <task-dir>")
     print(f"  python3 {scripts_dir}/validate_review_gates.py <task-dir>")
+    print(f"  python3 {scripts_dir}/validate_delivery_sync.py <task-dir>")
+    print(f"  python3 {scripts_dir}/validate_workflow_state.py <task-dir>")
 
     return 0 if all_pass else 1
 

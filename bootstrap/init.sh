@@ -36,6 +36,26 @@ fi
 info()  { echo "[init] $*"; }
 error() { echo "[init] ERROR: $*" >&2; exit 1; }
 
+append_local_state_gitignore() {
+  local gitignore="$1"
+  local begin="# BEGIN trellis-team-kit local state"
+  local end="# END trellis-team-kit local state"
+  if [ -f "$gitignore" ] && grep -qF "$begin" "$gitignore"; then
+    return 0
+  fi
+  if [ -f "$gitignore" ] && [ -s "$gitignore" ] && [ "$(tail -c1 "$gitignore" 2>/dev/null || true)" != "" ]; then
+    printf '\n' >> "$gitignore"
+  fi
+  cat >> "$gitignore" <<'EOF'
+# BEGIN trellis-team-kit local state
+.trellis/.developer
+.claude/settings.local.json
+.omc/
+**/.omc/
+# END trellis-team-kit local state
+EOF
+}
+
 # Get a file: local copy or remote download
 get_file() {
   local src="$1" dst="$2"
@@ -91,7 +111,9 @@ info "  .trellis/workflow.md installed"
 info "Step 4/9: Installing Claude settings..."
 mkdir -p "$TARGET_ROOT/.claude"
 get_file "claude/settings.json" "$TARGET_ROOT/.claude/settings.json"
+append_local_state_gitignore "$TARGET_ROOT/.gitignore"
 info "  .claude/settings.json installed"
+info "  .gitignore local-state rules ensured"
 
 # --- Step 5: Install skills ---
 info "Step 5/9: Installing skills..."
@@ -166,6 +188,8 @@ mkdir -p "$TARGET_ROOT/.trellis/config"
 for v in \
   validate_claude_settings validate_naming_map validate_hooks \
   validate_task validate_review_gates validate_runtime_hardening \
+  validate_workflow_state validate_delivery_sync \
+  prepare_finish_workspace finalize_task_archive \
   validate_routing_rules; do
   get_file "trellis/scripts/$v.py" "$TARGET_ROOT/.trellis/scripts/$v.py"
   VALIDATOR_COUNT=$((VALIDATOR_COUNT + 1))

@@ -112,25 +112,27 @@ def validate_settings(settings_path: Path, root: Path) -> tuple[bool, list[str]]
                 if "python3" in cmd:
                     parts = cmd.split()
                     for part in parts:
-                        if part.endswith(".py"):
-                            # Commands use .claude/hooks/... (relative to project root)
-                            # Remove only leading "./" not all dots
-                            clean = part
-                            if clean.startswith("./"):
-                                clean = clean[2:]
-                            script_path = root / clean
-                            if not script_path.is_file():
-                                # Also try without leading dot (kit repo layout)
-                                if clean.startswith(".claude/"):
-                                    alt_clean = "claude/" + clean[len(".claude/"):]
-                                    alt_path = root / alt_clean
-                                    if alt_path.is_file():
-                                        break
-                                errors.append(
-                                    f"hooks.{event_name}[{i}].hooks[{j}]: "
-                                    f"script not found: {part}"
-                                )
-                            break
+                        clean = part.strip().strip("\"'")
+                        if not clean.endswith(".py"):
+                            continue
+                        if clean.startswith("${CLAUDE_PROJECT_DIR}/"):
+                            clean = clean[len("${CLAUDE_PROJECT_DIR}/"):]
+                        elif clean.startswith("$CLAUDE_PROJECT_DIR/"):
+                            clean = clean[len("$CLAUDE_PROJECT_DIR/"):]
+                        if clean.startswith("./"):
+                            clean = clean[2:]
+                        script_path = root / clean
+                        if not script_path.is_file():
+                            if clean.startswith(".claude/"):
+                                alt_clean = "claude/" + clean[len(".claude/"):]
+                                alt_path = root / alt_clean
+                                if alt_path.is_file():
+                                    break
+                            errors.append(
+                                f"hooks.{event_name}[{i}].hooks[{j}]: "
+                                f"script not found: {part}"
+                            )
+                        break
 
     for event in REQUIRED_EVENTS:
         if event not in hooks:

@@ -9,6 +9,10 @@ description: "Read all task artifacts and specs before writing code. Outputs imp
 
 - Task status is `in_progress` (`task.py start` has been run).
 - Planning artifacts are complete (prd.md, implement.md, design.md if L4/L5).
+- `implement.md` already records the user's implementation approval:
+  - `approved` is checked
+  - `Allowed to run task.py start? -> yes` is checked
+  - user message / timestamp / summary approved are filled
 
 ## Core Rules
 
@@ -19,11 +23,14 @@ This skill is a gate. You MUST NOT edit source code before completing it. Readin
 1. **Read `prd.md`** — understand the goal, scope, acceptance criteria, and out-of-scope items.
 2. **Read `design.md`** (if present) — understand architecture, data flow, contracts, and trade-offs.
 3. **Read `implement.md`** — understand execution strategy, review gate contract, and validation commands.
-4. **Read `implement.jsonl` entries** — understand which specs and research files are curated for implementation context.
-5. **Read relevant specs** — use `.trellis/spec/index.md` to route to the right spec files. Read the specific guideline files, not just the index.
-6. **Read relevant research** — any `research/*.md` files referenced by the task.
-7. **Output implementation constraints** — a concise list of what must be true during implementation.
-8. **Confirm task is `in_progress`** — verify status before proceeding.
+4. **Verify Implementation Approval** — confirm `implement.md` contains the recorded user approval before any source editing.
+5. **Read `implement.jsonl` entries** — understand which specs and research files are curated for implementation context.
+   - `implement.jsonl` / `check.jsonl` must contain only spec files and research files.
+   - Do NOT duplicate task artifacts (`prd.md`, `design.md`, `implement.md`, `finish.md`) in JSONL; hooks already inject those.
+6. **Read relevant specs** — use `.trellis/spec/index.md` to route to the right spec files. Read the specific guideline files, not just the index.
+7. **Read relevant research** — any `research/*.md` files referenced by the task.
+8. **Output implementation constraints** — a concise list of what must be true during implementation.
+9. **Confirm task is `in_progress`** — verify status before proceeding.
 
 ### Spec Reading
 
@@ -84,6 +91,7 @@ The index is NOT the goal — it points to the actual guideline files. Read thos
 ## Quality Bar
 
 - All task artifacts have been read (prd.md, design.md, implement.md, JSONL entries).
+- The implementation approval record is present in `implement.md`.
 - Relevant spec files have been read (not just the index).
 - Implementation constraints are specific and actionable.
 - Observable outcomes to preserve or prove are captured before coding starts.

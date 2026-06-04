@@ -17,13 +17,14 @@ import sys
 from pathlib import Path
 
 GATE_FILE_MAP: dict[str, str] = {
-    "trellis-check": "review/check-review.md",
     "trellis-spec-review": "review/spec-review.md",
     "trellis-code-review": "review/code-review.md",
     "trellis-code-architecture-review": "review/architecture-review.md",
     "trellis-improve-codebase-architecture deep-review": "review/architecture-deep-review.md",
     "trellis-merge-review": "review/merge-review.md",
 }
+
+NON_REVIEW_GATE_NAMES = {"trellis-check"}
 
 MANDATORY_GATES: dict[str, list[str]] = {
     "L0": [],
@@ -43,6 +44,59 @@ MANDATORY_GATES: dict[str, list[str]] = {
         "trellis-merge-review",
     ],
 }
+
+
+def _has_status_section(content: str) -> bool:
+    return "status:" in content or bool(
+        re.search(r"^\s*(?:#+\s*)?(?:status|verdict)(?:\s*:|\s|$)", content, re.MULTILINE)
+    )
+
+
+def _extract_review_verdict(content: str) -> str | None:
+    for line in content.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        inline = re.match(r"^(?:#+\s*)?(?:status|verdict)\s*:\s*(.+)$", stripped)
+        if inline:
+            payload = inline.group(1).strip()
+            if re.match(r"^fail\b", payload):
+                return "fail"
+            if re.match(r"^(?:redesign-required|redesign required)\b", payload):
+                return "fail"
+            if re.match(r"^pass\b", payload):
+                return "pass"
+        if re.match(r"^-\s*\[x\]\s*fail\b", stripped):
+            return "fail"
+        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
+            return "pass"
+
+    section_match = re.search(
+        r"^\s*#+\s*(?:status|verdict)\s*$",
+        content,
+        re.MULTILINE,
+    )
+    if not section_match:
+        return None
+
+    section = content[section_match.end():]
+    for line in section.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            break
+        if re.match(r"^-\s*\[x\]\s*fail\b", stripped):
+            return "fail"
+        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
+            return "pass"
+        if re.match(r"^fail\b(?!\s*/)", stripped):
+            return "fail"
+        if re.match(r"^(?:redesign-required|redesign required)\b", stripped):
+            return "fail"
+        if re.match(r"^pass\b(?!\s*/)", stripped):
+            return "pass"
+    return None
 
 
 def _read_task_level(task_dir: Path) -> str:
@@ -68,15 +122,22 @@ def parse_selected_gates(implement_md: Path) -> list[str]:
     in_selected = False
     for line in content.splitlines():
         stripped = line.strip()
-        if stripped.lower().startswith("selected gates:"):
+        lowered = stripped.lower()
+        if lowered.startswith("selected gates:") or lowered.startswith("### selected gates"):
             in_selected = True
             continue
         if in_selected:
-            if stripped.startswith("- [") and "]" in stripped:
+            if stripped.startswith("#"):
+                in_selected = False
+                continue
+            if stripped.lower().startswith("selection rationale:"):
+                in_selected = False
+                continue
+            if stripped.lower().startswith("- [x]") and "]" in stripped:
                 gate = stripped.split("] ", 1)[-1].strip()
-                if gate:
+                if gate and gate not in NON_REVIEW_GATE_NAMES:
                     gates.append(gate)
-            elif not stripped.startswith("-"):
+            elif stripped and not stripped.startswith("-"):
                 in_selected = False
     return gates
 
@@ -124,15 +185,14 @@ def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
             errors.append(f"Gate '{gate}': cannot read {file_rel}")
             continue
 
-        has_status = "status:" in content
-        has_pass = bool(re.search(r"-\s*\[x\]\s*pass", content))
-        has_fail = bool(re.search(r"-\s*\[x\]\s*fail", content))
+        has_status = _has_status_section(content)
+        verdict = _extract_review_verdict(content)
 
         if not has_status:
-            errors.append(f"Gate '{gate}': no 'Status:' section found in {file_rel}")
-        elif not has_pass and not has_fail:
+            errors.append(f"Gate '{gate}': no 'Status' or 'Verdict' section found in {file_rel}")
+        elif verdict is None:
             errors.append(f"Gate '{gate}': no PASS/FAIL verdict in {file_rel}")
-        elif has_fail:
+        elif verdict == "fail":
             errors.append(f"Gate '{gate}': FAILED — must return to IMPLEMENTING")
 
     return len(errors) == 0, errors

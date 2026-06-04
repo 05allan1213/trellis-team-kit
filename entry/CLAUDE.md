@@ -63,8 +63,8 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 | L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Main session | Light check |
 | L2 | Light implementation | Recommended | prd.md | Main/subagent | check |
 | L3 | Normal feature/bugfix | Yes | prd.md + implement.md | subagent | check + code-review |
-| L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | subagent + worktree/OMC | check + spec-review + code-review + architecture-review |
-| L5 | Large refactor/multi-agent | Yes | Full artifacts | OMC + worktree + parent/child | All + merge-review |
+| L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | subagent + worktree (default) / OMC `ulw` optional | check + spec-review + code-review + architecture-review |
+| L5 | Large refactor/multi-agent | Yes | Full artifacts | Trellis-native parallel + worktree / OMC `ulw` + parent/child | All + merge-review |
 
 ### Triage Rules
 
@@ -127,8 +127,10 @@ All L3+ tasks must configure. Defaults:
 ## Superpowers and OMC Rules
 
 - **Superpowers**: Use when requirements are unclear, complex, architectural, cross-module, high-risk, or have multiple viable approaches. Skip for small, explicit tasks.
-- **OMC**: Only recommend when PRD is confirmed and work can be safely split. Must present parallel agent split plan and get explicit user confirmation before enabling.
+- **OMC**: In this workflow, OMC means oh-my-claudecode `ulw/ultrawork`. Only recommend it when PRD is confirmed, native Trellis parallel is not enough, and work can be safely split. Must present a parallel agent split plan and get explicit user confirmation before enabling.
+- **Trellis-native parallel**: reviewer background agents, subagent dispatch, and worktree isolation are the default parallel tools and do not imply OMC.
 - **MCP/domain skills**: Trigger by scenario, don't load globally.
+- **Optional, not blockers**: If Superpowers, OMC, MCPs, or a skill are unavailable, explain the limitation and continue with the best available Trellis-native path.
 
 ## File Routing
 

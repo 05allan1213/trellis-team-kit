@@ -62,6 +62,10 @@ if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
 
 from prompt_routing import classify_no_task_prompt  # noqa: E402
+from task_artifacts import (  # noqa: E402
+    finish_approval_complete,
+    parse_finish_approval,
+)
 
 
 def _find_trellis_root(start: Path) -> Optional[Path]:
@@ -344,7 +348,7 @@ def _infer_sub_phase(status: str, task_dir: Path) -> Optional[str]:
         has_review = (task_dir / "review").is_dir() and any(
             (task_dir / "review").iterdir()
         )
-        has_finish = (task_dir / "finish.md").is_file()
+        has_finish = finish_approval_complete(parse_finish_approval(task_dir / "finish.md"))
 
         if has_finish:
             return "FINISHING"

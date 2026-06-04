@@ -1,6 +1,7 @@
 # OMC 策略
 
 oh-my-claudecode 与 trellis-team-kit 集成的策略说明。
+这里的 OMC 特指官方 `ulw/ultrawork` 并行模式。
 
 ## 何时使用 OMC
 
@@ -8,6 +9,7 @@ oh-my-claudecode 与 trellis-team-kit 集成的策略说明。
 - Parent/child 任务树
 - 跨 package 并行工作
 - 用户已明确确认 OMC 并行模式
+- Trellis 原生并行（subagent / reviewer background agents / worktree）已经不足以覆盖编排需求
 
 ## 何时不使用 OMC
 
@@ -15,6 +17,14 @@ oh-my-claudecode 与 trellis-team-kit 集成的策略说明。
 - 紧密耦合、无法拆分的工作
 - 用户未明确确认并行模式
 - 规划阶段（OMC 仅用于执行）
+- 当前环境未安装 OMC，或无法稳定调用 OMC `ulw/ultrawork`
+
+## OMC 不可用时
+
+- 不要阻塞 Trellis 主流程
+- 明确告诉用户当前环境无法使用 OMC `ulw/ultrawork`
+- 回退到 Trellis 原生路径：subagent、reviewer background agents、worktree
+- 如果用户明确批准的是 OMC，而不是泛化的“并行”，则回退前需要重新说明并获得确认
 
 ## 规则
 

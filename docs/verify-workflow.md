@@ -118,10 +118,11 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 
 **检查点**：
 - [ ] 代码文件创建在声明范围内
-- [ ] `implement.jsonl` 记录每个文件操作
+- [ ] `implement.jsonl` / `check.jsonl` 只保留 curated spec/research context
+- [ ] `implement.jsonl` / `check.jsonl` 不重复 task artifacts（`prd.md`、`design.md`、`implement.md`、`finish.md`）
 
 **范围守卫测试**：
-- [ ] 编辑 implement.md 未声明的文件 → PostToolUse warning
+- [ ] 编辑高风险且未在 implement.md 声明的路径 → PreToolUse warning
 
 ---
 
@@ -137,14 +138,16 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 
 ## 阶段 10：REVIEWING
 
-**操作**：Claude 运行 trellis-check review
+**操作**：Claude 运行选中的 review gates（如 spec / code / architecture）
 
 **检查点**：
-- [ ] 生成 `review/check-review.md`
+- [ ] `trellis-check` 的结果写入 `validation/check-results.md`
+- [ ] review gate 结果写入对应的 `review/*.md`
 - [ ] 包含 `- [x] PASS` 格式的 verdict
 
 **Review FAIL 回流测试**：
-- [ ] 将 verdict 改为 `- [x] FAIL` → `validate_review_gates.py` 报 FAIL
+- [ ] 将某个已选中的 `review/*.md` verdict 改为 `FAIL` → `validate_review_gates.py` 报 FAIL
+- [ ] 删除或改坏 `validation/check-results.md` 的 PASS 证据 → `validate_task.py` 报 FAIL
 - [ ] `stop-guard` block，要求回到 IMPLEMENTING
 - [ ] 恢复为 PASS → 全部 validator PASS
 
@@ -220,5 +223,5 @@ python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/<task-dir>
 | 编辑 .env | PreToolUse deny |
 | Review FAIL 时 finish | stop-guard block |
 | Check 未通过时 finish | stop-guard block |
-| 编辑未声明路径 | PostToolUse warning |
+| 编辑高风险未声明路径 | PreToolUse warning |
 | TRELLIS_DISABLE_HOOKS=1 | 所有 hooks 静默 skip |

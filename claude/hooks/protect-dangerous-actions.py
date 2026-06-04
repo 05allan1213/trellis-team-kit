@@ -13,6 +13,8 @@ Hard block (deny):
 - Source file editing during in_progress without before-dev.md
 - task.py start without implementation consent
 - Spawning implementer without approval
+- Writing `finish.md` before explicit Finish consent
+- `git commit` / `task.py archive` before Finish consent is recorded in `finish.md`
 
 Soft warning (allow with reason):
 - Editing lockfiles
@@ -33,6 +35,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -58,6 +61,16 @@ if sys.platform.startswith("win"):
                 pass
 
 TRELLIS_DIR = ".trellis"
+_HOOKS_DIR = Path(__file__).resolve().parent
+if str(_HOOKS_DIR / "lib") not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR / "lib"))
+
+from task_artifacts import parse_implementation_approval  # type: ignore[import-not-found]
+from task_artifacts import (  # type: ignore[import-not-found]
+    finish_approval_complete,
+    implementation_approval_complete,
+    parse_finish_approval,
+)
 
 # ---- Hard block: dangerous bash command patterns ----
 BLOCKED_BASH_PATTERNS = [
@@ -144,9 +157,18 @@ SOFT_WARNING_PATTERNS = [
 
 # task.py start pattern
 TASK_START_PATTERN = re.compile(r"task\.py\s+start\b")
+TASK_ARCHIVE_PATTERN = re.compile(r"task\.py\s+archive\b")
+GIT_COMMIT_PATTERN = re.compile(r"\bgit\s+commit\b")
+FINALIZE_ARCHIVE_PATTERN = re.compile(r"finalize_task_archive\.py\b")
 
 # Override pattern
 OVERRIDE_PATTERN = re.compile(r"override\s+team-kit\s+guardrail\s*:\s*(.+)", re.IGNORECASE)
+FINISH_CONSENT_PATTERN = re.compile(
+    r"(?i)("
+    r"进入\s*finish|进入\s*phase\s*3|进入\s*收尾|开始\s*finish|开始\s*收尾|"
+    r"finish\s*阶段|收尾阶段|enter\s+finish|start\s+finish|proceed\s+to\s+finish"
+    r")"
+)
 
 # Planning states
 PLANNING_STATES = {
@@ -244,6 +266,20 @@ def _is_source_file(file_path: str) -> bool:
     return ext.lower() in SOURCE_EXTS
 
 
+def _normalize_repo_path(root: Path, file_path: str) -> str:
+    path_obj = Path(file_path)
+    if path_obj.is_absolute():
+        try:
+            return path_obj.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            return path_obj.as_posix()
+
+    normalized = file_path.replace("\\", "/")
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
 def _parse_declared_paths(implement_md: Path) -> list[str]:
     if not implement_md.is_file():
         return []
@@ -306,6 +342,125 @@ def _check_override(input_data: dict) -> Optional[str]:
     return None
 
 
+def _extract_prompt_text(input_data: dict) -> str:
+    for field in ("prompt", "message", "text", "content"):
+        value = input_data.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    nested = input_data.get("result")
+    if isinstance(nested, dict):
+        for field in ("prompt", "message", "text", "content"):
+            value = nested.get(field)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    return ""
+
+
+def _has_explicit_finish_consent(input_data: dict) -> bool:
+    prompt = _extract_prompt_text(input_data)
+    return bool(prompt and FINISH_CONSENT_PATTERN.search(prompt))
+
+
+def _missing_implementation_approval_fields(approval: dict[str, str | bool]) -> list[str]:
+    missing: list[str] = []
+    if not approval.get("approved"):
+        missing.append("approved")
+    if not approval.get("start_allowed"):
+        missing.append("Allowed to run task.py start? -> yes")
+    for field in ("user_message", "timestamp", "summary_approved"):
+        value = str(approval.get(field, "")).strip()
+        if not value:
+            missing.append(field.replace("_", " "))
+    return missing
+
+
+def _finish_artifact_recorded(task_dir: Optional[Path]) -> bool:
+    if task_dir is None:
+        return False
+    return finish_approval_complete(parse_finish_approval(task_dir / "finish.md"))
+
+
+def _is_local_state_path(file_path: str) -> bool:
+    normalized = file_path.replace("\\", "/").strip()
+    if not normalized:
+        return False
+    if normalized == ".claude/settings.local.json":
+        return True
+    if normalized == ".trellis/.developer" or normalized.startswith(".trellis/.developer/"):
+        return True
+    parts = normalized.split("/")
+    return ".omc" in parts
+
+
+def _finish_workspace_issue(root: Path) -> Optional[str]:
+    prepare_script = root / ".trellis" / "scripts" / "prepare_finish_workspace.py"
+    if not prepare_script.is_file():
+        return None
+
+    tracked_local: list[str] = []
+    dirty_local: list[str] = []
+
+    try:
+        tracked = subprocess.run(
+            ["git", "ls-files", "-z"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+            cwd=str(root),
+        )
+        if tracked.returncode == 0:
+            tracked_local = [
+                path for path in tracked.stdout.split("\0")
+                if path and _is_local_state_path(path)
+            ]
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError):
+        tracked_local = []
+
+    try:
+        dirty = subprocess.run(
+            ["git", "status", "--short"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+            cwd=str(root),
+        )
+        if dirty.returncode == 0:
+            for line in dirty.stdout.splitlines():
+                if not line.strip():
+                    continue
+                path = line[3:].strip()
+                if _is_local_state_path(path):
+                    dirty_local.append(line.strip())
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError):
+        dirty_local = []
+
+    if tracked_local or dirty_local:
+        detail_lines: list[str] = []
+        if tracked_local:
+            detail_lines.append("tracked local-state paths: " + ", ".join(tracked_local[:10]))
+        if dirty_local:
+            detail_lines.append("dirty local-state paths: " + ", ".join(dirty_local[:10]))
+        detail = "\n".join(f"  - {line}" for line in detail_lines)
+        return (
+            "BLOCKED: git commit is forbidden while local runtime state is still in scope.\n"
+            "  Blocked action: git commit\n"
+            "  Reason: `.omc/` / local-only state must be cleaned before the final commit, "
+            "otherwise finish can still end in a dirty repository.\n"
+            f"{detail}\n"
+            "  Correct next step: run "
+            "`python3 ./.trellis/scripts/prepare_finish_workspace.py`, review the resulting "
+            "git diff, then retry the commit."
+        )
+
+    return None
+
+
 def _check_bash_command(command: str, root: Path) -> tuple[Optional[str], bool]:
     """Check bash command. Returns (message, is_hard_block)."""
     for pattern, message in BLOCKED_BASH_PATTERNS:
@@ -314,33 +469,101 @@ def _check_bash_command(command: str, root: Path) -> tuple[Optional[str], bool]:
 
     if TASK_START_PATTERN.search(command):
         status = _get_task_status(root)
+        task_dir = _get_task_dir(root)
         if _is_planning_phase(status):
+            approval = (
+                parse_implementation_approval(task_dir / "implement.md")
+                if task_dir is not None
+                else None
+            )
+            if approval and implementation_approval_complete(approval):
+                return None, False
+            missing = _missing_implementation_approval_fields(approval or {})
             return (
                 "BLOCKED: task.py start is forbidden during planning phase.\n"
                 "  Current state: PLANNING\n"
                 "  Blocked action: task.py start\n"
-                "  Reason: Implementation consent has not been given.\n"
-                "  Correct next step: Complete planning artifacts and wait for "
-                "user to explicitly approve implementation."
+                "  Reason: Implementation approval has not been written back into "
+                "implement.md.\n"
+                "  Correct next step: Wait for explicit user approval, then update "
+                "implement.md Implementation Approval by marking 'approved', filling "
+                "user message / timestamp / summary approved, and marking "
+                "'Allowed to run task.py start? -> yes'.\n"
+                f"  Missing fields: {', '.join(missing)}"
+            ), True
+
+    if TASK_ARCHIVE_PATTERN.search(command) and not FINALIZE_ARCHIVE_PATTERN.search(command):
+        return (
+            "BLOCKED: direct `task.py archive` is forbidden.\n"
+            "  Blocked action: task.py archive\n"
+            "  Reason: team-kit archive finalization must normalize archived JSONL context, "
+            "sync workspace journal/index, and run post-archive validators.\n"
+            "  Correct next step: run "
+            "`python3 ./.trellis/scripts/finalize_task_archive.py <task-dir>` instead."
+        ), True
+
+    if GIT_COMMIT_PATTERN.search(command):
+        workspace_issue = _finish_workspace_issue(root)
+        if workspace_issue:
+            return workspace_issue, True
+
+    if GIT_COMMIT_PATTERN.search(command) or TASK_ARCHIVE_PATTERN.search(command):
+        status = _get_task_status(root)
+        task_dir = _get_task_dir(root)
+        if status and status.lower() == "in_progress" and not _finish_artifact_recorded(task_dir):
+            action = "git commit" if GIT_COMMIT_PATTERN.search(command) else "task.py archive"
+            return (
+                f"BLOCKED: {action} is forbidden before explicit Finish consent is recorded.\n"
+                "  Current state: IN_PROGRESS\n"
+                f"  Blocked action: {action}\n"
+                "  Reason: finish.md does not yet contain a complete Finish Approval "
+                "record with user message / timestamp / summary and "
+                "'Allowed to proceed with finish? -> yes'.\n"
+                "  Correct next step: Wait for the user to explicitly enter Finish, "
+                "record that consent in finish.md, then continue with spec update / commit / archive."
             ), True
 
     return None, False
 
 
-def _check_file_operation(file_path: str, tool_name: str, root: Path) -> tuple[Optional[str], bool]:
+def _check_file_operation(
+    file_path: str,
+    tool_name: str,
+    root: Path,
+    input_data: dict,
+) -> tuple[Optional[str], bool]:
     """Check file write/edit. Returns (message, is_hard_block)."""
-    norm_path = file_path.replace("\\", "/")
-    if norm_path.startswith("./"):
-        norm_path = norm_path[2:]
+    norm_path = _normalize_repo_path(root, file_path)
 
     # Check hard-blocked file patterns
     for pattern, message in BLOCKED_FILE_PATTERNS:
         if re.search(pattern, norm_path):
             return message, True
 
+    task_dir = _get_task_dir(root)
+    status = _get_task_status(root)
+    if tool_name in ("Write", "Edit") and task_dir is not None:
+        try:
+            finish_rel = (task_dir / "finish.md").resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            finish_rel = ""
+        if finish_rel and norm_path == finish_rel and status and status.lower() == "in_progress":
+            recorded = parse_finish_approval(task_dir / "finish.md")
+            if finish_approval_complete(recorded) or _has_explicit_finish_consent(input_data):
+                return None, False
+            return (
+                "BLOCKED: Writing finish.md without explicit Finish consent.\n"
+                "  Current state: IN_PROGRESS\n"
+                "  Blocked action: Write/Edit finish.md\n"
+                "  Reason: Finish is a separate user-approved phase. "
+                "The user must explicitly say to enter Finish before finish.md "
+                "can be created or edited.\n"
+                "  Correct next step: Wait for a message such as '进入 Finish 阶段', "
+                "then record that approval in the Finish Approval section."
+            ), True
+
     # Source file editing during planning phase
     if tool_name in ("Write", "Edit") and _is_source_file(norm_path):
-        status = _get_task_status(root)
         if _is_planning_phase(status):
             return (
                 "BLOCKED: Editing source files during planning phase.\n"
@@ -352,7 +575,18 @@ def _check_file_operation(file_path: str, tool_name: str, root: Path) -> tuple[O
             ), True
 
         if status and status.lower() == "in_progress":
-            task_dir = _get_task_dir(root)
+            if task_dir:
+                approval = parse_implementation_approval(task_dir / "implement.md")
+                if not implementation_approval_complete(approval):
+                    return (
+                        "BLOCKED: Editing source files without recorded implementation approval.\n"
+                        "  Current state: IN_PROGRESS\n"
+                        "  Blocked action: Write/Edit to source file\n"
+                        "  Reason: implement.md does not show an approved implementation "
+                        "consent record with full audit fields.\n"
+                        "  Correct next step: Update the Implementation Approval section "
+                        "in implement.md from the user's approval before continuing."
+                    ), True
             if task_dir and not (task_dir / "before-dev.md").is_file():
                 return (
                     "BLOCKED: Editing source files without before-dev constraints.\n"
@@ -457,7 +691,7 @@ def main() -> int:
     elif tool_name in ("Write", "Edit"):
         file_path = tool_input.get("file_path", "") or tool_input.get("filePath", "")
         if isinstance(file_path, str) and file_path:
-            message, is_hard_block = _check_file_operation(file_path, tool_name, root)
+            message, is_hard_block = _check_file_operation(file_path, tool_name, root, input_data)
 
     if not message:
         return 0

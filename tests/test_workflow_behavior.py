@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -10,7 +11,14 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INJECT_HOOK = REPO_ROOT / "claude" / "hooks" / "inject-workflow-state.py"
+PROTECT_HOOK = REPO_ROOT / "claude" / "hooks" / "protect-dangerous-actions.py"
+STOP_GUARD_HOOK = REPO_ROOT / "claude" / "hooks" / "stop-guard.py"
 VALIDATE_TASK = REPO_ROOT / "trellis" / "scripts" / "validate_task.py"
+VALIDATE_REVIEW_GATES = REPO_ROOT / "trellis" / "scripts" / "validate_review_gates.py"
+VALIDATE_WORKFLOW_STATE = REPO_ROOT / "trellis" / "scripts" / "validate_workflow_state.py"
+VALIDATE_DELIVERY_SYNC = REPO_ROOT / "trellis" / "scripts" / "validate_delivery_sync.py"
+PREPARE_FINISH_WORKSPACE = REPO_ROOT / "trellis" / "scripts" / "prepare_finish_workspace.py"
+FINALIZE_TASK_ARCHIVE = REPO_ROOT / "trellis" / "scripts" / "finalize_task_archive.py"
 ROUTING_MODULE = REPO_ROOT / "claude" / "hooks" / "lib" / "prompt_routing.py"
 VALIDATE_RULES = REPO_ROOT / "trellis" / "scripts" / "validate_routing_rules.py"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
@@ -98,6 +106,83 @@ class InjectWorkflowStateTests(unittest.TestCase):
         self.assertIn("direct inline edit without creating a task", context)
 
 
+class InjectWorkflowTaskPhaseTests(unittest.TestCase):
+    def run_hook(self, root: Path) -> str:
+        result = subprocess.run(
+            [sys.executable, str(INJECT_HOOK)],
+            input=json.dumps({"cwd": str(root), "prompt": "继续"}),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        payload = json.loads(result.stdout)
+        return payload["hookSpecificOutput"]["additionalContext"]
+
+    def make_repo(self, finish_md: str) -> Path:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / ".trellis" / "tasks" / "T001-demo"
+        task_dir.mkdir(parents=True)
+        (root / ".trellis" / "active-task").write_text(
+            ".trellis/tasks/T001-demo",
+            encoding="utf-8",
+        )
+        (root / ".trellis" / "workflow.md").write_text("", encoding="utf-8")
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").write_text(finish_md, encoding="utf-8")
+        return root
+
+    def test_finishing_inference_requires_recorded_finish_approval(self):
+        root = self.make_repo(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: done
+                - Evidence: tests
+                """
+            )
+        )
+
+        context = self.run_hook(root)
+
+        self.assertNotIn("Inferred phase: FINISHING", context)
+
+    def test_finishing_inference_accepts_recorded_finish_approval(self):
+        root = self.make_repo(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Finish Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 进入 Finish 阶段
+                - timestamp: 2026-06-04T12:00:00Z
+                - summary approved: enter finish
+
+                Allowed to proceed with finish?
+                - [x] yes
+                - [ ] no
+                """
+            )
+        )
+
+        context = self.run_hook(root)
+
+        self.assertIn("Inferred phase: FINISHING", context)
+
+
 class ValidateTaskTests(unittest.TestCase):
     def setUp(self):
         self.module = load_module(VALIDATE_TASK, "validate_task_module")
@@ -106,8 +191,15 @@ class ValidateTaskTests(unittest.TestCase):
         tmpdir = tempfile.TemporaryDirectory()
         self.addCleanup(tmpdir.cleanup)
 
-        task_dir = Path(tmpdir.name) / "T001-example"
+        root = Path(tmpdir.name)
+        (root / ".trellis" / "spec" / "guides").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "guides" / "index.md").write_text(
+            "# Guides\n", encoding="utf-8"
+        )
+
+        task_dir = root / "T001-example"
         (task_dir / "research").mkdir(parents=True)
+        (task_dir / "validation").mkdir(parents=True)
 
         (task_dir / "task.json").write_text(
             json.dumps({"id": "T001", "level": "L2", "status": "done"}),
@@ -115,10 +207,66 @@ class ValidateTaskTests(unittest.TestCase):
         )
         (task_dir / "prd.md").write_text("# PRD\n", encoding="utf-8")
         (task_dir / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
-        (task_dir / "implement.jsonl").write_text('{"event":"implement"}\n', encoding="utf-8")
-        (task_dir / "check.jsonl").write_text('{"event":"check"}\n', encoding="utf-8")
+        (task_dir / "implement.jsonl").write_text(
+            json.dumps(
+                {
+                    "file": ".trellis/spec/guides/index.md",
+                    "reason": "Shared implementation guidance",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (task_dir / "check.jsonl").write_text(
+            json.dumps(
+                {
+                    "file": "T001-example/research/grill-me.md",
+                    "reason": "Review risks and edge cases during verification",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "check-results.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Verdict: PASS
+                """
+            ),
+            encoding="utf-8",
+        )
         (task_dir / "finish.md").write_text(finish_md, encoding="utf-8")
         return task_dir
+
+    def standard_finish_suffix(self) -> str:
+        return textwrap.dedent(
+            """\
+
+            ## Finish Approval
+
+            Approval status:
+            - [x] approved
+
+            Approval source:
+            - user message: 进入 Finish 阶段
+            - timestamp: 2026-06-04T12:00:00Z
+            - summary approved: enter finish
+
+            Allowed to proceed with finish?
+            - [x] yes
+            - [ ] no
+
+            ## Delivery Sync Check
+
+            - [x] README / user docs reviewed
+            - [x] Example commands / scripts reviewed
+            - [x] Public API paths / contracts reviewed
+            - [x] Implemented vs planned status reviewed
+
+            Files checked:
+            - README.md — reviewed
+            """
+        )
 
     def test_done_task_requires_observable_outcomes_section(self):
         task_dir = self.make_task_dir(
@@ -135,6 +283,7 @@ class ValidateTaskTests(unittest.TestCase):
                 - **Need update?**: no
                 - **Reason**: none
                 """
+                + self.standard_finish_suffix()
             )
         )
 
@@ -163,6 +312,7 @@ class ValidateTaskTests(unittest.TestCase):
                 - **Need update?**: no
                 - **Reason**: none
                 """
+                + self.standard_finish_suffix()
             )
         )
 
@@ -189,12 +339,1504 @@ class ValidateTaskTests(unittest.TestCase):
                 - **Need update?**: no
                 - **Reason**: none
                 """
+                + self.standard_finish_suffix()
             )
         )
 
         ok, issues = self.module.validate_task(task_dir)
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_done_task_accepts_table_observable_outcomes(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Task Summary
+
+                done
+
+                ## Observable Outcomes
+
+                | # | Outcome | Evidence |
+                |---|---------|----------|
+                | 1 | saving a record shows the updated state | manual verification on local environment |
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_missing_level_fails_when_task_has_artifacts(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "status": "done"}),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("missing 'level' field" in issue for issue in issues))
+
+    def test_jsonl_rejects_task_artifact_context(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "implement.jsonl").write_text(
+            json.dumps(
+                {
+                    "file": "T001-example/prd.md",
+                    "reason": "bad context",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("outside allowed spec/research context" in issue for issue in issues))
+
+    def test_jsonl_accepts_task_dir_placeholder_for_research(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "check.jsonl").write_text(
+            json.dumps(
+                {
+                    "file": "$TASK_DIR/research/grill-me.md",
+                    "reason": "Review risks and edge cases during verification",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_relative_archived_task_path_resolves_task_dir_placeholders(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        archived_task = root / ".trellis" / "tasks" / "archive" / "2026-06" / "demo-task"
+        (root / ".trellis" / "spec" / "guides").mkdir(parents=True)
+        (archived_task / "research").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "guides" / "index.md").write_text("# Guides\n", encoding="utf-8")
+        (archived_task / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
+        (archived_task / "task.json").write_text(
+            json.dumps({"id": "demo-task", "level": "L2", "status": "completed"}),
+            encoding="utf-8",
+        )
+        (archived_task / "prd.md").write_text("# PRD\n", encoding="utf-8")
+        (archived_task / "implement.jsonl").write_text(
+            json.dumps(
+                {
+                    "file": "$TASK_DIR/research/grill-me.md",
+                    "reason": "Task research context",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (archived_task / "check.jsonl").write_text(
+            json.dumps(
+                {
+                    "file": "$TASK_DIR/research/grill-me.md",
+                    "reason": "Verification context",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (archived_task / "validation").mkdir(parents=True, exist_ok=True)
+        (archived_task / "validation" / "check-results.md").write_text(
+            "## Verdict: PASS\n",
+            encoding="utf-8",
+        )
+        (archived_task / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish: Demo
+
+                ## Observable Outcomes
+
+                - Outcome: archived validation passes
+                - Evidence: validate_task.py
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+            + self.standard_finish_suffix(),
+            encoding="utf-8",
+        )
+
+        old_cwd = Path.cwd()
+        try:
+            os.chdir(root)
+            ok, issues = self.module.validate_task(Path(".trellis/tasks/archive/2026-06/demo-task"))
+        finally:
+            os.chdir(old_cwd)
+
+        self.assertTrue(ok, msg=f"Unexpected issues for relative archived task path: {issues}")
+
+    def test_in_progress_requires_recorded_approval(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+
+                ## Implementation Approval
+
+                Approval status:
+                - [ ] approved
+
+                Approval source:
+                - user message:
+                - timestamp:
+                - summary approved:
+
+                Allowed to run task.py start?
+                - [ ] yes
+                - [x] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "check-results.md").unlink()
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("Implementation Approval" in issue for issue in issues))
+
+    def test_done_task_requires_finish_approval_and_delivery_sync(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "done"}),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("Finish Approval" in issue for issue in issues))
+        self.assertTrue(any("Delivery Sync Check" in issue for issue in issues))
+
+    def test_check_gate_requires_validation_check_results(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-code-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "check-results.md").unlink()
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("check-results.md is missing" in issue for issue in issues))
+
+    def test_check_gate_requires_results_even_if_required_gate_checkbox_is_unchecked(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "done"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Review Gate Contract
+
+                ### Required gates (always run)
+
+                - [ ] trellis-check
+
+                ### Selected gates for this task
+
+                - [x] trellis-code-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "check-results.md").unlink()
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("trellis-check is required" in issue for issue in issues))
+
+    def test_check_gate_passes_with_valid_check_results(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "validation").mkdir(parents=True, exist_ok=True)
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "done"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-code-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "check-results.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Build
+                - [x] pass
+
+                ## Test
+                - [x] pass
+
+                ## Ready for finish-work?
+                - [x] yes
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+
+class ProtectDangerousActionsTests(unittest.TestCase):
+    def make_repo(
+        self,
+        *,
+        status: str,
+        implement_md: str,
+        before_dev_md: str | None = None,
+        finish_md: str | None = None,
+    ) -> tuple[Path, Path]:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / ".trellis" / "tasks" / "T001-demo"
+        task_dir.mkdir(parents=True)
+
+        (root / ".trellis" / "active-task").write_text(
+            ".trellis/tasks/T001-demo",
+            encoding="utf-8",
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": status}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(implement_md, encoding="utf-8")
+        if before_dev_md is not None:
+            (task_dir / "before-dev.md").write_text(before_dev_md, encoding="utf-8")
+        if finish_md is not None:
+            (task_dir / "finish.md").write_text(finish_md, encoding="utf-8")
+        return root, task_dir
+
+    def run_hook(self, root: Path, payload: dict) -> dict | None:
+        result = subprocess.run(
+            [sys.executable, str(PROTECT_HOOK)],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        if not result.stdout.strip():
+            return None
+        return json.loads(result.stdout)
+
+    def approval_block(
+        self,
+        *,
+        approved: bool,
+        start_allowed: bool,
+        user_message: str = "",
+        timestamp: str = "",
+        summary_approved: str = "",
+    ) -> str:
+        approved_mark = "x" if approved else " "
+        not_requested_mark = " " if approved else "x"
+        yes_mark = "x" if start_allowed else " "
+        no_mark = " " if start_allowed else "x"
+        return textwrap.dedent(
+            f"""\
+            # Implement: Example
+
+            ## Review Gate Contract
+
+            ### Selected gates for this task
+
+            - [x] trellis-code-review
+
+            ## Implementation Approval
+
+            Approval status:
+            - [{not_requested_mark}] requested
+            - [{approved_mark}] approved
+
+            Approval source:
+            - user message: {user_message}
+            - timestamp: {timestamp}
+            - summary approved: {summary_approved}
+
+            Allowed to run task.py start?
+            - [{yes_mark}] yes
+            - [{no_mark}] no
+            """
+        )
+
+    def finish_md_with_approval(self, *, approved: bool) -> str:
+        approved_mark = "x" if approved else " "
+        no_mark = " " if approved else "x"
+        return textwrap.dedent(
+            f"""\
+            # Finish: Example
+
+            ## Finish Approval
+
+            Approval status:
+            - [{approved_mark}] approved
+
+            Approval source:
+            - user message: 进入 Finish 阶段
+            - timestamp: 2026-06-04T12:00:00Z
+            - summary approved: enter finish
+
+            Allowed to proceed with finish?
+            - [{approved_mark}] yes
+            - [{no_mark}] no
+
+            ## Observable Outcomes
+
+            - Outcome: done
+            - Evidence: test
+
+            ## Delivery Sync Check
+
+            - [x] README / user docs reviewed
+            - [x] Example commands / scripts reviewed
+            - [x] Public API paths / contracts reviewed
+            - [x] Implemented vs planned status reviewed
+
+            Files checked:
+            - README.md — docs synchronized
+
+            ## Spec Update Decision
+
+            - **Need update?**: no
+            - **Reason**: none
+            """
+        )
+
+    def test_task_start_requires_full_implementation_approval_record(self):
+        root, task_dir = self.make_repo(
+            status="planning",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+            ),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Bash",
+            "tool_input": {
+                "command": f"python3 ./.trellis/scripts/task.py start {task_dir}"
+            },
+            "prompt": "开始实现",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "summary approved",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
+        )
+
+    def test_source_edit_requires_full_implementation_approval_record(self):
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+            ),
+            before_dev_md="# Before Dev\n- Scope: src\n- Files likely touched: src/app.py\n",
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "src/app.py"},
+            "prompt": "继续实现",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "implementation approval",
+            response["hookSpecificOutput"]["permissionDecisionReason"].lower(),
+        )
+
+    def test_finish_file_write_requires_explicit_finish_consent(self):
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Write",
+            "tool_input": {"file_path": ".trellis/tasks/T001-demo/finish.md"},
+            "prompt": "继续",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "finish",
+            response["hookSpecificOutput"]["permissionDecisionReason"].lower(),
+        )
+
+    def test_git_commit_requires_recorded_finish_approval(self):
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit -m 'done'"},
+            "prompt": "继续",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "finish",
+            response["hookSpecificOutput"]["permissionDecisionReason"].lower(),
+        )
+
+    def test_git_commit_allowed_after_finish_approval_is_recorded(self):
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+            finish_md=self.finish_md_with_approval(approved=True),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit -m 'done'"},
+            "prompt": "继续",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNone(response)
+
+    def test_raw_task_archive_requires_finalize_wrapper(self):
+        root, task_dir = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+            finish_md=self.finish_md_with_approval(approved=True),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Bash",
+            "tool_input": {"command": f"python3 ./.trellis/scripts/task.py archive {task_dir}"},
+            "prompt": "进入 Finish 阶段",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "finalize_task_archive.py",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
+        )
+
+    def test_git_commit_blocked_until_runtime_state_prepared(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True, capture_output=True, text=True)
+
+        task_dir = root / ".trellis" / "tasks" / "T001-demo"
+        (task_dir / "review").mkdir(parents=True)
+        (root / ".trellis" / "scripts").mkdir(parents=True)
+        (root / ".trellis" / "active-task").write_text(".trellis/tasks/T001-demo", encoding="utf-8")
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").write_text(
+            self.finish_md_with_approval(approved=True),
+            encoding="utf-8",
+        )
+        (root / ".trellis" / "scripts" / "prepare_finish_workspace.py").write_text(
+            PREPARE_FINISH_WORKSPACE.read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+
+        omc_state = root / ".omc" / "state"
+        omc_state.mkdir(parents=True)
+        (omc_state / "hud-stdin-cache.json").write_text("{}", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=root, check=True, capture_output=True, text=True)
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit -m 'done'"},
+            "prompt": "进入 Finish 阶段",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "prepare_finish_workspace.py",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
+        )
+
+
+class StopGuardTests(unittest.TestCase):
+    def make_repo(self) -> tuple[Path, Path]:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / ".trellis" / "tasks" / "T001-demo"
+        (task_dir / "review").mkdir(parents=True)
+        (task_dir / "validation").mkdir(parents=True)
+        scripts_dir = root / ".trellis" / "scripts"
+        scripts_dir.mkdir(parents=True)
+        (root / ".trellis" / "active-task").write_text(
+            ".trellis/tasks/T001-demo",
+            encoding="utf-8",
+        )
+        for src in (VALIDATE_TASK, VALIDATE_REVIEW_GATES, VALIDATE_DELIVERY_SYNC):
+            (scripts_dir / src.name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-code-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "check-results.md").write_text(
+            "## Status\n- [x] pass\n",
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "test-results.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Build
+                - [x] pass
+
+                ## Test
+                - [x] pass
+
+                ## Ready for finish-work?
+                - [x] yes
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "review" / "code-review.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Status
+                - [x] pass
+
+                ## Scope reviewed
+                - code
+
+                ## Blocking issues
+                - none
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: done
+                - Evidence: tests
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            ),
+            encoding="utf-8",
+        )
+        return root, task_dir
+
+    def run_hook(self, root: Path, payload: dict) -> dict:
+        result = subprocess.run(
+            [sys.executable, str(STOP_GUARD_HOOK)],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        return json.loads(result.stdout)
+
+    def test_claiming_done_blocks_when_finish_artifact_is_incomplete(self):
+        root, _ = self.make_repo()
+
+        response = self.run_hook(
+            root,
+            {
+                "cwd": str(root),
+                "message": "任务完成了",
+            },
+        )
+
+        self.assertEqual(response["decision"], "block")
+        self.assertIn("Finish Approval", response["reason"])
+
+
+class ValidateDeliverySyncTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(VALIDATE_DELIVERY_SYNC, "validate_delivery_sync_module")
+
+    def init_repo(self) -> tuple[Path, Path]:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / ".trellis" / "tasks" / "T001-demo"
+        task_dir.mkdir(parents=True)
+
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        (root / "README.md").write_text(
+            "Use `/api/events/export` to export data.\n",
+            encoding="utf-8",
+        )
+        (root / "internal" / "handler").mkdir(parents=True)
+        (root / "internal" / "handler" / "router.go").write_text(
+            'router.GET("/api/events/export", exportCSV)\n',
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "commit", "-m", "initial"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L4", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Finish Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 进入 Finish 阶段
+                - timestamp: 2026-06-04T12:00:00Z
+                - summary approved: enter finish
+
+                Allowed to proceed with finish?
+                - [x] yes
+                - [ ] no
+
+                ## Observable Outcomes
+
+                - Outcome: export works
+                - Evidence: api test
+
+                ## Delivery Sync Check
+
+                - [x] README / user docs reviewed
+                - [x] Example commands / scripts reviewed
+                - [x] Public API paths / contracts reviewed
+                - [x] Implemented vs planned status reviewed
+
+                Files checked:
+                - README.md — reviewed
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            ),
+            encoding="utf-8",
+        )
+        return root, task_dir
+
+    def test_removed_public_route_left_in_readme_fails(self):
+        root, task_dir = self.init_repo()
+        (root / "internal" / "handler" / "router.go").write_text(
+            'router.GET("/api/events/export/csv", exportCSV)\n',
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_delivery_sync(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("/api/events/export" in issue for issue in issues))
+
+
+class ValidateWorkflowStateTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(VALIDATE_WORKFLOW_STATE, "validate_workflow_state_module")
+
+    def test_archived_task_fails_on_placeholder_workspace_records(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / ".trellis" / "tasks" / "archive" / "2026-06" / "demo-task"
+        task_dir.mkdir(parents=True)
+        workspace_dir = root / ".trellis" / "workspace" / "alice"
+        workspace_dir.mkdir(parents=True)
+
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "demo-task", "title": "Demo Task", "status": "completed"}),
+            encoding="utf-8",
+        )
+        (workspace_dir / "journal-1.md").write_text(
+            "demo-task\n(No commits - planning session)\n",
+            encoding="utf-8",
+        )
+        (root / ".trellis" / "workspace" / "index.md").write_text(
+            "(none yet)\n",
+            encoding="utf-8",
+        )
+        (workspace_dir / "index.md").write_text(
+            "| 1 | 2026-06-04 | demo-task | - | `master` |\n",
+            encoding="utf-8",
+        )
+
+        ok = self.module.validate_workflow_state(str(task_dir))
+
+        self.assertFalse(ok)
+
+    def _init_git_repo(self, root: Path) -> None:
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    def _write_valid_completed_workspace(self, root: Path) -> Path:
+        task_dir = root / ".trellis" / "tasks" / "archive" / "2026-06" / "demo-task"
+        task_dir.mkdir(parents=True)
+        workspace_dir = root / ".trellis" / "workspace" / "alice"
+        workspace_dir.mkdir(parents=True)
+
+        (task_dir / "task.json").write_text(
+            json.dumps(
+                {
+                    "id": "demo-task",
+                    "title": "Demo Task",
+                    "status": "completed",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (root / ".trellis" / "workspace" / "index.md").write_text(
+            textwrap.dedent(
+                """\
+                # Workspace Index
+
+                | Developer | Last Active | Sessions | Active File |
+                |-----------|-------------|----------|-------------|
+                | alice | 2026-06-04 | 1 | `journal-1.md` |
+                """
+            ),
+            encoding="utf-8",
+        )
+        (workspace_dir / "index.md").write_text(
+            "| 1 | 2026-06-04 | demo-task: Demo Task | 1 | `master` |\n",
+            encoding="utf-8",
+        )
+        (workspace_dir / "journal-1.md").write_text(
+            "demo-task\n- `abc1234` archived task finalized\n",
+            encoding="utf-8",
+        )
+        return task_dir
+
+    def test_archived_task_ignores_deletion_only_runtime_state(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        self._init_git_repo(root)
+        task_dir = self._write_valid_completed_workspace(root)
+        (root / ".omc" / "state").mkdir(parents=True)
+        (root / ".omc" / "state" / "hud.json").write_text("{}", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=root, check=True, capture_output=True, text=True)
+
+        (root / ".gitignore").write_text(".omc/\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "rm", "--cached", "-r", ".omc"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        ok = self.module.validate_workflow_state(str(task_dir))
+
+        self.assertTrue(ok)
+
+    def test_archived_task_still_fails_on_modified_runtime_state(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        self._init_git_repo(root)
+        task_dir = self._write_valid_completed_workspace(root)
+        (root / ".omc" / "state").mkdir(parents=True)
+        runtime_file = root / ".omc" / "state" / "hud.json"
+        runtime_file.write_text("{}", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=root, check=True, capture_output=True, text=True)
+
+        runtime_file.write_text("{\"changed\": true}", encoding="utf-8")
+
+        ok = self.module.validate_workflow_state(str(task_dir))
+
+        self.assertFalse(ok)
+
+
+class PrepareFinishWorkspaceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(PREPARE_FINISH_WORKSPACE, "prepare_finish_workspace_module")
+
+    def test_prepare_finish_workspace_ignores_and_untracks_local_state(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True, capture_output=True, text=True)
+
+        (root / ".omc" / "state").mkdir(parents=True)
+        (root / ".omc" / "state" / "hud.json").write_text("{}", encoding="utf-8")
+        (root / ".claude").mkdir()
+        (root / ".claude" / "settings.local.json").write_text("{}", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=root, check=True, capture_output=True, text=True)
+
+        changes, warnings = self.module.prepare_finish_workspace(root)
+
+        self.assertTrue(any(".gitignore" in change for change in changes))
+        tracked = subprocess.run(
+            ["git", "ls-files", ".omc", ".claude/settings.local.json"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        self.assertEqual(tracked, "")
+        gitignore = (root / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn(".omc/", gitignore)
+        self.assertFalse(warnings)
+
+
+class FinalizeTaskArchiveTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(FINALIZE_TASK_ARCHIVE, "finalize_task_archive_module")
+
+    def test_finalize_archived_task_repairs_context_and_workspace_records(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        archived_task = root / ".trellis" / "tasks" / "archive" / "2026-06" / "demo-task"
+        (archived_task / "research").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "guides").mkdir(parents=True)
+        (root / ".trellis" / "workspace" / "alice").mkdir(parents=True)
+
+        (root / ".trellis" / "spec" / "guides" / "index.md").write_text("# Guides\n", encoding="utf-8")
+        (archived_task / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
+        (archived_task / "task.json").write_text(
+            json.dumps(
+                {
+                    "id": "demo-task",
+                    "title": "Demo Task",
+                    "status": "completed",
+                    "creator": "alice",
+                    "assignee": "alice",
+                    "base_branch": "master",
+                    "completedAt": "2026-06-04",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "prd.md").write_text("# PRD\n\n## Acceptance Criteria\n\n- AC1\n", encoding="utf-8")
+        (archived_task / "design.md").write_text("# Design\n", encoding="utf-8")
+        (archived_task / "validation").mkdir(parents=True, exist_ok=True)
+        (archived_task / "validation" / "check-results.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Build
+                - [x] pass
+
+                ## Test
+                - [x] pass
+
+                ## Ready for finish-work?
+                - [x] yes
+                """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Task Level
+
+                Selected level:
+                - [x] L4 Architecture / Cross-layer Task
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: completed the demo task
+                - Evidence: archived validation
+
+                ## Commits
+
+                - abc1234 feat: demo task
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+
+                ## Summary
+
+                Completed the demo task with archived evidence.
+                """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "implement.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps({"_example": "remove me"}),
+                    json.dumps({"file": ".trellis/tasks/demo-task/prd.md", "reason": "bad"}),
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "check.jsonl").write_text(
+            json.dumps({"file": ".trellis/tasks/demo-task/research/grill-me.md", "reason": "verify"}) + "\n",
+            encoding="utf-8",
+        )
+        (root / ".trellis" / "workspace" / "index.md").write_text(
+            textwrap.dedent(
+                """\
+                # Workspace Index
+
+                ## Active Developers
+
+                | Developer | Last Active | Sessions | Active File |
+                |-----------|-------------|----------|-------------|
+                | (none yet) | - | - | - |
+                """
+            ),
+            encoding="utf-8",
+        )
+        (root / ".trellis" / "workspace" / "alice" / "index.md").write_text(
+            textwrap.dedent(
+                """\
+                # Workspace Index - alice
+
+                <!-- @@@auto:current-status -->
+                - **Active File**: `journal-1.md`
+                - **Total Sessions**: 1
+                - **Last Active**: 2026-06-04
+                <!-- @@@/auto:current-status -->
+
+                <!-- @@@auto:session-history -->
+                | # | Date | Title | Commits | Branch |
+                |---|------|-------|---------|--------|
+                | 1 | 2026-06-04 | demo-task: old title | - | `master` |
+                <!-- @@@/auto:session-history -->
+                """
+            ),
+            encoding="utf-8",
+        )
+        (root / ".trellis" / "workspace" / "alice" / "journal-1.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Session 1: demo-task
+
+                ### Main Changes
+
+                (Add details)
+
+                ### Git Commits
+
+                (No commits - planning session)
+
+                ### Testing
+
+                - [OK] (Add test results)
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        changes = self.module.finalize_archived_task(archived_task, root)
+
+        task_data = json.loads((archived_task / "task.json").read_text(encoding="utf-8"))
+        self.assertEqual(task_data["level"], "L4")
+        self.assertEqual(task_data["commit"], "abc1234")
+        implement_md = (archived_task / "implement.md").read_text(encoding="utf-8")
+        self.assertIn("## Implementation Approval", implement_md)
+        implement_entries = [json.loads(line) for line in (archived_task / "implement.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertTrue(all(entry["file"].startswith((".trellis/spec/", "$TASK_DIR/")) for entry in implement_entries))
+        self.assertFalse(any("_example" in entry for entry in implement_entries))
+        finish_md = (archived_task / "finish.md").read_text(encoding="utf-8")
+        self.assertIn("## Finish Approval", finish_md)
+        self.assertIn("## Delivery Sync Check", finish_md)
+        dev_index = (root / ".trellis" / "workspace" / "alice" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("| 1 | 2026-06-04 | demo-task: Demo Task | 1 | `master` |", dev_index)
+        journal = (root / ".trellis" / "workspace" / "alice" / "journal-1.md").read_text(encoding="utf-8")
+        self.assertNotIn("(Add details)", journal)
+        self.assertNotIn("(No commits - planning session)", journal)
+        validate_task_module = load_module(VALIDATE_TASK, "validate_task_module_finalize")
+        ok, issues = validate_task_module.validate_task(archived_task)
+        self.assertTrue(ok, msg=f"Unexpected archived task issues: {issues}")
+        self.assertTrue(changes)
+
+
+class ValidateReviewGatesTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(VALIDATE_REVIEW_GATES, "validate_review_gates_module")
+
+    def make_task_dir(self, implement_md: str) -> Path:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        task_dir = Path(tmpdir.name) / "T001-demo"
+        (task_dir / "review").mkdir(parents=True)
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L4", "status": "completed"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(implement_md, encoding="utf-8")
+        for name in ("spec-review.md", "code-review.md", "architecture-review.md"):
+            (task_dir / "review" / name).write_text(
+                "## Verdict: PASS\n",
+                encoding="utf-8",
+            )
+        return task_dir
+
+    def test_accepts_template_selected_gates_heading(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                - [ ] trellis-improve-codebase-architecture deep-review
+                """
+            )
+        )
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected gate errors: {errors}")
+
+    def test_unchecked_gate_does_not_satisfy_level_requirement(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-spec-review
+                - [ ] trellis-code-review
+                - [x] trellis-code-architecture-review
+                """
+            )
+        )
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("trellis-code-review" in err for err in errors))
 
 
 class PromptRoutingScorerTests(unittest.TestCase):

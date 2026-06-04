@@ -1,5 +1,22 @@
 # Finish: {{task_name}}
 
+## Finish Approval
+
+<!-- Finish is a separate consent gate. Fill this from the actual user message
+that explicitly entered Finish before writing the rest of this file. -->
+
+Approval status:
+- [ ] approved
+
+Approval source:
+- user message:
+- timestamp:
+- summary approved:
+
+Allowed to proceed with finish?
+- [ ] yes
+- [ ] no
+
 ## Task Summary
 
 <!-- 1-3 sentences describing what was accomplished. -->
@@ -7,6 +24,7 @@
 ## Observable Outcomes
 
 <!-- Record concrete user- or operator-visible results and the evidence used to verify them. -->
+<!-- Use either a bullet list or a table, but include at least one concrete outcome and its evidence. -->
 
 - Outcome: <!-- what someone can now see, do, or verify -->
 - Evidence: <!-- command, test, screenshot, or manual flow -->
@@ -31,6 +49,18 @@
 | AC1: <!-- description --> | PASS / FAIL / PARTIAL | <!-- how verified --> |
 | AC2: <!-- description --> | PASS / FAIL / PARTIAL | <!-- how verified --> |
 | AC3: <!-- description --> | PASS / FAIL / PARTIAL | <!-- how verified --> |
+
+## Delivery Sync Check
+
+<!-- Confirm that user-facing docs and public contract surfaces match the final implementation. -->
+
+- [ ] README / user docs reviewed
+- [ ] Example commands / scripts reviewed
+- [ ] Public API paths / contracts reviewed
+- [ ] Implemented vs planned status reviewed
+
+Files checked:
+- <!-- README.md / docs/... / API examples / command docs -->
 
 ## Spec Update Decision
 

@@ -60,6 +60,8 @@ You own decisions, communication, dispatch, and integration. Do NOT write code d
 - **L0**: Answer directly
 - **L1**: Recommend inline when the change is clearly local, reversible, and low-risk
 - **L2-L5**: Recommend a Trellis task path
+- **Parallel by default means Trellis-native parallel**: subagents, reviewer background agents, and worktrees
+- **OMC means oh-my-claudecode `ulw/ultrawork`**: an optional advanced mode, not the default meaning of “parallel”
 
 **The AI may recommend L1 inline when the scope is obviously tiny. If the scope expands, escalate to a task immediately.**
 
@@ -92,6 +94,13 @@ Failed gate → return to IMPLEMENTING → cannot skip → cannot mark done.
 6. Don't push (unless user explicitly asks)
 7. Don't expand PRD scope
 8. Don't write code in main session (unless inline or L1)
+
+## Extension Rules
+
+- Superpowers is optional reasoning help, not a hard dependency.
+- OMC `ulw/ultrawork` is optional advanced orchestration, not the default parallel path.
+- MCPs and scenario skills are optional capabilities, not prerequisites.
+- If an extension is unavailable, explain the limitation and continue with the best available Trellis-native path.
 
 ## File Routing
 

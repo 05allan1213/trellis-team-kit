@@ -9,3 +9,9 @@ __pycache__/
 .trellis/.developer
 .omc/
 .claude/
+# BEGIN trellis-team-kit local state
+.trellis/.developer
+.claude/settings.local.json
+.omc/
+**/.omc/
+# END trellis-team-kit local state
