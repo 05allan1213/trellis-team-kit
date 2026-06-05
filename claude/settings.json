@@ -99,7 +99,7 @@
     ],
     "Notification": [
       {
-        "matcher": "permission_prompt|elicitation_dialog",
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
