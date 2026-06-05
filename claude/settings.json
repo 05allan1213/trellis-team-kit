@@ -81,7 +81,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh done 'Claude Code' '本轮已完成，等你继续'"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh stop 'Claude Code' 'Claude Code 已停下，等你继续'"
           }
         ]
       }
@@ -103,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh attention 'Claude Code' '需要你的处理'"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trellis-notify.sh notification 'Claude Code' '需要你的处理'"
           }
         ]
       }

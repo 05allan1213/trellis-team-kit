@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import textwrap
 import unittest
 from pathlib import Path
@@ -13,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 INJECT_HOOK = REPO_ROOT / "claude" / "hooks" / "inject-workflow-state.py"
 PROTECT_HOOK = REPO_ROOT / "claude" / "hooks" / "protect-dangerous-actions.py"
 STOP_GUARD_HOOK = REPO_ROOT / "claude" / "hooks" / "stop-guard.py"
+NOTIFY_HOOK = REPO_ROOT / "claude" / "hooks" / "trellis-notify.sh"
 VALIDATE_TASK = REPO_ROOT / "trellis" / "scripts" / "validate_task.py"
 VALIDATE_REVIEW_GATES = REPO_ROOT / "trellis" / "scripts" / "validate_review_gates.py"
 VALIDATE_WORKFLOW_STATE = REPO_ROOT / "trellis" / "scripts" / "validate_workflow_state.py"
@@ -3635,6 +3638,112 @@ class RuntimeHardeningValidatorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
         self.assertIn("[PASS] validate_spec_index.py", result.stdout)
         self.assertIn("[PASS] validate_trellis_config.py", result.stdout)
+
+
+class TrellisNotifyTests(unittest.TestCase):
+    def run_notify(
+        self,
+        event: str,
+        payload: dict,
+        message: str = "需要你的处理",
+        delay_seconds: str = "0",
+    ) -> str:
+        env = os.environ.copy()
+        env.update(
+            {
+                "TRELLIS_NOTIFY_DRY_RUN": "1",
+                "TRELLIS_NOTIFY_TEST_SYNC": "1",
+                "TRELLIS_NOTIFY_DELAY_SECONDS": delay_seconds,
+            }
+        )
+        result = subprocess.run(
+            [str(NOTIFY_HOOK), event, "Claude Code", message],
+            input=json.dumps(payload),
+            cwd=REPO_ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        return result.stdout
+
+    def test_notification_ignores_auto_mode_status(self):
+        output = self.run_notify(
+            "notification",
+            {"hook_event_name": "Notification", "message": "Auto mode on"},
+        )
+
+        self.assertEqual(output, "")
+
+    def test_notification_ignores_subagent_completion(self):
+        output = self.run_notify(
+            "notification",
+            {"hook_event_name": "Notification", "message": "Subagent completed successfully"},
+        )
+
+        self.assertEqual(output, "")
+
+    def test_notification_prompts_for_permission(self):
+        output = self.run_notify(
+            "notification",
+            {"hook_event_name": "Notification", "message": "Permission required: approve git commit?"},
+        )
+
+        self.assertIn("notify\tattention", output)
+        self.assertIn("Claude Code 正在等你确认", output)
+
+    def test_stop_question_prompts_after_idle(self):
+        output = self.run_notify(
+            "stop",
+            {"hook_event_name": "Stop", "message": "是否允许提交？"},
+            "Claude Code 已停下，等你继续",
+        )
+
+        self.assertIn("notify\tattention", output)
+        self.assertIn("Claude Code 正在等你确认", output)
+
+    def test_stop_plain_end_prompts_after_idle(self):
+        output = self.run_notify(
+            "stop",
+            {"hook_event_name": "Stop", "message": "任务完成了"},
+            "Claude Code 已停下，等你继续",
+        )
+
+        self.assertIn("notify\tdone", output)
+        self.assertIn("Claude Code 已停下，等你继续", output)
+
+    def test_stop_skips_when_user_replies_during_delay(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            transcript = Path(tmpdir) / "transcript.jsonl"
+            transcript.write_text(
+                "\n".join(
+                    [
+                        json.dumps({"type": "user", "message": {"content": "开始"}}),
+                        json.dumps({"type": "assistant", "message": {"content": "是否允许提交？"}}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            def append_reply() -> None:
+                time.sleep(0.2)
+                with transcript.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps({"type": "user", "message": {"content": "允许"}}) + "\n")
+
+            thread = threading.Thread(target=append_reply)
+            thread.start()
+            try:
+                output = self.run_notify(
+                    "stop",
+                    {"hook_event_name": "Stop", "transcript_path": str(transcript)},
+                    "Claude Code 已停下，等你继续",
+                    delay_seconds="0.6",
+                )
+            finally:
+                thread.join()
+
+        self.assertEqual(output, "")
 
 
 if __name__ == "__main__":
