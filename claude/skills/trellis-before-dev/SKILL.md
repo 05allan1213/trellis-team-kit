@@ -29,8 +29,9 @@ This skill is a gate. You MUST NOT edit source code before completing it. Readin
    - Do NOT duplicate task artifacts (`prd.md`, `design.md`, `implement.md`, `finish.md`) in JSONL; hooks already inject those.
 6. **Read relevant specs** — use `.trellis/spec/index.md` to route to the right spec files. Read the specific guideline files, not just the index.
 7. **Read relevant research** — any `research/*.md` files referenced by the task.
-8. **Output implementation constraints** — a concise list of what must be true during implementation.
-9. **Confirm task is `in_progress`** — verify status before proceeding.
+8. **Read developer preferences when available** — if `.trellis/.developer` points to a workspace or there is exactly one `.trellis/workspace/<name>/preferences.md`, load it and apply only the preferences that do not conflict with task artifacts or team specs.
+9. **Output implementation constraints** — a concise list of what must be true during implementation.
+10. **Confirm task is `in_progress`** — verify status before proceeding.
 
 ### Spec Reading
 
@@ -93,6 +94,7 @@ The index is NOT the goal — it points to the actual guideline files. Read thos
 - All task artifacts have been read (prd.md, design.md, implement.md, JSONL entries).
 - The implementation approval record is present in `implement.md`.
 - Relevant spec files have been read (not just the index).
+- Developer preferences are loaded when available and only applied within team/spec boundaries.
 - Implementation constraints are specific and actionable.
 - Observable outcomes to preserve or prove are captured before coding starts.
 - The task status is confirmed as `in_progress`.

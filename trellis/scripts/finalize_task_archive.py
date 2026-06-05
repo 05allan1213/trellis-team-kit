@@ -401,6 +401,13 @@ def _developer_name(repo_root: Path, task_data: dict) -> str | None:
         value = str(task_data.get(key, "")).strip()
         if value:
             return value
+
+    developer_file = repo_root / ".trellis" / ".developer"
+    if developer_file.is_file():
+        value = developer_file.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+
     workspace_dir = repo_root / ".trellis" / "workspace"
     if not workspace_dir.is_dir():
         return None
@@ -422,6 +429,69 @@ def _replace_placeholder_markers(content: str, finish_summary: str, commits: lis
     content = content.replace("(No commits - planning session)", commit_text)
     content = content.replace("(Add test results)", "- [OK] See archived finish.md Preconditions Verification and Observable Outcomes.")
     return content
+
+
+def _workspace_root_index_template() -> str:
+    return (
+        "# Workspace Index\n\n"
+        "## Active Developers\n\n"
+        "| Developer | Last Active | Sessions | Active File |\n"
+        "|-----------|-------------|----------|-------------|\n"
+        "| (none yet) | - | - | - |\n"
+    )
+
+
+def _developer_index_template(developer: str) -> str:
+    return (
+        f"# Workspace Index - {developer}\n\n"
+        "<!-- @@@auto:current-status -->\n"
+        "- **Active File**: `journal-1.md`\n"
+        "- **Total Sessions**: 1\n"
+        "- **Last Active**: -\n"
+        "<!-- @@@/auto:current-status -->\n\n"
+        "<!-- @@@auto:session-history -->\n"
+        "| # | Date | Title | Commits | Branch |\n"
+        "|---|------|-------|---------|--------|\n"
+        "| (none yet) | - | - | - | - |\n"
+        "<!-- @@@/auto:session-history -->\n"
+    )
+
+
+def _developer_journal_template(developer: str) -> str:
+    return (
+        f"# Development Journal — {developer}\n\n"
+        "Track task completions, learnings, and decisions here.\n"
+        "Entries are appended automatically by trellis-finish-work.\n\n"
+        "---\n"
+    )
+
+
+def _ensure_workspace_root_index(workspace_dir: Path) -> tuple[Path, list[str]]:
+    root_index = workspace_dir / "index.md"
+    if root_index.is_file():
+        return root_index, []
+    root_index.write_text(_workspace_root_index_template(), encoding="utf-8")
+    return root_index, ["created workspace root index"]
+
+
+def _ensure_developer_index(developer_dir: Path, developer: str) -> tuple[Path, list[str]]:
+    developer_index = developer_dir / "index.md"
+    if developer_index.is_file():
+        return developer_index, []
+    developer_index.write_text(_developer_index_template(developer), encoding="utf-8")
+    return developer_index, ["created developer workspace index"]
+
+
+def _ensure_developer_journal(developer_dir: Path, developer: str) -> tuple[Path, list[str]]:
+    journal = developer_dir / "journal-1.md"
+    legacy_journal = developer_dir / "journal.md"
+    if journal.is_file():
+        return journal, []
+    if legacy_journal.is_file():
+        legacy_journal.replace(journal)
+        return journal, ["migrated legacy journal.md to journal-1.md"]
+    journal.write_text(_developer_journal_template(developer), encoding="utf-8")
+    return journal, ["created developer journal scaffold"]
 
 
 def sync_workspace_records(repo_root: Path, task_dir: Path) -> list[str]:
@@ -446,80 +516,93 @@ def sync_workspace_records(repo_root: Path, task_dir: Path) -> list[str]:
     title = f"{task_ref}: {str(task_data.get('title') or task_ref).strip()}"
     changes: list[str] = []
 
-    root_index = workspace_dir / "index.md"
-    if root_index.is_file():
-        root_content = root_index.read_text(encoding="utf-8")
-        if "(none yet)" in root_content:
-            replacement = (
-                "| Developer | Last Active | Sessions | Active File |\n"
-                "|-----------|-------------|----------|-------------|\n"
-                f"| {developer} | {task_date} | 1 | `journal-1.md` |"
-            )
-            root_index.write_text(root_content.replace(
-                "| Developer | Last Active | Sessions | Active File |\n|-----------|-------------|----------|-------------|\n| (none yet) | - | - | - |",
-                replacement,
-            ), encoding="utf-8")
-            changes.append("updated workspace root index")
+    root_index, root_index_changes = _ensure_workspace_root_index(workspace_dir)
+    dev_index, dev_index_changes = _ensure_developer_index(developer_dir, developer)
+    journal, journal_setup_changes = _ensure_developer_journal(developer_dir, developer)
+    changes.extend(root_index_changes)
+    changes.extend(dev_index_changes)
+    changes.extend(journal_setup_changes)
 
-    dev_index = developer_dir / "index.md"
-    if dev_index.is_file():
-        content = dev_index.read_text(encoding="utf-8")
-        current_status = (
-            "- **Active File**: `journal-1.md`\n"
-            "- **Total Sessions**: 1\n"
-            f"- **Last Active**: {task_date}"
+    root_content = root_index.read_text(encoding="utf-8")
+    root_row = f"| {developer} | {task_date} | 1 | `journal-1.md` |"
+    updated_root = root_content
+    placeholder_table = (
+        "| Developer | Last Active | Sessions | Active File |\n"
+        "|-----------|-------------|----------|-------------|\n"
+        "| (none yet) | - | - | - |"
+    )
+    if "(none yet)" in root_content:
+        updated_root = root_content.replace(
+            placeholder_table,
+            "| Developer | Last Active | Sessions | Active File |\n"
+            "|-----------|-------------|----------|-------------|\n"
+            f"{root_row}",
+        )
+    else:
+        row_pattern = re.compile(rf"^\| {re.escape(developer)} \| .*?$", re.MULTILINE)
+        if row_pattern.search(root_content):
+            updated_root = row_pattern.sub(root_row, root_content, count=1)
+        elif "| Developer | Last Active | Sessions | Active File |" in root_content:
+            updated_root = root_content.rstrip() + "\n" + root_row + "\n"
+    if updated_root != root_content:
+        root_index.write_text(updated_root, encoding="utf-8")
+        changes.append("updated workspace root index")
+
+    content = dev_index.read_text(encoding="utf-8")
+    current_status = (
+        "- **Active File**: `journal-1.md`\n"
+        "- **Total Sessions**: 1\n"
+        f"- **Last Active**: {task_date}"
+    )
+    content = _replace_marked_block(
+        content,
+        "<!-- @@@auto:current-status -->",
+        "<!-- @@@/auto:current-status -->",
+        current_status,
+    )
+
+    row = f"| 1 | {task_date} | {title} | {commit_count} | `{branch}` |"
+    if task_ref in content:
+        content = re.sub(
+            rf"^\| 1 \| .*{re.escape(task_ref)}.*$",
+            row,
+            content,
+            flags=re.MULTILINE,
+        )
+    else:
+        block_body = (
+            "| # | Date | Title | Commits | Branch |\n"
+            "|---|------|-------|---------|--------|\n"
+            f"{row}"
         )
         content = _replace_marked_block(
             content,
-            "<!-- @@@auto:current-status -->",
-            "<!-- @@@/auto:current-status -->",
-            current_status,
+            "<!-- @@@auto:session-history -->",
+            "<!-- @@@/auto:session-history -->",
+            block_body,
         )
+    dev_index.write_text(content, encoding="utf-8")
+    changes.append("updated developer workspace index")
 
-        row = f"| 1 | {task_date} | {title} | {commit_count} | `{branch}` |"
-        if task_ref in content:
-            content = re.sub(
-                rf"^\| 1 \| .*{re.escape(task_ref)}.*$",
-                row,
-                content,
-                flags=re.MULTILINE,
-            )
-        else:
-            block_body = (
-                "| # | Date | Title | Commits | Branch |\n"
-                "|---|------|-------|---------|--------|\n"
-                f"{row}"
-            )
-            content = _replace_marked_block(
-                content,
-                "<!-- @@@auto:session-history -->",
-                "<!-- @@@/auto:session-history -->",
-                block_body,
-            )
-        dev_index.write_text(content, encoding="utf-8")
-        changes.append("updated developer workspace index")
-
-    journal = developer_dir / "journal-1.md"
-    if journal.is_file():
-        content = journal.read_text(encoding="utf-8")
-        updated = _replace_placeholder_markers(content, finish_summary, commits)
-        if task_ref not in updated:
-            commit_lines = "\n".join(f"- `{sha}` {msg}".rstrip() for sha, msg in commits) or "- No commits recorded."
-            session_block = (
-                f"\n## Session 1: {title}\n\n"
-                f"**Date**: {task_date}\n"
-                f"**Task**: {task_ref}\n"
-                f"**Branch**: `{branch}`\n\n"
-                f"### Summary\n\n{finish_summary or 'See archived finish.md.'}\n\n"
-                f"### Main Changes\n\n- See archived finish.md for detailed outcomes.\n\n"
-                f"### Git Commits\n\n{commit_lines}\n\n"
-                "### Testing\n\n- [OK] See archived finish.md Preconditions Verification.\n\n"
-                "### Status\n\n[OK] **Completed**\n\n"
-                "### Next Steps\n\n- None\n"
-            )
-            updated = updated.rstrip() + "\n" + session_block
-        journal.write_text(updated, encoding="utf-8")
-        changes.append("updated developer journal")
+    content = journal.read_text(encoding="utf-8")
+    updated = _replace_placeholder_markers(content, finish_summary, commits)
+    if task_ref not in updated:
+        commit_lines = "\n".join(f"- `{sha}` {msg}".rstrip() for sha, msg in commits) or "- No commits recorded."
+        session_block = (
+            f"\n## Session 1: {title}\n\n"
+            f"**Date**: {task_date}\n"
+            f"**Task**: {task_ref}\n"
+            f"**Branch**: `{branch}`\n\n"
+            f"### Summary\n\n{finish_summary or 'See archived finish.md.'}\n\n"
+            f"### Main Changes\n\n- See archived finish.md for detailed outcomes.\n\n"
+            f"### Git Commits\n\n{commit_lines}\n\n"
+            "### Testing\n\n- [OK] See archived finish.md Preconditions Verification.\n\n"
+            "### Status\n\n[OK] **Completed**\n\n"
+            "### Next Steps\n\n- None\n"
+        )
+        updated = updated.rstrip() + "\n" + session_block
+    journal.write_text(updated, encoding="utf-8")
+    changes.append("updated developer journal")
 
     return changes
 

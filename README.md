@@ -198,7 +198,7 @@ CLAUDE.md                  ← Claude Code 入口
   workflow.md              ← 完整状态机
   spec/                    ← 分层团队知识库
   templates/               ← Task 产物模板（含 before-dev.md）
-  scripts/                 ← 9 个静态验证器
+  scripts/                 ← workflow validators + archive helpers
   tasks/                   ← 活跃和已归档任务
   workspace/               ← 个人开发者日志
 ```
@@ -236,13 +236,37 @@ mkdir my-project && cd my-project && git init
 
 ### 本地个人配置
 
-团队初始化后，每个开发者在项目目录中运行：
+`init.sh` 现在会自动创建最小本地 scaffold：
+
+- `.claude/settings.local.json`
+- `.trellis/.developer`
+- `.trellis/workspace/index.md`
+- `.trellis/workspace/<name>/index.md`
+- `.trellis/workspace/<name>/journal-1.md`
+
+如果你还想生成/重建个人偏好文件，再额外运行：
 
 ```bash
-bash ~/trellis-team-kit/bootstrap/init-local.sh 你的名字
+bash ~/trellis-team-kit/bootstrap/personalize-local.sh 你的名字
 ```
 
-这会创建个人工作区和日志文件。
+这一步现在是可选的，主要用于生成 `preferences.md` 或重建本地文件。
+旧名字 `bootstrap/init-local.sh` 仍然可用，但只是兼容别名。
+
+### 安装 smoke test
+
+要做一次真实安装自检，可以运行：
+
+```bash
+bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
+```
+
+它会验证：
+
+- 本地安装路径
+- 模拟远程安装路径
+- 安装后 runtime hardening
+- 可选本地个性化脚本
 
 
 ## 安全守卫

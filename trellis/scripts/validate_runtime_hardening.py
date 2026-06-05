@@ -82,6 +82,7 @@ def main() -> int:
         "validate_claude_settings.py",
         "validate_naming_map.py",
         "validate_hooks.py",
+        "validate_trellis_config.py",
         "validate_spec_index.py",
         "validate_routing_rules.py",
     ]

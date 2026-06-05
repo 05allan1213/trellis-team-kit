@@ -15,10 +15,15 @@ mkdir /tmp/ttk-verify && cd /tmp/ttk-verify && git init
 bash ~/trellis-team-kit/bootstrap/init.sh 你的名字
 # 方式 B — 远程版：
 bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh) 你的名字
+# 可选：本地个性化
+bash ~/trellis-team-kit/bootstrap/personalize-local.sh 你的名字
 
 # 3. 验证安装
 python3 .trellis/scripts/validate_runtime_hardening.py
 # 预期：OVERALL: PASS
+
+# 4. 真实安装 smoke test（验证本地 + 模拟远程路径）
+bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 ```
 
 ---

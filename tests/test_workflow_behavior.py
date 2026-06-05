@@ -18,9 +18,14 @@ VALIDATE_REVIEW_GATES = REPO_ROOT / "trellis" / "scripts" / "validate_review_gat
 VALIDATE_WORKFLOW_STATE = REPO_ROOT / "trellis" / "scripts" / "validate_workflow_state.py"
 VALIDATE_DELIVERY_SYNC = REPO_ROOT / "trellis" / "scripts" / "validate_delivery_sync.py"
 VALIDATE_RUNTIME_HARDENING = REPO_ROOT / "trellis" / "scripts" / "validate_runtime_hardening.py"
+VALIDATE_TRELLIS_CONFIG = REPO_ROOT / "trellis" / "scripts" / "validate_trellis_config.py"
 VALIDATE_SPEC_INDEX = REPO_ROOT / "trellis" / "scripts" / "validate_spec_index.py"
 PREPARE_FINISH_WORKSPACE = REPO_ROOT / "trellis" / "scripts" / "prepare_finish_workspace.py"
 FINALIZE_TASK_ARCHIVE = REPO_ROOT / "trellis" / "scripts" / "finalize_task_archive.py"
+INIT_SH = REPO_ROOT / "bootstrap" / "init.sh"
+PERSONALIZE_LOCAL = REPO_ROOT / "bootstrap" / "personalize-local.sh"
+INIT_LOCAL = REPO_ROOT / "bootstrap" / "init-local.sh"
+SMOKE_INSTALL = REPO_ROOT / "bootstrap" / "smoke-test-install.sh"
 ROUTING_MODULE = REPO_ROOT / "claude" / "hooks" / "lib" / "prompt_routing.py"
 VALIDATE_RULES = REPO_ROOT / "trellis" / "scripts" / "validate_routing_rules.py"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
@@ -1590,6 +1595,202 @@ class PrepareFinishWorkspaceTests(unittest.TestCase):
         self.assertFalse(warnings)
 
 
+class InitLocalScriptTests(unittest.TestCase):
+    def test_personalize_local_creates_workspace_scaffold(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        (root / ".trellis").mkdir(parents=True)
+        (root / ".trellis" / ".team-kit-version").write_text("1\n", encoding="utf-8")
+
+        subprocess.run(
+            ["bash", str(PERSONALIZE_LOCAL), "alice"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        settings_local = (root / ".claude" / "settings.local.json").read_text(encoding="utf-8")
+        self.assertIn("Bash(npm test *)", settings_local)
+        self.assertEqual((root / ".trellis" / ".developer").read_text(encoding="utf-8").strip(), "alice")
+        self.assertTrue((root / ".trellis" / "workspace" / "index.md").is_file())
+        self.assertTrue((root / ".trellis" / "workspace" / "alice" / "index.md").is_file())
+        self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
+        self.assertFalse((root / ".trellis" / "workspace" / "alice" / "journal.md").exists())
+        self.assertTrue((root / ".trellis" / "workspace" / "alice" / "preferences.md").is_file())
+
+        workspace_index = (root / ".trellis" / "workspace" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("| (none yet) | - | - | - |", workspace_index)
+        developer_index = (root / ".trellis" / "workspace" / "alice" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("<!-- @@@auto:current-status -->", developer_index)
+        self.assertIn("`journal-1.md`", developer_index)
+
+    def test_init_local_wrapper_delegates_to_personalize_local(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        (root / ".trellis").mkdir(parents=True)
+        (root / ".trellis" / ".team-kit-version").write_text("1\n", encoding="utf-8")
+
+        result = subprocess.run(
+            ["bash", str(INIT_LOCAL), "alice"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertIn("compatibility alias", result.stderr)
+        self.assertTrue((root / ".trellis" / "workspace" / "alice" / "preferences.md").is_file())
+
+
+class InitScriptTests(unittest.TestCase):
+    def _init_git_repo(self, root: Path) -> None:
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True, capture_output=True, text=True)
+
+    def _write_fake_trellis(self, bin_dir: Path) -> None:
+        script = bin_dir / "trellis"
+        script.write_text(
+            textwrap.dedent(
+                """\
+                #!/usr/bin/env bash
+                set -euo pipefail
+
+                if [ "${1:-}" != "init" ]; then
+                  echo "unexpected args: $*" >&2
+                  exit 1
+                fi
+
+                mkdir -p .trellis/spec .trellis/tasks .trellis/config
+                """
+            ),
+            encoding="utf-8",
+        )
+        script.chmod(0o755)
+
+    def _write_fake_claude(self, bin_dir: Path) -> None:
+        script = bin_dir / "claude"
+        script.write_text(
+            textwrap.dedent(
+                """\
+                #!/usr/bin/env bash
+                set -euo pipefail
+
+                if [ "${1:-}" = "plugin" ] && [ "${2:-}" = "list" ]; then
+                  cat <<'EOF'
+                Installed plugins:
+
+                  ❯ superpowers@claude-plugins-official
+                    Version: 5.1.0
+                    Scope: user
+                    Status: ✘ disabled
+                EOF
+                  exit 0
+                fi
+
+                echo "unexpected args: $*" >&2
+                exit 1
+                """
+            ),
+            encoding="utf-8",
+        )
+        script.chmod(0o755)
+
+    def _run_init(self, root: Path, env: dict[str, str], mode: str) -> subprocess.CompletedProcess[str]:
+        if mode == "local":
+            return subprocess.run(
+                ["bash", str(INIT_SH), "alice"],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+        if mode == "remote":
+            raw_base = REPO_ROOT.resolve().as_uri()
+            cmd = f"TTK_INIT_RAW_BASE='{raw_base}' bash <(cat '{INIT_SH}') alice"
+            return subprocess.run(
+                ["bash", "-lc", cmd],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+        raise ValueError(f"unsupported mode: {mode}")
+
+    def test_init_installs_local_scaffold_and_runs_post_install_checks(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        self._init_git_repo(root)
+
+        fake_bin = root / "fake-bin"
+        fake_bin.mkdir()
+        self._write_fake_trellis(fake_bin)
+        self._write_fake_claude(fake_bin)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+
+        result = self._run_init(root, env, mode="local")
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        self.assertTrue((root / ".claude" / "settings.local.json").is_file())
+        self.assertEqual((root / ".trellis" / ".developer").read_text(encoding="utf-8").strip(), "alice")
+        self.assertTrue((root / ".trellis" / "workspace" / "index.md").is_file())
+        self.assertTrue((root / ".trellis" / "workspace" / "alice" / "index.md").is_file())
+        self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
+        self.assertTrue((root / ".trellis" / "config" / "config.json").is_file())
+        self.assertIn("OVERALL: PASS — Runtime hardening checks passed", result.stdout)
+        self.assertIn("superpowers@claude-plugins-official", result.stdout)
+        self.assertIn("disabled", result.stdout)
+        self.assertIn("oh-my-claudecode@omc", result.stdout)
+        self.assertIn("not installed", result.stdout)
+        self.assertIn("team-managed files are refreshed on rerun", result.stdout)
+        self.assertIn("local personal files are preserved when already present", result.stdout)
+        self.assertIn("personalize-local.sh", result.stdout)
+
+    def test_init_supports_remote_mode_via_local_raw_base_override(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        self._init_git_repo(root)
+
+        fake_bin = root / "fake-bin"
+        fake_bin.mkdir()
+        self._write_fake_trellis(fake_bin)
+        self._write_fake_claude(fake_bin)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+
+        result = self._run_init(root, env, mode="remote")
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        self.assertIn("Mode:       remote", result.stdout)
+        self.assertTrue((root / ".trellis" / "config" / "config.json").is_file())
+        self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
+
+
+class SmokeInstallScriptTests(unittest.TestCase):
+    def test_smoke_script_help_mentions_supported_modes(self):
+        result = subprocess.run(
+            ["bash", str(SMOKE_INSTALL), "--help"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertIn("--mode local|remote|all", result.stdout)
+        self.assertIn("simulated-remote", result.stdout)
+
+
 class FinalizeTaskArchiveTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -1772,6 +1973,134 @@ class FinalizeTaskArchiveTests(unittest.TestCase):
         validate_task_module = load_module(VALIDATE_TASK, "validate_task_module_finalize")
         ok, issues = validate_task_module.validate_task(archived_task)
         self.assertTrue(ok, msg=f"Unexpected archived task issues: {issues}")
+        self.assertTrue(changes)
+
+    def test_finalize_archived_task_repairs_legacy_journal_and_missing_indexes(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        archived_task = root / ".trellis" / "tasks" / "archive" / "2026-06" / "legacy-task"
+        (archived_task / "research").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "guides").mkdir(parents=True)
+        legacy_workspace = root / ".trellis" / "workspace" / "alice"
+        legacy_workspace.mkdir(parents=True)
+
+        (root / ".trellis" / "spec" / "guides" / "index.md").write_text("# Guides\n", encoding="utf-8")
+        (archived_task / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
+        (archived_task / "task.json").write_text(
+            json.dumps(
+                {
+                    "id": "legacy-task",
+                    "title": "Legacy Task",
+                    "status": "completed",
+                    "creator": "alice",
+                    "base_branch": "main",
+                    "completedAt": "2026-06-04",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "prd.md").write_text("# PRD\n\n## Acceptance Criteria\n\n- AC1\n", encoding="utf-8")
+        (archived_task / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Task Level
+
+                Selected level:
+                - [x] L3 Complex Task
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "validation").mkdir(parents=True, exist_ok=True)
+        (archived_task / "validation" / "check-results.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Build
+                - [x] pass
+
+                ## Test
+                - [x] pass
+
+                ## Ready for finish-work?
+                - [x] yes
+                """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: completed the legacy task
+                - Evidence: archived validation
+
+                ## Commits
+
+                - abc1234 feat: legacy task
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+
+                ## Summary
+
+                Completed the legacy task with archived evidence.
+                """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "implement.jsonl").write_text(
+            json.dumps({"file": ".trellis/spec/guides/index.md", "reason": "context"}) + "\n",
+            encoding="utf-8",
+        )
+        (archived_task / "check.jsonl").write_text(
+            json.dumps({"file": ".trellis/spec/guides/index.md", "reason": "verify"}) + "\n",
+            encoding="utf-8",
+        )
+        (legacy_workspace / "journal.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Session 1: legacy-task
+
+                ### Main Changes
+
+                (Add details)
+
+                ### Git Commits
+
+                (No commits - planning session)
+
+                ### Testing
+
+                - [OK] (Add test results)
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        changes = self.module.finalize_archived_task(archived_task, root)
+
+        self.assertTrue((root / ".trellis" / "workspace" / "index.md").is_file())
+        self.assertTrue((legacy_workspace / "index.md").is_file())
+        self.assertTrue((legacy_workspace / "journal-1.md").is_file())
+        self.assertFalse((legacy_workspace / "journal.md").exists())
+        journal = (legacy_workspace / "journal-1.md").read_text(encoding="utf-8")
+        self.assertIn("legacy-task", journal)
+        self.assertNotIn("(No commits - planning session)", journal)
+        developer_index = (legacy_workspace / "index.md").read_text(encoding="utf-8")
+        self.assertIn("| 1 | 2026-06-04 | legacy-task: Legacy Task | 1 | `main` |", developer_index)
         self.assertTrue(changes)
 
 
@@ -2961,6 +3290,30 @@ class SpecTemplateIntegrityTests(unittest.TestCase):
             self.assertFalse(self.validator.validate_spec_index(str(spec_root)))
 
 
+class TrellisConfigValidatorTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.validator = load_module(VALIDATE_TRELLIS_CONFIG, "validate_trellis_config_module")
+
+    def test_default_config_passes(self):
+        config_path = REPO_ROOT / "trellis" / "config" / "config.json"
+        passed, issues = self.validator.validate_config_file(config_path)
+        self.assertTrue(passed, msg=f"Default config failed: {issues}")
+
+    def test_missing_dispatch_mode_fails(self):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as handle:
+            json.dump({"codex": {}}, handle)
+            path = Path(handle.name)
+        try:
+            passed, issues = self.validator.validate_config_file(path)
+            self.assertFalse(passed)
+            self.assertTrue(any("dispatch_mode" in issue for issue in issues))
+        finally:
+            path.unlink()
+
+
 class RuntimeHardeningValidatorTests(unittest.TestCase):
     def test_runtime_hardening_runs_spec_index_validation(self):
         result = subprocess.run(
@@ -2972,6 +3325,7 @@ class RuntimeHardeningValidatorTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
         self.assertIn("[PASS] validate_spec_index.py", result.stdout)
+        self.assertIn("[PASS] validate_trellis_config.py", result.stdout)
 
 
 if __name__ == "__main__":
