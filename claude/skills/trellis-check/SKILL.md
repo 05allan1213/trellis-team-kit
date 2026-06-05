@@ -46,6 +46,11 @@ Check is a gate. FAIL means return to IMPLEMENTING. Do not proceed to review gat
 
 4. **Report and fix** — fix violations directly. Re-run checks after fixes.
 
+5. **Write the check gate artifact** — save the gate report to
+   `{TASK_DIR}/validation/check-results.md`.
+   `validation/test-results.md` is reserved for the later finish-stage
+   validation summary, not for Phase 2.2.
+
 ### Deep Check (L4-L5)
 
 In addition to the basic check, verify these dimensions:
@@ -95,6 +100,8 @@ In addition to the basic check, verify these dimensions:
     - [ ] Migration (if any) has a rollback path
 
 ## Output Format
+
+Write to `{TASK_DIR}/validation/check-results.md`:
 
 ```markdown
 # Check Results: [Task Title]

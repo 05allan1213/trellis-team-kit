@@ -34,50 +34,65 @@ def _has_status_section(content: str) -> bool:
     )
 
 
-def _extract_review_verdict(content: str) -> Optional[str]:
+def _classify_verdict_payload(payload: str) -> Optional[str]:
+    stripped = payload.strip().lower()
+    if not stripped:
+        return None
+    if re.search(r"\bpass\s*/\s*fail\b|\bfail\s*/\s*pass\b", stripped):
+        return None
+
+    if re.match(r"^[-*]\s*\[[ x]\]\s*", stripped):
+        if not re.match(r"^[-*]\s*\[[x]\]\s*", stripped):
+            return None
+        stripped = re.sub(r"^[-*]\s*\[[x]\]\s*", "", stripped, count=1)
+    else:
+        stripped = re.sub(r"^(?:[-*]|\d+\.)\s*", "", stripped, count=1)
+
+    if re.match(r"^(?:redesign-required|redesign required)\b", stripped):
+        return "fail"
+    if re.match(r"^pass\b", stripped):
+        return "pass"
+    if re.match(r"^fail\b", stripped):
+        return "fail"
+    return None
+
+
+def extract_gate_verdict(content: str) -> Optional[str]:
     for line in content.splitlines():
         stripped = line.strip().lower()
         if not stripped:
             continue
         inline = re.match(r"^(?:#+\s*)?(?:status|verdict)\s*:\s*(.+)$", stripped)
         if inline:
-            payload = inline.group(1).strip()
-            if re.match(r"^fail\b", payload):
-                return "fail"
-            if re.match(r"^(?:redesign-required|redesign required)\b", payload):
-                return "fail"
-            if re.match(r"^pass\b", payload):
-                return "pass"
-        if re.match(r"^-\s*\[x\]\s*fail\b", stripped):
-            return "fail"
-        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
-            return "pass"
+            verdict = _classify_verdict_payload(inline.group(1))
+            if verdict is not None:
+                return verdict
+        if re.match(r"^[-*]\s*\[[x]\]\s*", stripped):
+            verdict = _classify_verdict_payload(stripped)
+            if verdict is not None:
+                return verdict
 
     section_match = re.search(
         r"^\s*#+\s*(?:status|verdict)\s*$",
         content,
-        re.MULTILINE,
+        re.IGNORECASE | re.MULTILINE,
     )
     if not section_match:
         return None
 
     section = content[section_match.end():]
+    verdicts: set[str] = set()
     for line in section.splitlines():
         stripped = line.strip().lower()
         if not stripped:
             continue
         if stripped.startswith("#"):
             break
-        if re.match(r"^-\s*\[x\]\s*fail\b", stripped):
-            return "fail"
-        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
-            return "pass"
-        if re.match(r"^fail\b(?!\s*/)", stripped):
-            return "fail"
-        if re.match(r"^(?:redesign-required|redesign required)\b", stripped):
-            return "fail"
-        if re.match(r"^pass\b(?!\s*/)", stripped):
-            return "pass"
+        verdict = _classify_verdict_payload(stripped)
+        if verdict is not None:
+            verdicts.add(verdict)
+    if len(verdicts) == 1:
+        return next(iter(verdicts))
     return None
 
 
@@ -99,7 +114,7 @@ def check_review_gate(task_dir: Path, gate_name: str) -> Optional[str]:
     if not _has_status_section(content):
         return "no-verdict"
 
-    verdict = _extract_review_verdict(content)
+    verdict = extract_gate_verdict(content)
     if verdict == "fail":
         return "fail"
     if verdict == "pass":

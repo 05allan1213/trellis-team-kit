@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +14,91 @@ PLACEHOLDER_JOURNAL_MARKERS = (
     "(Add details)",
     "(Add test results)",
 )
+
+
+def _classify_verdict_payload(payload: str) -> str | None:
+    stripped = payload.strip().lower()
+    if not stripped:
+        return None
+    if re.search(r"\bpass\s*/\s*fail\b|\bfail\s*/\s*pass\b", stripped):
+        return None
+
+    if re.match(r"^[-*]\s*\[[ x]\]\s*", stripped):
+        if not re.match(r"^[-*]\s*\[[x]\]\s*", stripped):
+            return None
+        stripped = re.sub(r"^[-*]\s*\[[x]\]\s*", "", stripped, count=1)
+    else:
+        stripped = re.sub(r"^(?:[-*]|\d+\.)\s*", "", stripped, count=1)
+
+    if re.match(r"^(?:redesign-required|redesign required)\b", stripped):
+        return "fail"
+    if re.match(r"^pass\b", stripped):
+        return "pass"
+    if re.match(r"^fail\b", stripped):
+        return "fail"
+    return None
+
+
+def _extract_gate_verdict(content: str) -> str | None:
+    for line in content.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        inline = re.match(r"^(?:#+\s*)?(?:status|verdict)\s*:\s*(.+)$", stripped)
+        if inline:
+            verdict = _classify_verdict_payload(inline.group(1))
+            if verdict is not None:
+                return verdict
+        if re.match(r"^[-*]\s*\[[x]\]\s*", stripped):
+            verdict = _classify_verdict_payload(stripped)
+            if verdict is not None:
+                return verdict
+
+    section_match = re.search(
+        r"^\s*#+\s*(?:status|verdict)\s*$",
+        content,
+        re.IGNORECASE | re.MULTILINE,
+    )
+    if not section_match:
+        return None
+
+    section = content[section_match.end():]
+    verdicts: set[str] = set()
+    for line in section.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            break
+        verdict = _classify_verdict_payload(stripped)
+        if verdict is not None:
+            verdicts.add(verdict)
+    if len(verdicts) == 1:
+        return next(iter(verdicts))
+    return None
+
+
+def _checkbox_section_status(content: str, heading: str) -> str | None:
+    match = re.search(rf"^## {re.escape(heading)}(?:\s|$)", content, re.IGNORECASE | re.MULTILINE)
+    if not match:
+        return None
+
+    section = content[match.end():]
+    for line in section.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        if stripped.startswith("## "):
+            break
+        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
+            return "pass"
+        if re.match(r"^-\s*\[x\]\s*fail\b", stripped):
+            return "fail"
+        if re.match(r"^-\s*\[x\]\s*yes\b", stripped):
+            return "yes"
+        if re.match(r"^-\s*\[x\]\s*no\b", stripped):
+            return "no"
+    return None
 
 
 def read_file(path: Path) -> str | None:
@@ -89,10 +175,35 @@ def check_done_requires_no_failures(task_dir: Path, task_data: dict) -> list[str
             continue
         for md_file in base.glob("*.md"):
             content = read_file(md_file)
-            if content and "FAIL" in content.upper():
-                violations.append(
-                    f"Task claims done/archived but {md_file.relative_to(task_dir)} contains FAIL"
-                )
+            if not content:
+                continue
+            rel = md_file.relative_to(task_dir)
+            if subdir == "review":
+                if _extract_gate_verdict(content) == "fail":
+                    violations.append(
+                        f"Task claims done/archived but {rel} has a FAIL verdict"
+                    )
+                continue
+            if md_file.name == "check-results.md":
+                if _extract_gate_verdict(content) == "fail":
+                    violations.append(
+                        f"Task claims done/archived but {rel} has a FAIL verdict"
+                    )
+                continue
+            if md_file.name == "test-results.md":
+                failed_sections = [
+                    heading
+                    for heading in ("Build", "Test", "Smoke")
+                    if _checkbox_section_status(content, heading) == "fail"
+                ]
+                if failed_sections:
+                    violations.append(
+                        f"Task claims done/archived but {rel} still marks FAIL for: {', '.join(failed_sections)}"
+                    )
+                if _checkbox_section_status(content, "Ready for finish-work?") == "no":
+                    violations.append(
+                        f"Task claims done/archived but {rel} still marks 'Ready for finish-work?' as no"
+                    )
     return violations
 
 

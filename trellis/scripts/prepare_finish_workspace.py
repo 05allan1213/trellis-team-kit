@@ -4,13 +4,15 @@
 This script makes local workflow/runtime state safe for Phase 3.2 commits:
 - ensure ignore rules exist for local-only state
 - untrack any previously tracked local-only state paths
+- remove stale, unregistered `.trellis/worktrees/*` residue
 
-It does NOT delete working-tree files. `git rm --cached` only removes them from
-the index so they stop polluting future dirty-state checks.
+It does NOT delete active git worktrees. Cleanup only removes `.trellis`
+residue directories that are not registered in `git worktree list`.
 """
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +22,7 @@ IGNORE_BLOCK_END = "# END trellis-team-kit local state"
 IGNORE_BLOCK_LINES = [
     IGNORE_BLOCK_BEGIN,
     ".trellis/.developer",
+    ".trellis/worktrees/",
     ".claude/settings.local.json",
     ".omc/",
     "**/.omc/",
@@ -70,6 +73,8 @@ def _is_local_state_path(path: str) -> bool:
         return False
     if normalized == ".trellis/.developer" or normalized.startswith(".trellis/.developer/"):
         return True
+    if normalized == ".trellis/worktrees" or normalized.startswith(".trellis/worktrees/"):
+        return True
     if normalized == ".claude/settings.local.json":
         return True
     parts = normalized.split("/")
@@ -95,6 +100,39 @@ def untrack_paths(repo_root: Path, paths: list[str]) -> bool:
     return True
 
 
+def _registered_worktree_paths(repo_root: Path) -> set[Path]:
+    result = _run_git(repo_root, ["worktree", "list", "--porcelain"])
+    if result.returncode != 0:
+        return set()
+
+    paths: set[Path] = set()
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            raw_path = line[len("worktree "):].strip()
+            if raw_path:
+                paths.add(Path(raw_path).resolve())
+    return paths
+
+
+def cleanup_stale_trellis_worktrees(repo_root: Path) -> list[str]:
+    worktrees_dir = repo_root / ".trellis" / "worktrees"
+    if not worktrees_dir.is_dir():
+        return []
+
+    registered = _registered_worktree_paths(repo_root)
+    changes: list[str] = []
+    for child in sorted(worktrees_dir.iterdir()):
+        if not child.is_dir():
+            continue
+        if child.resolve() in registered:
+            continue
+        if (child / ".git").exists():
+            continue
+        shutil.rmtree(child)
+        changes.append(f"removed stale trellis worktree residue '{child.relative_to(repo_root)}'")
+    return changes
+
+
 def prepare_finish_workspace(repo_root: Path) -> tuple[list[str], list[str]]:
     changes: list[str] = []
     warnings: list[str] = []
@@ -106,6 +144,8 @@ def prepare_finish_workspace(repo_root: Path) -> tuple[list[str], list[str]]:
     if tracked:
         untrack_paths(repo_root, tracked)
         changes.append(f"untracked {len(tracked)} local-state path(s) from git index")
+
+    changes.extend(cleanup_stale_trellis_worktrees(repo_root))
 
     if not changes:
         warnings.append("no local-state cleanup was needed")

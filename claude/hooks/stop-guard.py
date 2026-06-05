@@ -66,6 +66,7 @@ from task_artifacts import (  # type: ignore[import-not-found]
     GATE_FILE_MAP,
     check_review_gate,
     check_validation,
+    extract_gate_verdict,
     parse_selected_gates,
 )
 
@@ -337,8 +338,8 @@ def main() -> int:
         check_done = False
         if check_file.is_file():
             try:
-                c = check_file.read_text(encoding="utf-8").lower()
-                check_done = "- [x] pass" in c or "- [x] fail" in c
+                c = check_file.read_text(encoding="utf-8")
+                check_done = extract_gate_verdict(c) in {"pass", "fail"}
             except OSError:
                 pass
 
@@ -374,7 +375,7 @@ def main() -> int:
                 hard_blocks.append(
                     f"Selected review gate '{gate}' has no PASS/FAIL verdict.\n"
                     f"  → To fix: Open '{gate_file}' and ensure it has "
-                    f"checked checkbox verdict ('- [x] pass' or '- [x] fail')."
+                    f"a concrete verdict section (for example '## Verdict' + 'PASS')."
                 )
 
         # Validation check

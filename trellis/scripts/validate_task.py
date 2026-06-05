@@ -96,6 +96,68 @@ def _extract_markdown_section(content: str, heading: str) -> str:
     return "\n".join(collected).strip()
 
 
+def _classify_verdict_payload(payload: str) -> str | None:
+    stripped = payload.strip().lower()
+    if not stripped:
+        return None
+    if re.search(r"\bpass\s*/\s*fail\b|\bfail\s*/\s*pass\b", stripped):
+        return None
+
+    if re.match(r"^[-*]\s*\[[ x]\]\s*", stripped):
+        if not re.match(r"^[-*]\s*\[[x]\]\s*", stripped):
+            return None
+        stripped = re.sub(r"^[-*]\s*\[[x]\]\s*", "", stripped, count=1)
+    else:
+        stripped = re.sub(r"^(?:[-*]|\d+\.)\s*", "", stripped, count=1)
+
+    if re.match(r"^(?:redesign-required|redesign required)\b", stripped):
+        return "fail"
+    if re.match(r"^pass\b", stripped):
+        return "pass"
+    if re.match(r"^fail\b", stripped):
+        return "fail"
+    return None
+
+
+def _extract_gate_verdict(content: str) -> str | None:
+    for line in content.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        inline = re.match(r"^(?:#+\s*)?(?:status|verdict)\s*:\s*(.+)$", stripped)
+        if inline:
+            verdict = _classify_verdict_payload(inline.group(1))
+            if verdict is not None:
+                return verdict
+        if re.match(r"^[-*]\s*\[[x]\]\s*", stripped):
+            verdict = _classify_verdict_payload(stripped)
+            if verdict is not None:
+                return verdict
+
+    section_match = re.search(
+        r"^\s*#+\s*(?:status|verdict)\s*$",
+        content,
+        re.IGNORECASE | re.MULTILINE,
+    )
+    if not section_match:
+        return None
+
+    verdicts: set[str] = set()
+    section = content[section_match.end():]
+    for line in section.splitlines():
+        stripped = line.strip().lower()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            break
+        verdict = _classify_verdict_payload(stripped)
+        if verdict is not None:
+            verdicts.add(verdict)
+    if len(verdicts) == 1:
+        return next(iter(verdicts))
+    return None
+
+
 def _has_concrete_observable_outcome(section_text: str) -> bool:
     for line in section_text.splitlines():
         stripped = line.strip()
@@ -383,17 +445,7 @@ def _check_requires_checker_pass(implement_md: Path, task_dir: Path, task_id: st
         )
         return errors
 
-    has_pass = False
-    for line in check_content.splitlines():
-        stripped = line.strip()
-        if re.match(r"^-\s*\[x\]\s*pass\b", stripped):
-            has_pass = True
-            break
-        if re.match(r"^(?:#+\s*)?(?:status|verdict)\s*:\s*pass\b", stripped):
-            has_pass = True
-            break
-
-    if not has_pass:
+    if _extract_gate_verdict(check_content) != "pass":
         errors.append(
             f"Task '{task_id}': validation/check-results.md exists but no PASS verdict found"
         )

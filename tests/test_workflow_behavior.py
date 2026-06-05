@@ -1313,6 +1313,100 @@ class StopGuardTests(unittest.TestCase):
         self.assertEqual(response["decision"], "block")
         self.assertIn("Finish Approval", response["reason"])
 
+    def test_claiming_done_accepts_canonical_gate_verdict_sections(self):
+        root, task_dir = self.make_repo()
+        (task_dir / "validation" / "check-results.md").write_text(
+            textwrap.dedent(
+                """\
+                # Check Results: Example
+
+                ## Verdict
+
+                - PASS — all checks pass
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "review" / "code-review.md").write_text(
+            textwrap.dedent(
+                """\
+                # Code Quality Review
+
+                ## Verdict
+
+                PASS
+
+                ## Blocking Issues
+
+                - none
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "prd.md").write_text("# PRD\n", encoding="utf-8")
+        (task_dir / "research").mkdir(parents=True)
+        (task_dir / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
+        (task_dir / "implement.jsonl").write_text(
+            json.dumps({"file": "$TASK_DIR/research/grill-me.md", "reason": "context"}) + "\n",
+            encoding="utf-8",
+        )
+        (task_dir / "check.jsonl").write_text(
+            json.dumps({"file": "$TASK_DIR/research/grill-me.md", "reason": "verify"}) + "\n",
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Finish Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 进入 Finish 阶段
+                - timestamp: 2026-06-04T12:00:00Z
+                - summary approved: enter finish
+
+                Allowed to proceed with finish?
+                - [x] yes
+                - [ ] no
+
+                ## Observable Outcomes
+
+                - Outcome: done
+                - Evidence: tests
+
+                ## Delivery Sync Check
+
+                - [x] README / user docs reviewed
+                - [x] Example commands / scripts reviewed
+                - [x] Public API paths / contracts reviewed
+                - [x] Implemented vs planned status reviewed
+
+                Files checked:
+                - README.md — reviewed
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [sys.executable, str(STOP_GUARD_HOOK)],
+            input=json.dumps({"cwd": str(root), "message": "任务完成了"}),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertEqual(result.stdout.strip(), "")
+
 
 class ValidateDeliverySyncTests(unittest.TestCase):
     @classmethod
@@ -1592,6 +1686,26 @@ class PrepareFinishWorkspaceTests(unittest.TestCase):
         self.assertEqual(tracked, "")
         gitignore = (root / ".gitignore").read_text(encoding="utf-8")
         self.assertIn(".omc/", gitignore)
+        self.assertFalse(warnings)
+
+    def test_prepare_finish_workspace_removes_stale_trellis_worktree_residue(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True, capture_output=True, text=True)
+
+        stale = root / ".trellis" / "worktrees" / "stale-task" / ".trellis" / "tasks"
+        stale.mkdir(parents=True)
+
+        changes, warnings = self.module.prepare_finish_workspace(root)
+
+        self.assertFalse(stale.parent.parent.exists())
+        self.assertTrue(any("stale trellis worktree residue" in change for change in changes))
+        gitignore = (root / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn(".trellis/worktrees/", gitignore)
         self.assertFalse(warnings)
 
 
@@ -2066,11 +2180,11 @@ class FinalizeTaskArchiveTests(unittest.TestCase):
             encoding="utf-8",
         )
         (archived_task / "implement.jsonl").write_text(
-            json.dumps({"file": ".trellis/spec/guides/index.md", "reason": "context"}) + "\n",
+            json.dumps({"file": "$TASK_DIR/research/grill-me.md", "reason": "context"}) + "\n",
             encoding="utf-8",
         )
         (archived_task / "check.jsonl").write_text(
-            json.dumps({"file": ".trellis/spec/guides/index.md", "reason": "verify"}) + "\n",
+            json.dumps({"file": "$TASK_DIR/research/grill-me.md", "reason": "verify"}) + "\n",
             encoding="utf-8",
         )
         (legacy_workspace / "journal.md").write_text(
@@ -2174,6 +2288,43 @@ class ValidateReviewGatesTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertTrue(any("trellis-code-review" in err for err in errors))
+
+    def test_accepts_canonical_verdict_section_body(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                """
+            )
+        )
+        (task_dir / "review" / "code-review.md").write_text(
+            textwrap.dedent(
+                """\
+                # Code Quality Review
+
+                ## Verdict
+
+                PASS
+
+                ## Blocking Issues
+
+                - none
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected gate errors: {errors}")
 
 
 class PromptRoutingScorerTests(unittest.TestCase):

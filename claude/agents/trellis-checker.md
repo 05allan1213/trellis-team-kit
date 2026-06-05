@@ -55,7 +55,9 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 - Edit source code to fix issues found during checking.
 - Run lint, typecheck, and test commands via Bash.
 - Search code with Glob, Grep.
-- Write to `{TASK_DIR}/validation/` for test results.
+- Write the Phase 2.2 gate report to `{TASK_DIR}/validation/check-results.md`.
+- Leave `{TASK_DIR}/validation/test-results.md` for the later finish-stage
+  validation summary.
 
 ## Forbidden Actions
 
@@ -106,6 +108,9 @@ After finding issues:
 3. Continue checking other issues.
 
 ### Step 5: Run Verification
+
+Write the final check report to `{TASK_DIR}/validation/check-results.md`.
+
 
 Run project's lint, typecheck, and test commands:
 
