@@ -605,9 +605,9 @@ def _check_file_operation(
                 if declared and not _is_path_declared(norm_path, declared):
                     if _is_high_risk_path(norm_path):
                         return (
-                            f"BLOCKED: Editing high-risk undeclared path: {norm_path}\n"
+                            f"WARNING: Editing high-risk undeclared path: {norm_path}\n"
                             f"  Current state: IN_PROGRESS\n"
-                            f"  Blocked action: Write/Edit to source file\n"
+                            f"  Warned action: Write/Edit to source file\n"
                             f"  Reason: This file is in a high-risk area (auth, migration, "
                             f"schema, API contract, shared types) and is NOT declared in "
                             f"implement.md 'Files / Areas Likely Touched'.\n"

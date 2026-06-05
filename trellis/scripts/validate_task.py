@@ -6,7 +6,7 @@ Checks:
 - task.json exists and is valid
 - Task level is valid (L0-L5)
 - Required artifacts by level are present
-- implement.jsonl / check.jsonl must exist and be non-empty
+- L3+ implement.jsonl / check.jsonl must exist and be non-empty
 - Approval status
 - Review gate contract is present
 - Validation results
@@ -23,7 +23,7 @@ from pathlib import Path
 LEVEL_ARTIFACT_REQUIREMENTS: dict[str, list[str]] = {
     "L0": [],
     "L1": [],
-    "L2": ["prd.md", "research/grill-me.md"],
+    "L2": ["prd.md", "implement.md"],
     "L3": ["prd.md", "research/grill-me.md", "implement.md"],
     "L4": ["prd.md", "research/grill-me.md", "implement.md", "design.md"],
     "L5": ["prd.md", "research/grill-me.md", "implement.md", "design.md"],
@@ -32,7 +32,7 @@ LEVEL_ARTIFACT_REQUIREMENTS: dict[str, list[str]] = {
 LEVEL_JSONL_REQUIREMENTS: dict[str, list[str]] = {
     "L0": [],
     "L1": [],
-    "L2": ["implement.jsonl", "check.jsonl"],
+    "L2": [],
     "L3": ["implement.jsonl", "check.jsonl"],
     "L4": ["implement.jsonl", "check.jsonl"],
     "L5": ["implement.jsonl", "check.jsonl"],

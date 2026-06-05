@@ -75,7 +75,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 ## L2 — Light Implementation
 
 - **Create task**: Recommended
-- **Artifacts**: `prd.md`
+- **Artifacts**: `prd.md` + minimal `implement.md`
 - **Execution**: Main session or subagent
 - **Gates**: `trellis-check`
 

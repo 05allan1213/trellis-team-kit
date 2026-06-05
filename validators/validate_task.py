@@ -56,6 +56,8 @@ def check_required_files(task_dir: Path, level: str) -> list[str]:
     if level in ("L2", "L3", "L4", "L5"):
         if not (task_dir / "prd.md").exists():
             missing.append("prd.md (required for L2+)")
+        if not (task_dir / "implement.md").exists():
+            missing.append("implement.md (required for L2+ implementation approval)")
 
     # design.md required for L4/L5
     if level in ("L4", "L5"):
@@ -80,19 +82,24 @@ def check_prd_acceptance_criteria(task_dir: Path) -> list[str]:
     return missing
 
 
-def check_implement_sections(task_dir: Path) -> list[str]:
+def check_implement_sections(task_dir: Path, level: str) -> list[str]:
     """Check that implement.md has required sections."""
     missing = []
     content = read_file(task_dir / "implement.md")
     if content is None:
-        # implement.md may not exist for L2
+        return missing
+
+    if level == "L2":
+        if not re.search(r"##?\s*implementation\s+approval", content, re.IGNORECASE):
+            missing.append("implement.md missing 'Implementation Approval' section")
         return missing
 
     if not re.search(r"##?\s*development\s+strategy", content, re.IGNORECASE):
         missing.append("implement.md missing 'Development Strategy' section")
 
     if not re.search(r"##?\s*review\s+gate\s+contract", content, re.IGNORECASE):
-        missing.append("implement.md missing 'Review Gate Contract' section")
+        if level in ("L3", "L4", "L5"):
+            missing.append("implement.md missing 'Review Gate Contract' section")
 
     return missing
 
@@ -171,7 +178,7 @@ def validate_task(task_dir: str) -> bool:
     all_issues.extend(check_prd_acceptance_criteria(task_path))
 
     # Check implement.md sections
-    all_issues.extend(check_implement_sections(task_path))
+    all_issues.extend(check_implement_sections(task_path, level))
 
     # Validate JSONL files
     all_issues.extend(validate_jsonl(task_path))

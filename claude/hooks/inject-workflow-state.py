@@ -154,7 +154,7 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
             "No active task.\n"
             "Suggested route: L2 lightweight task.\n"
             "Recommended next step: ask for task-creation consent and keep planning light "
-            "(prd.md + grill-me + implement.md + trellis-check).\n"
+            "(prd.md + minimal implement.md + trellis-check).\n"
             "Task creation approval is NOT implementation approval."
         )
 

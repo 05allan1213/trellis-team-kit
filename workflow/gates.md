@@ -13,9 +13,9 @@
 - **Blocks**: Source editing, implementer spawn, `task.py start`
 
 ### 3. Planning Artifact Gate
-- **L2**: `prd.md` with testable AC
-- **L3**: `prd.md` + `implement.md` + `design.md` (optional)
-- **L4/L5**: `prd.md` + `design.md` + `implement.md`
+- **L2**: `prd.md` with testable AC + minimal `implement.md`
+- **L3**: `prd.md` + `research/grill-me.md` + `implement.md` + JSONLs + `design.md` (optional)
+- **L4/L5**: `prd.md` + `research/grill-me.md` + `design.md` + `implement.md` + JSONLs
 - **Blocks**: Missing required artifact → no `task.py start`
 
 ### 4. Before-Dev Gate

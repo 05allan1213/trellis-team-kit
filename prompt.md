@@ -70,9 +70,9 @@ Plan 阶段要求：
 1. 创建 task（task.py create）。
 2. 使用 trellis-brainstorm 产出并迭代 prd.md。
 3. PRD 写清楚目标、范围、非目标、约束、验收标准。
-4. 运行 trellis-grill-me 挑刺 PRD。
-5. L3+ 任务按需补充 design.md 和 implement.md。
-6. 配置 implement/check context（JSONL）。
+4. L3+ 运行 trellis-grill-me 挑刺 PRD；L2 仅在需求不清或风险升高时运行。
+5. 写 implement.md：L2 用 minimal implement.md；L3+ 写完整 dev strategy + Review Gate Contract；L4/L5 补充 design.md。
+6. L3+ 配置 implement/check context（JSONL）；L2 可跳过，除非额外上下文能明显降低风险。
 7. Plan 完成后停下来，等待我确认，不要开始改代码。
 ```
 
@@ -278,7 +278,7 @@ Merge-Review 计划:
 AI 会自动：
 1. 判断任务等级（L1-L5）
 2. 如果明显是 L1，则建议 inline；如果边界模糊，则先给建议等级并等我确认/改级；否则创建 Trellis task
-3. 运行 brainstorm → grill-me → dev-strategy（按等级决定是否需要 design.md）
+3. 运行 brainstorm → dev-strategy；L3+ 还要 grill-me，按等级决定是否需要 design.md / JSONL
 4. 判断是否需要 Superpowers（需求不清 / 架构权衡 / 多方案取舍时自动启用）
 5. 判断是否建议并行：默认先考虑 Trellis 原生并行；只有需要高级编排时才建议 OMC `ulw/ultrawork`，并等待确认
 6. 停下来等你确认 Plan

@@ -71,6 +71,7 @@ class InjectWorkflowStateTests(unittest.TestCase):
         self.assertIn("Suggested route: L2", context)
         self.assertIn("ask for task-creation consent", context)
         self.assertIn("keep planning light", context)
+        self.assertIn("minimal implement.md", context)
 
     def test_chinese_l1_prompt_gets_inline_recommendation(self):
         context = self.run_hook("顺手把登录页的错误提示文案改一下")
@@ -215,6 +216,28 @@ class ValidateTaskTests(unittest.TestCase):
             encoding="utf-8",
         )
         (task_dir / "prd.md").write_text("# PRD\n", encoding="utf-8")
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
         (task_dir / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
         (task_dir / "implement.jsonl").write_text(
             json.dumps(
@@ -328,6 +351,73 @@ class ValidateTaskTests(unittest.TestCase):
         ok, issues = self.module.validate_task(task_dir)
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_l2_done_task_allows_minimal_artifacts_without_grill_or_jsonl(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Task Summary
+
+                done
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: manual verification on local environment
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "research" / "grill-me.md").unlink()
+        (task_dir / "implement.jsonl").unlink()
+        (task_dir / "check.jsonl").unlink()
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_l3_done_task_still_requires_jsonl_context(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Task Summary
+
+                done
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: manual verification on local environment
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "done"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.jsonl").unlink()
+        (task_dir / "check.jsonl").unlink()
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("required 'implement.jsonl'" in issue for issue in issues))
+        self.assertTrue(any("required 'check.jsonl'" in issue for issue in issues))
 
     def test_done_task_accepts_prose_observable_outcomes(self):
         task_dir = self.make_task_dir(
@@ -498,6 +588,28 @@ class ValidateTaskTests(unittest.TestCase):
             encoding="utf-8",
         )
         (archived_task / "prd.md").write_text("# PRD\n", encoding="utf-8")
+        (archived_task / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
         (archived_task / "implement.jsonl").write_text(
             json.dumps(
                 {
@@ -1009,6 +1121,48 @@ class ProtectDangerousActionsTests(unittest.TestCase):
         self.assertIn(
             "implementation approval",
             response["hookSpecificOutput"]["permissionDecisionReason"].lower(),
+        )
+
+    def test_high_risk_undeclared_path_is_soft_warning(self):
+        implement_md = (
+            self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            )
+            + textwrap.dedent(
+                """\
+
+                ## Files / Areas Likely Touched
+
+                - `src/app.py`
+                """
+            )
+        )
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=implement_md,
+            before_dev_md="# Before Dev\n- Scope: src\n- Files likely touched: src/app.py\n",
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "api/users.py"},
+            "prompt": "继续实现",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "allow",
+        )
+        self.assertIn(
+            "WARNING: Editing high-risk undeclared path",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
         )
 
     def test_finish_file_write_requires_explicit_finish_consent(self):
