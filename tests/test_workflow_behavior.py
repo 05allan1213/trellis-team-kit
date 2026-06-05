@@ -3646,14 +3646,16 @@ class TrellisNotifyTests(unittest.TestCase):
         event: str,
         payload: dict,
         message: str = "需要你的处理",
-        delay_seconds: str = "0",
+        reminder_seconds: str = "0",
+        max_reminders: str = "5",
     ) -> str:
         env = os.environ.copy()
         env.update(
             {
                 "TRELLIS_NOTIFY_DRY_RUN": "1",
                 "TRELLIS_NOTIFY_TEST_SYNC": "1",
-                "TRELLIS_NOTIFY_DELAY_SECONDS": delay_seconds,
+                "TRELLIS_NOTIFY_REMINDER_SECONDS": reminder_seconds,
+                "TRELLIS_NOTIFY_MAX_REMINDERS": max_reminders,
             }
         )
         result = subprocess.run(
@@ -3738,12 +3740,106 @@ class TrellisNotifyTests(unittest.TestCase):
                     "stop",
                     {"hook_event_name": "Stop", "transcript_path": str(transcript)},
                     "Claude Code 已停下，等你继续",
-                    delay_seconds="0.6",
+                    reminder_seconds="1",
                 )
             finally:
                 thread.join()
 
         self.assertEqual(output, "")
+
+    def test_stop_uses_reminder_schedule(self):
+        output = self.run_notify(
+            "stop",
+            {"hook_event_name": "Stop", "message": "任务完成了"},
+            "Claude Code 已停下，等你继续",
+            reminder_seconds="0 0 0 0 0",
+        )
+
+        self.assertEqual(output.count("notify\tdone"), 5)
+
+    def test_stop_caps_reminders_at_five(self):
+        output = self.run_notify(
+            "stop",
+            {"hook_event_name": "Stop", "message": "任务完成了"},
+            "Claude Code 已停下，等你继续",
+            reminder_seconds="0 0 0 0 0 0",
+            max_reminders="5",
+        )
+
+        self.assertEqual(output.count("notify\tdone"), 5)
+
+    def test_stop_ignores_reminders_after_120_seconds(self):
+        output = self.run_notify(
+            "stop",
+            {"hook_event_name": "Stop", "message": "任务完成了"},
+            "Claude Code 已停下，等你继续",
+            reminder_seconds="0 0 121",
+            max_reminders="5",
+        )
+
+        self.assertEqual(output.count("notify\tdone"), 2)
+
+    def test_stop_async_path_uses_desktop_notify_and_stops_after_user_reply(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            bin_dir = tmp / "bin"
+            bin_dir.mkdir()
+            notify_log = tmp / "notify.log"
+            fake_notify = bin_dir / "notify-send"
+            fake_notify.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env bash
+                    printf '%s\\t%s\\n' "$1" "$2" >> "$TRELLIS_FAKE_NOTIFY_LOG"
+                    """
+                ),
+                encoding="utf-8",
+            )
+            fake_notify.chmod(0o755)
+
+            transcript = tmp / "transcript.jsonl"
+            transcript.write_text(
+                "\n".join(
+                    [
+                        json.dumps({"type": "user", "message": {"content": "开始"}}),
+                        json.dumps({"type": "assistant", "message": {"content": "是否允许提交？"}}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{bin_dir}:{env.get('PATH', '')}",
+                    "TRELLIS_FAKE_NOTIFY_LOG": str(notify_log),
+                    "TRELLIS_NOTIFY_SOUND": "0",
+                    "TRELLIS_NOTIFY_REMINDER_SECONDS": "1 2",
+                    "TRELLIS_NOTIFY_MAX_REMINDERS": "5",
+                }
+            )
+            subprocess.run(
+                [str(NOTIFY_HOOK), "stop", "Claude Code", "Claude Code 已停下，等你继续"],
+                input=json.dumps({"hook_event_name": "Stop", "transcript_path": str(transcript)}),
+                cwd=REPO_ROOT,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            time.sleep(1.2)
+            lines = notify_log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1)
+            self.assertIn("Claude Code 正在等你确认", lines[0])
+
+            with transcript.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({"type": "user", "message": {"content": "允许"}}) + "\n")
+
+            time.sleep(1.2)
+            lines = notify_log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1)
 
 
 if __name__ == "__main__":

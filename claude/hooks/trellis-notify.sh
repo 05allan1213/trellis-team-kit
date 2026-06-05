@@ -20,7 +20,8 @@ MESSAGE="$DEFAULT_MESSAGE"
 
 DESKTOP_ENABLED="${TRELLIS_NOTIFY_DESKTOP:-1}"
 SOUND_ENABLED="${TRELLIS_NOTIFY_SOUND:-1}"
-DELAY_SECONDS="${TRELLIS_NOTIFY_DELAY_SECONDS:-4}"
+REMINDER_SECONDS="${TRELLIS_NOTIFY_REMINDER_SECONDS:-3 10 30 60 120}"
+MAX_REMINDERS="${TRELLIS_NOTIFY_MAX_REMINDERS:-5}"
 
 PAYLOAD="$(cat 2>/dev/null || true)"
 
@@ -300,7 +301,7 @@ emit_notification() {
 }
 
 handle_notification_event() {
-  local payload_text
+  local payload_text transcript_path start_user_count
   payload_text="$(payload_query text)"
 
   if [ -z "${payload_text//[[:space:]]/}" ]; then
@@ -311,18 +312,21 @@ handle_notification_event() {
   is_completion_noise_text "$payload_text" && return 0
 
   if is_waiting_text "$payload_text"; then
-    EVENT="attention"
-    MESSAGE="Claude Code 正在等你确认"
-    emit_notification
+    transcript_path="$(payload_query transcript)"
+    start_user_count="$(payload_query user_count "$transcript_path")"
+    if [ "${TRELLIS_NOTIFY_TEST_SYNC:-0}" = "1" ]; then
+      schedule_reminders "$transcript_path" "$start_user_count" "$payload_text" "waiting"
+    else
+      (
+        schedule_reminders "$transcript_path" "$start_user_count" "$payload_text" "waiting"
+      ) >/dev/null 2>&1 &
+    fi
   fi
 }
 
-run_delayed_stop_reminder() {
+user_replied_since_start() {
   local transcript_path="$1"
   local start_user_count="$2"
-  local context_text="$3"
-
-  sleep "$DELAY_SECONDS" || true
 
   local current_user_count
   current_user_count="$(payload_query user_count "$transcript_path")"
@@ -332,14 +336,23 @@ run_delayed_stop_reminder() {
     fi
   fi
 
+  return 1
+}
+
+emit_context_reminder() {
+  local transcript_path="$1"
+  local context_text="$2"
+  local reminder_kind="$3"
+
   local assistant_text
   assistant_text="$(payload_query assistant "$transcript_path")"
   context_text="$context_text
 $assistant_text"
 
   is_auto_mode_text "$context_text" && return 0
+  is_subagent_completion_text "$context_text" && return 0
 
-  if is_waiting_text "$assistant_text"; then
+  if [ "$reminder_kind" = "waiting" ] || is_waiting_text "$assistant_text"; then
     EVENT="attention"
     MESSAGE="Claude Code 正在等你确认"
   else
@@ -348,6 +361,34 @@ $assistant_text"
   fi
 
   emit_notification
+}
+
+schedule_reminders() {
+  local transcript_path="$1"
+  local start_user_count="$2"
+  local context_text="$3"
+  local reminder_kind="$4"
+  local previous_delay=0
+  local reminder_count=0
+  local delay sleep_for
+
+  for delay in $REMINDER_SECONDS; do
+    [[ "$delay" =~ ^[0-9]+$ ]] || continue
+    [ "$delay" -le 120 ] || break
+    [ "$reminder_count" -lt "$MAX_REMINDERS" ] || break
+
+    sleep_for=$((delay - previous_delay))
+    [ "$sleep_for" -gt 0 ] || sleep_for=0
+    sleep "$sleep_for" || true
+    previous_delay="$delay"
+
+    if user_replied_since_start "$transcript_path" "$start_user_count"; then
+      return 0
+    fi
+
+    emit_context_reminder "$transcript_path" "$context_text" "$reminder_kind"
+    reminder_count=$((reminder_count + 1))
+  done
 }
 
 handle_stop_event() {
@@ -365,10 +406,10 @@ $assistant_text"
   start_user_count="$(payload_query user_count "$transcript_path")"
 
   if [ "${TRELLIS_NOTIFY_TEST_SYNC:-0}" = "1" ]; then
-    run_delayed_stop_reminder "$transcript_path" "$start_user_count" "$context_text"
+    schedule_reminders "$transcript_path" "$start_user_count" "$context_text" "auto"
   else
     (
-      run_delayed_stop_reminder "$transcript_path" "$start_user_count" "$context_text"
+      schedule_reminders "$transcript_path" "$start_user_count" "$context_text" "auto"
     ) >/dev/null 2>&1 &
   fi
 }
