@@ -1754,6 +1754,9 @@ class InitScriptTests(unittest.TestCase):
         self.assertIn("team-managed files are refreshed on rerun", result.stdout)
         self.assertIn("local personal files are preserved when already present", result.stdout)
         self.assertIn("personalize-local.sh", result.stdout)
+        self.assertIn("team-kit managed", result.stdout)
+        self.assertIn("Trellis scripts:", result.stdout)
+        self.assertFalse((root / ".trellis" / "scripts" / "__pycache__").exists())
 
     def test_init_supports_remote_mode_via_local_raw_base_override(self):
         tmpdir = tempfile.TemporaryDirectory()
@@ -1776,6 +1779,7 @@ class InitScriptTests(unittest.TestCase):
         self.assertIn("Mode:       remote", result.stdout)
         self.assertTrue((root / ".trellis" / "config" / "config.json").is_file())
         self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
+        self.assertFalse((root / ".trellis" / "scripts" / "__pycache__").exists())
 
 
 class SmokeInstallScriptTests(unittest.TestCase):

@@ -46,6 +46,30 @@ error()       { echo "[init] ERROR: $*" >&2; exit 1; }
 step()        { echo "[init] Step $1/$STEP_TOTAL: $2"; }
 report_pass() { echo "[PASS] $*"; }
 report_warn() { echo "[WARN] $*"; }
+run_python_no_bytecode() { PYTHONDONTWRITEBYTECODE=1 python3 -B "$@"; }
+
+cleanup_python_bytecode() {
+  local removed=0
+  if [ -d "$TARGET_ROOT/.trellis" ]; then
+    while IFS= read -r cache_dir; do
+      [ -n "$cache_dir" ] || continue
+      rm -rf "$cache_dir"
+      removed=1
+    done < <(find "$TARGET_ROOT/.trellis" -type d -name '__pycache__' 2>/dev/null)
+    find "$TARGET_ROOT/.trellis" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete 2>/dev/null || true
+  fi
+  if [ -d "$TARGET_ROOT/.claude" ]; then
+    while IFS= read -r cache_dir; do
+      [ -n "$cache_dir" ] || continue
+      rm -rf "$cache_dir"
+      removed=1
+    done < <(find "$TARGET_ROOT/.claude" -type d -name '__pycache__' 2>/dev/null)
+    find "$TARGET_ROOT/.claude" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete 2>/dev/null || true
+  fi
+  if [ "$removed" -eq 1 ]; then
+    info "  Removed transient Python bytecode caches"
+  fi
+}
 
 write_workspace_root_index() {
   local root_index="$TARGET_ROOT/.trellis/workspace/index.md"
@@ -376,8 +400,8 @@ for cmd in finish-work continue create-manifest status doctor new auto-context; 
 done
 info "  $COMMAND_COUNT commands installed"
 
-# --- Step 9: Install validators and config ---
-step 9 "Installing validators and config..."
+# --- Step 9: Install validators, helpers, and config ---
+step 9 "Installing validators, helpers, and config..."
 VALIDATOR_COUNT=0
 mkdir -p "$TARGET_ROOT/.trellis/scripts"
 mkdir -p "$TARGET_ROOT/.trellis/config"
@@ -395,7 +419,7 @@ done
 # Install config files required by validators
 get_file "trellis/config/config.json" "$TARGET_ROOT/.trellis/config/config.json"
 get_file "trellis/config/routing_rules.json" "$TARGET_ROOT/.trellis/config/routing_rules.json"
-info "  $VALIDATOR_COUNT validators installed"
+info "  $VALIDATOR_COUNT team-kit Trellis scripts installed"
 info "  config.json installed"
 info "  routing_rules.json installed"
 
@@ -439,7 +463,8 @@ echo "initialized_by: $DEV_NAME" >> "$TARGET_ROOT/.trellis/.team-kit-version"
 
 # --- Step 11: Run post-install verification ---
 step 11 "Running post-install verification..."
-if python3 "$TARGET_ROOT/.trellis/scripts/validate_runtime_hardening.py"; then
+if run_python_no_bytecode "$TARGET_ROOT/.trellis/scripts/validate_runtime_hardening.py"; then
+  cleanup_python_bytecode
   report_pass "Post-install runtime hardening passed"
 else
   error "Post-install runtime hardening failed. Review the validator output above."
@@ -449,6 +474,13 @@ fi
 PLUGIN_AUDIT_SUMMARY="WARN (not checked)"
 step 12 "Checking optional Claude Code plugins..."
 run_plugin_audit
+
+FINAL_SKILL_TOTAL="$(find "$TARGET_ROOT/.claude/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+FINAL_AGENT_TOTAL="$(find "$TARGET_ROOT/.claude/agents" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
+FINAL_HOOK_TOTAL="$(find "$TARGET_ROOT/.claude/hooks" -maxdepth 1 -type f \( -name '*.py' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ')"
+FINAL_HOOK_LIB_TOTAL="$(find "$TARGET_ROOT/.claude/hooks/lib" -maxdepth 1 -type f -name '*.py' 2>/dev/null | wc -l | tr -d ' ')"
+FINAL_COMMAND_TOTAL="$(find "$TARGET_ROOT/.claude/commands/trellis" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
+FINAL_TRELLIS_SCRIPT_TOTAL="$(find "$TARGET_ROOT/.trellis/scripts" -maxdepth 1 -type f -name '*.py' 2>/dev/null | wc -l | tr -d ' ')"
 
 # --- Summary ---
 echo ""
@@ -465,14 +497,14 @@ echo "    Entry files:  AGENTS.md, CLAUDE.md"
 echo "    Workflow:     .trellis/workflow.md"
 echo "    Settings:     .claude/settings.json"
 echo "    Local state:  .claude/settings.local.json + workspace scaffold"
-echo "    Skills:       $SKILL_COUNT"
-echo "    Agents:       $AGENT_COUNT"
-echo "    Hooks:        $HOOK_COUNT"
-echo "    Hook libs:    $LIB_COUNT"
-echo "    Commands:     $COMMAND_COUNT"
-echo "    Validators:   $VALIDATOR_COUNT"
-echo "    Spec files:   $SPEC_COUNT"
-echo "    Templates:    $TEMPLATE_COUNT"
+echo "    Skills:         $FINAL_SKILL_TOTAL total ($SKILL_COUNT team-kit managed)"
+echo "    Agents:         $FINAL_AGENT_TOTAL total ($AGENT_COUNT team-kit managed)"
+echo "    Hooks:          $FINAL_HOOK_TOTAL total ($HOOK_COUNT team-kit managed)"
+echo "    Hook libs:      $FINAL_HOOK_LIB_TOTAL total ($LIB_COUNT team-kit managed)"
+echo "    Commands:       $FINAL_COMMAND_TOTAL total ($COMMAND_COUNT team-kit managed)"
+echo "    Trellis scripts: $FINAL_TRELLIS_SCRIPT_TOTAL total ($VALIDATOR_COUNT team-kit managed)"
+echo "    Spec files:     $SPEC_COUNT total"
+echo "    Templates:      $TEMPLATE_COUNT total (team-kit managed)"
 echo ""
 echo "  Verification:"
 echo "    Runtime hardening: PASS"

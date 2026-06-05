@@ -62,11 +62,21 @@ require_cmd trellis
 require_cmd curl
 
 RAW_BASE_URI="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve().as_uri())' "$REPO_ROOT")"
+run_python_no_bytecode() { PYTHONDONTWRITEBYTECODE=1 python3 -B "$@"; }
 
 assert_file() {
   local path="$1"
   if [ ! -f "$path" ]; then
     echo "[smoke] ERROR: expected file missing: $path" >&2
+    exit 1
+  fi
+}
+
+assert_no_pycache() {
+  local root="$1"
+  if find "$root/.trellis/scripts" -type d -name '__pycache__' | grep -q .; then
+    echo "[smoke] ERROR: unexpected __pycache__ under $root/.trellis/scripts" >&2
+    find "$root/.trellis/scripts" -type d -name '__pycache__' >&2
     exit 1
   fi
 }
@@ -104,13 +114,15 @@ run_case() {
   assert_file "$project/.claude/settings.json"
   assert_file "$project/.claude/settings.local.json"
   assert_file "$project/.trellis/workspace/$DEV_NAME/journal-1.md"
+  assert_no_pycache "$project"
 
   (
     cd "$project"
-    python3 .trellis/scripts/validate_runtime_hardening.py >/dev/null
+    run_python_no_bytecode .trellis/scripts/validate_runtime_hardening.py >/dev/null
     bash "$REPO_ROOT/bootstrap/personalize-local.sh" "$DEV_NAME" >/dev/null
   )
   assert_file "$project/.trellis/workspace/$DEV_NAME/preferences.md"
+  assert_no_pycache "$project"
 
   echo "[smoke] PASS: $case_mode install path"
   rm -rf "$tmpdir"
