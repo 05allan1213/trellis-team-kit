@@ -28,11 +28,12 @@ This skill is a gate. You MUST NOT edit source code before completing it. Readin
    - `implement.jsonl` / `check.jsonl` must contain only spec files and research files.
    - Do NOT duplicate task artifacts (`prd.md`, `design.md`, `implement.md`, `finish.md`) in JSONL; hooks already inject those.
 6. **Read relevant specs** — use `.trellis/spec/index.md` to route to the right spec files. Read the specific guideline files, not just the index.
-7. **Read relevant research** — any `research/*.md` files referenced by the task.
-8. **Read developer preferences when available** — if `.trellis/.developer` points to a workspace or there is exactly one `.trellis/workspace/<name>/preferences.md`, load it and apply only the preferences that do not conflict with task artifacts or team specs.
-9. **Output implementation constraints** — write `before-dev.md` with a concise list of what must be true during implementation.
-10. **Write `scope-manifest.json`** — create the sibling machine-readable scope contract before editing source.
-11. **Confirm task is `in_progress`** — verify status before proceeding.
+7. **Read common mistakes** — always read `.trellis/spec/guides/ai-behavior/common-mistakes.md` when present and translate relevant common mistakes into concrete `before-dev.md` constraints or `Must NOT` items.
+8. **Read relevant research** — any `research/*.md` files referenced by the task.
+9. **Read developer preferences when available** — if `.trellis/.developer` points to a workspace or there is exactly one `.trellis/workspace/<name>/preferences.md`, load it and apply only the preferences that do not conflict with task artifacts or team specs.
+10. **Output implementation constraints** — write `before-dev.md` with a concise list of what must be true during implementation.
+11. **Write `scope-manifest.json`** — create the sibling machine-readable scope contract before editing source.
+12. **Confirm task is `in_progress`** — verify status before proceeding.
 
 ### Spec Reading
 
@@ -48,6 +49,9 @@ cat .trellis/spec/<package>/<layer>/<guideline>.md
 
 # Always read shared guides
 cat .trellis/spec/guides/index.md
+
+# Always read repeated workflow mistakes when available
+cat .trellis/spec/guides/ai-behavior/common-mistakes.md
 ```
 
 The index is NOT the goal — it points to the actual guideline files. Read those files to understand the coding standards and patterns.
@@ -119,6 +123,7 @@ Rules:
 - The implementation approval record is present in `implement.md`.
 - `scope-manifest.json` is written and matches `before-dev.md`.
 - Relevant spec files have been read (not just the index).
+- Relevant common mistakes have been translated into concrete constraints and `Must NOT` items.
 - Developer preferences are loaded when available and only applied within team/spec boundaries.
 - Implementation constraints are specific and actionable.
 - Observable outcomes to preserve or prove are captured before coding starts.

@@ -41,6 +41,11 @@ VALIDATE_RULES = REPO_ROOT / "trellis" / "scripts" / "validate_routing_rules.py"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 SPEC_TEMPLATE_ROOT = REPO_ROOT / "marketplace" / "specs" / "web-app"
 SPEC_MANIFEST = REPO_ROOT / "trellis" / "spec-manifest.txt"
+COMMON_MISTAKES_REL = "guides/ai-behavior/common-mistakes.md"
+COMMON_MISTAKES_INSTALLED = ".trellis/spec/guides/ai-behavior/common-mistakes.md"
+COMMON_MISTAKES_TEMPLATE = (
+    REPO_ROOT / "trellis" / "spec-templates" / "guides" / "ai-behavior" / "common-mistakes.md"
+)
 
 
 def load_module(path: Path, name: str):
@@ -3162,6 +3167,7 @@ class InitScriptTests(unittest.TestCase):
         self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
         self.assertTrue((root / ".trellis" / "config" / "config.json").is_file())
         self.assertTrue((root / ".trellis" / "config" / "workflow_profiles.json").is_file())
+        self.assertTrue((root / COMMON_MISTAKES_INSTALLED).is_file())
         self.assertTrue((root / ".trellis" / "scripts" / "validate_agent_results.py").is_file())
         self.assertIn("OVERALL: PASS — Runtime hardening checks passed", result.stdout)
         self.assertIn("superpowers@claude-plugins-official", result.stdout)
@@ -3195,6 +3201,7 @@ class InitScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
         self.assertIn("Mode:       remote", result.stdout)
         self.assertTrue((root / ".trellis" / "config" / "config.json").is_file())
+        self.assertTrue((root / COMMON_MISTAKES_INSTALLED).is_file())
         self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
         self.assertFalse((root / ".trellis" / "scripts" / "__pycache__").exists())
 
@@ -4804,6 +4811,39 @@ class SpecTemplateIntegrityTests(unittest.TestCase):
     def test_marketplace_template_passes_spec_index_validation(self):
         self.assertTrue(self.validator.validate_spec_index(str(SPEC_TEMPLATE_ROOT)))
 
+    def test_common_mistakes_spec_is_installed_indexed_and_mirrored(self):
+        marketplace_path = SPEC_TEMPLATE_ROOT / COMMON_MISTAKES_REL
+        guides_index = SPEC_TEMPLATE_ROOT / "guides" / "index.md"
+
+        self.assertTrue(marketplace_path.is_file())
+        self.assertTrue(COMMON_MISTAKES_TEMPLATE.is_file())
+        self.assertEqual(
+            marketplace_path.read_text(encoding="utf-8"),
+            COMMON_MISTAKES_TEMPLATE.read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            COMMON_MISTAKES_REL,
+            SPEC_MANIFEST.read_text(encoding="utf-8").splitlines(),
+        )
+        self.assertIn(
+            "./ai-behavior/common-mistakes.md",
+            guides_index.read_text(encoding="utf-8"),
+        )
+
+        content = marketplace_path.read_text(encoding="utf-8")
+        for phrase in (
+            "routing",
+            "scope-manifest.json",
+            "runtime/guardrail-overrides.jsonl",
+            "agent-results",
+            "Replay Lab",
+            "doctor workflow",
+            "explicit OMC approval",
+            "Trellis-native parallel",
+            "merge-review",
+        ):
+            self.assertIn(phrase, content)
+
     def test_missing_root_index_fails_spec_validation(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             spec_root = Path(tmpdir) / "spec"
@@ -5055,6 +5095,99 @@ class PhaseTwoTemplateTests(unittest.TestCase):
         self.assertIn("scope-manifest.json", content)
         self.assertIn("declared_paths", content)
         self.assertIn("declared_globs", content)
+
+
+class PhaseFiveWorkflowContractTests(unittest.TestCase):
+    def test_before_dev_check_and_code_review_read_common_mistakes(self):
+        paths = [
+            REPO_ROOT / "claude" / "skills" / "trellis-before-dev" / "SKILL.md",
+            REPO_ROOT / "claude" / "skills" / "trellis-check" / "SKILL.md",
+            REPO_ROOT / "claude" / "skills" / "trellis-code-review" / "SKILL.md",
+            REPO_ROOT / "claude" / "agents" / "trellis-checker.md",
+            REPO_ROOT / "claude" / "agents" / "trellis-code-reviewer.md",
+        ]
+
+        for path in paths:
+            with self.subTest(path=path.relative_to(REPO_ROOT)):
+                content = path.read_text(encoding="utf-8")
+                self.assertIn(COMMON_MISTAKES_INSTALLED, content)
+                self.assertIn("common mistakes", content.lower())
+
+    def test_verify_workflow_covers_phase_five_acceptance_scenarios(self):
+        content = (REPO_ROOT / "docs" / "verify-workflow.md").read_text(encoding="utf-8")
+
+        for phrase in (
+            "L3/L4/L5",
+            "Plan -> Execute -> Check -> Review -> Finish",
+            "scope-manifest.json",
+            "validate_scope_manifest.py",
+            "runtime/guardrail-overrides.jsonl",
+            "validate_guardrail_overrides.py",
+            "agent-results",
+            "validate_agent_results.py",
+            "Replay Lab",
+            "trellis_doctor.py workflow",
+            "doctor workflow",
+            "Trellis-native parallel + worktree",
+            "explicit OMC approval",
+            "merge-review",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_omc_positioning_is_optional_and_not_default_multi_agent_path(self):
+        required = {
+            "README.md": ("高级可选", "显式批准", "Trellis 原生"),
+            "workflow/routing.md": (
+                "Trellis-native parallel + worktree by default",
+                "OMC",
+                "explicit approval",
+            ),
+            "workflow/workflow.md": (
+                "Trellis native execution comes first",
+                "OMC",
+                "explicit user approval",
+            ),
+            "omc/orchestration.md": (
+                "Trellis-native parallel + worktree",
+                "OMC `ulw/ultrawork`",
+                "explicit user approval",
+            ),
+            "claude/commands/trellis/new.md": (
+                "Trellis-native parallel",
+                "OMC",
+                "explicit approval",
+            ),
+        }
+
+        for rel, phrases in required.items():
+            with self.subTest(path=rel):
+                content = (REPO_ROOT / rel).read_text(encoding="utf-8")
+                for phrase in phrases:
+                    self.assertIn(phrase, content)
+                self.assertNotIn("recommend OMC parallel execution", content)
+
+    def test_no_key_doc_describes_omc_as_default_execution(self):
+        banned_phrases = (
+            "recommend OMC parallel execution",
+            "OMC is the default",
+            "default to OMC",
+            "默认使用 OMC",
+            "OMC 默认多 agent",
+        )
+        paths = [
+            "README.md",
+            "workflow/routing.md",
+            "workflow/workflow.md",
+            "omc/orchestration.md",
+            "claude/commands/trellis/new.md",
+            "docs/verify-workflow.md",
+        ]
+
+        for rel in paths:
+            with self.subTest(path=rel):
+                content = (REPO_ROOT / rel).read_text(encoding="utf-8")
+                for phrase in banned_phrases:
+                    self.assertNotIn(phrase, content)
 
 
 class TrellisNotifyTests(unittest.TestCase):

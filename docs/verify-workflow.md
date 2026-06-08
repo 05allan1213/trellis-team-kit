@@ -40,6 +40,12 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 **补充检查（L1 分流）**：
 - [ ] 如果输入 "把按钮文案从提交改成保存"，Claude 建议 L1 inline，不强求 task
 
+**补充检查（L3/L4/L5 分流）**：
+- [ ] 普通 feature / bugfix → L3，默认 subagent，必须 code-review
+- [ ] API / schema / auth / infra 跨层变更 → L4，默认 subagent + worktree，OMC 仅在 explicit OMC approval 后可用
+- [ ] 多 agent / parent-child / 大重构 → L5，默认 Trellis-native parallel + worktree，OMC 仅在 explicit OMC approval 后可用，必须 merge-review
+- [ ] 旧称 `L3+` 不作为可执行路径；必须落到明确的 L3、L4 或 L5
+
 ---
 
 ## 阶段 1：TASK_CREATED
@@ -119,6 +125,14 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] 删除 before-dev.md → 编辑源码被 PreToolUse deny
 - [ ] 删除 scope-manifest.json → `validate_task.py <task-dir>` FAIL
 
+**L4 全流程测试**：
+- [ ] 用一条跨层 API/schema 测试任务完整走完 Plan -> Execute -> Check -> Review -> Finish
+- [ ] Plan 阶段产出 `prd.md`、`design.md`、`implement.md`
+- [ ] Execute 前生成 `before-dev.md` 与 `scope-manifest.json`
+- [ ] Check 阶段运行 `trellis-check` 并写入 `validation/check-results.md`
+- [ ] Review 阶段运行 spec-review、code-review、architecture-review
+- [ ] Finish 前 `validate_task.py`、`validate_review_gates.py`、`validate_scope_manifest.py` 均 PASS
+
 ---
 
 ## 阶段 8：IMPLEMENTING
@@ -165,6 +179,13 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] merge-review 聚合 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl`、`scope-manifest.json`
 - [ ] 两个 agent 声明修改同一文件时 merge-review / `validate_agent_results.py` FAIL
 - [ ] OMC execution result 缺少 explicit OMC approval 时 FAIL
+
+**L5 / parallel / OMC 显式批准测试**：
+- [ ] L5 parallel 默认选择 Trellis-native parallel + worktree，不启动 OMC
+- [ ] 使用 OMC `ulw/ultrawork` 前必须记录 explicit OMC approval
+- [ ] OMC execution result 缺少 explicit OMC approval → `validate_agent_results.py` 或 merge-review FAIL
+- [ ] OMC 或多 agent 并行任务缺少 merge-review → validator / doctor workflow FAIL
+- [ ] merge-review 聚合 `agent-results/*.json`、scope、override ledger、OMC approval 记录后 PASS
 
 **Review FAIL 回流测试**：
 - [ ] 将某个已选中的 `review/*.md` verdict 改为 `FAIL` → `validate_review_gates.py` 报 FAIL
@@ -246,6 +267,18 @@ python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
 python3 .trellis/scripts/detect_spec_update_candidates.py
 # 预期：输出 JSON，列出需要同步的 spec/workflow/docs 候选项
 ```
+
+**Replay Lab 场景覆盖**：
+- [ ] routing fixture 覆盖 L1/L2/L3/L4/L5 分流
+- [ ] guardrail fixture 覆盖规划期阻断、scope-manifest.json 缺失、override ledger 复核缺失
+- [ ] finish fixture 覆盖 finish-without-approval 必须 FAIL
+- [ ] orchestration fixture 覆盖 OMC prompt routes L5 but does not start OMC without explicit OMC approval
+
+**doctor workflow 场景覆盖**：
+- [ ] phase mismatch 输出 FAIL 和 To fix
+- [ ] missing scope-manifest.json 输出 FAIL 和 To fix
+- [ ] missing explicit OMC approval 输出 FAIL 和 To fix
+- [ ] missing merge-review 输出 FAIL 和 To fix
 
 ---
 

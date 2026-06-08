@@ -20,8 +20,9 @@ Separate blocking issues from non-blocking issues. Blocking issues must be fixed
 
 1. **Read changed files** — `git diff HEAD` for the full diff.
 2. **Read task artifacts** — `prd.md` for scope, `design.md` for contracts (if present).
-3. **Review each dimension** below.
-4. **Write findings** to `review/code-review.md`.
+3. **Read common mistakes** — if present, read `.trellis/spec/guides/ai-behavior/common-mistakes.md` and check whether the diff repeats a documented mistake.
+4. **Review each dimension** below.
+5. **Write findings** to `review/code-review.md`.
 
 ### Dimensions
 
@@ -82,6 +83,12 @@ Separate blocking issues from non-blocking issues. Blocking issues must be fixed
 - Are there features implemented "just in case" (YAGNI violations)?
 - Is there dead code or unreachable branches?
 
+#### Common Mistakes Regression
+
+- Does the diff repeat a documented common mistake from `.trellis/spec/guides/ai-behavior/common-mistakes.md`?
+- Does the task preserve routing, scope-manifest, override ledger, agent-results, replay, doctor, OMC approval, and merge-review requirements when they apply?
+- If a repeated documented mistake affects the current change, classify it as blocking.
+
 ## Output Format
 
 ### review/code-review.md
@@ -106,6 +113,9 @@ Separate blocking issues from non-blocking issues. Blocking issues must be fixed
 ## Positive Observations
 - [what was done well]
 
+## Common Mistakes Regression
+- PASS/FAIL — [evidence]
+
 ## Verdict
 - PASS — no blocking issues
 - FAIL — blocking issues must be fixed:
@@ -119,5 +129,6 @@ Separate blocking issues from non-blocking issues. Blocking issues must be fixed
 - Blocking issues are specific (file:line reference, not vague).
 - Non-blocking issues are clearly separated from blocking ones.
 - Positive observations are included (reviews are not just about finding problems).
+- Common mistakes regression is checked and reported explicitly.
 - FAIL verdict lists specific blocking issues.
 - The review is honest — do not upgrade non-blocking to blocking, or downgrade blocking to non-blocking.

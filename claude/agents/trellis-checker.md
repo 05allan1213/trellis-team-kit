@@ -37,8 +37,9 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
   resume, fork distribution, hooks disabled, etc.). Find the active task path
   from your dispatch prompt's first line `Active task: <path>`, then Read
   `<task-path>/check.jsonl`, each listed file, `<task-path>/prd.md`,
-  `<task-path>/design.md` if present, and `<task-path>/implement.md` if present
-  before doing the work.
+  `<task-path>/design.md` if present, `<task-path>/implement.md` if present,
+  and `.trellis/spec/guides/ai-behavior/common-mistakes.md` if present before
+  doing the work.
 
 ## Core Responsibilities
 
@@ -46,9 +47,11 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 2. **Check against specs** -- verify code follows `.trellis/spec/` guidelines.
 3. **Check against task artifacts** -- verify code meets prd.md acceptance
    criteria and implement.md execution plan.
-4. **Self-fix** -- fix issues yourself, not just report them.
-5. **Run verification** -- lint, typecheck, and tests.
-6. **Write agent result JSON** -- write a machine-readable result under
+4. **Check common mistakes** -- fail or self-fix repeated documented workflow
+   mistakes from `.trellis/spec/guides/ai-behavior/common-mistakes.md`.
+5. **Self-fix** -- fix issues yourself, not just report them.
+6. **Run verification** -- lint, typecheck, and tests.
+7. **Write agent result JSON** -- write a machine-readable result under
    `{TASK_DIR}/agent-results/` before replying.
 
 ## Allowed Actions
@@ -90,6 +93,8 @@ Read the following:
 3. `design.md` -- technical design (if present).
 4. `implement.md` -- execution plan (if present).
 5. Relevant specs from `.trellis/spec/`.
+6. `.trellis/spec/guides/ai-behavior/common-mistakes.md` -- repeated workflow
+   mistakes to check before reporting PASS.
 
 ### Step 3: Check Against Specs
 
@@ -102,6 +107,9 @@ Check code against specs for:
 - Potential bugs.
 - Acceptance criteria coverage from prd.md.
 - Execution plan compliance from implement.md.
+- Common mistakes regression, especially routing, scope-manifest, override
+  ledger, agent-results, replay, doctor workflow, explicit OMC approval, and
+  merge-review requirements.
 
 ### Step 4: Self-Fix
 
@@ -159,6 +167,7 @@ PASS / FAIL
 - Lint: <pass / fail>
 - TypeCheck: <pass / fail>
 - Tests: <pass / fail / not run>
+- Common mistakes regression: <pass / fail>
 
 ### Summary
 

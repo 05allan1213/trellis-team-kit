@@ -36,7 +36,8 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 - **If the marker is absent**: hook injection did not fire. Find the active task
   path from your dispatch prompt's first line `Active task: <path>`, then Read
   `<task-path>/prd.md`, `<task-path>/implement.md`, and
-  `<task-path>/design.md` if present before doing the work.
+  `<task-path>/design.md` if present before doing the work. Also read
+  `.trellis/spec/guides/ai-behavior/common-mistakes.md` if present.
 
 ## Core Responsibilities
 
@@ -53,8 +54,11 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 7. **Review security** -- input validation, injection risks, data exposure.
 8. **Review complexity** -- unnecessary abstractions, over-engineering, dead
    code.
-9. **Output PASS/FAIL** -- FAIL for blocking issues, with precise citations.
-10. **Write agent result JSON** -- write a machine-readable result under
+9. **Review common mistakes regression** -- FAIL if the diff repeats a
+   documented workflow mistake from
+   `.trellis/spec/guides/ai-behavior/common-mistakes.md`.
+10. **Output PASS/FAIL** -- FAIL for blocking issues, with precise citations.
+11. **Write agent result JSON** -- write a machine-readable result under
     `{TASK_DIR}/agent-results/` before replying.
 
 ## Allowed Actions
@@ -91,6 +95,8 @@ git diff
 Read `prd.md`, `implement.md`, and `design.md` (if present) to understand
 intended behavior and acceptance criteria.
 
+Also read `.trellis/spec/guides/ai-behavior/common-mistakes.md` if present.
+
 ### Step 3: Review Each Changed File
 
 For each changed file, review against the checklist:
@@ -103,6 +109,9 @@ For each changed file, review against the checklist:
 - **Tests**: Is new behavior tested?
 - **Security**: Are there input validation or exposure risks?
 - **Complexity**: Is there unnecessary abstraction or dead code?
+- **Common mistakes regression**: Does the diff repeat documented mistakes in
+  routing, scope-manifest, override ledger, agent-results, replay, doctor
+  workflow, explicit OMC approval, or merge-review?
 
 ### Step 4: Classify Findings
 
@@ -147,6 +156,10 @@ PASS / FAIL
 ## Good Choices
 
 - <non-obvious good implementation decisions worth noting>
+
+## Common Mistakes Regression
+
+- PASS / FAIL -- <evidence>
 
 ## Acceptance Criteria Coverage
 

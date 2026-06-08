@@ -24,6 +24,7 @@ These guides help AI assistants ask the right questions and load the right rules
 
 | Guide                                                         | Purpose                                                                         | When to Use                                           |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| [Common Mistakes](./ai-behavior/common-mistakes.md)           | Prevent repeated workflow regressions in routing, scope, overrides, agents, replay, doctor, and OMC approval | Before-dev, check, code review, and workflow hardening |
 | [AI Tooling](./ai-tooling.md)                                 | Define Trellis, Superpowers, oh-my-claudecode, MCP, skills, and hooks ownership | When deciding which tool or workflow should be used   |
 | [Architecture Thinking](./architecture-thinking.md)           | Reason about module boundaries, contracts, compatibility, and trade-offs        | When a task crosses layers, introduces modules, or changes contracts |
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md)   | Identify patterns and reduce duplication                                        | When you notice repeated patterns or create utilities |

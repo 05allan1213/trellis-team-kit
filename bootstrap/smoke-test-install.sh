@@ -112,6 +112,7 @@ run_case() {
   assert_file "$project/.trellis/.team-kit-version"
   assert_file "$project/.trellis/config/config.json"
   assert_file "$project/.trellis/config/workflow_profiles.json"
+  assert_file "$project/.trellis/spec/guides/ai-behavior/common-mistakes.md"
   assert_file "$project/.trellis/scripts/validate_scope_manifest.py"
   assert_file "$project/.trellis/scripts/validate_guardrail_overrides.py"
   assert_file "$project/.trellis/scripts/validate_agent_results.py"

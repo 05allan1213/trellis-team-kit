@@ -58,7 +58,7 @@ Based on the level, tell the user exactly what to expect:
 
 **L4**: "I'll write prd.md + design.md + implement.md with full review gates (check + spec-review + code-review + architecture-review), curate context, then ask you to approve. This is a complex change — careful planning first."
 
-**L5**: "I'll write full planning artifacts, set up all review gates including merge-review, and recommend OMC parallel execution if the work can be safely split. This needs thorough planning — multiple agents may work in parallel."
+**L5**: "I'll write full planning artifacts, set up all review gates including merge-review, and use Trellis-native parallel + worktree by default when the work can be safely split. OMC `ulw/ultrawork` remains an optional advanced path only after explicit approval. This needs thorough planning — multiple agents may work in parallel."
 
 ### Step 5: Start planning
 

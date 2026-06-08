@@ -7,7 +7,7 @@ In this workflow, OMC specifically means the official `ulw/ultrawork` mode.
 Use it only when all of the following are true:
 
 1. **Task level is L4 or L5** — complex cross-layer changes, multi-agent work, or large refactors
-2. **Parent/child task structure** — when a request contains independently verifiable deliverables
+2. **Independent workstreams** — parent/child task structure is required only when the split creates independently finishable child tasks
 3. **Multi-agent parallel execution** — when the PRD confirms that work can be safely split into independent streams
 4. **User explicitly confirms** — OMC `ulw/ultrawork` requires explicit user approval before spawning agents
 
