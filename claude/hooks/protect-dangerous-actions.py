@@ -37,7 +37,9 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from typing import Optional
 
 if sys.platform.startswith("win"):
@@ -70,6 +72,11 @@ from task_artifacts import (  # type: ignore[import-not-found]
     finish_approval_complete,
     implementation_approval_complete,
     parse_finish_approval,
+)
+from scope_manifest import (  # type: ignore[import-not-found]
+    format_declared_scope,
+    is_path_declared,
+    load_declared_scope,
 )
 
 # ---- Hard block: dangerous bash command patterns ----
@@ -280,48 +287,6 @@ def _normalize_repo_path(root: Path, file_path: str) -> str:
     return normalized
 
 
-def _parse_declared_paths(implement_md: Path) -> list[str]:
-    if not implement_md.is_file():
-        return []
-    try:
-        content = implement_md.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    paths: list[str] = []
-    in_section = False
-    for line in content.splitlines():
-        stripped = line.strip()
-        clean = stripped.lstrip("#").strip()
-        if clean.lower().startswith("files / areas likely touched") or \
-           clean.lower().startswith("files/areas likely touched"):
-            in_section = True
-            continue
-        if in_section:
-            if stripped.startswith("##"):
-                break
-            m = re.match(r"-\s*`([^`]+)`", stripped)
-            if m:
-                paths.append(m.group(1).strip())
-    return paths
-
-
-def _is_path_declared(file_path: str, declared: list[str]) -> bool:
-    norm = file_path.replace("\\", "/")
-    if norm.startswith("./"):
-        norm = norm[2:]
-    for declared_path in declared:
-        d = declared_path.replace("\\", "/")
-        if d.startswith("./"):
-            d = d[2:]
-        if norm == d or norm.startswith(d.rstrip("*").rstrip("/")):
-            return True
-        if d.endswith("/*") and norm.startswith(d[:-1]):
-            return True
-        if d.endswith("/") and norm.startswith(d):
-            return True
-    return False
-
-
 def _is_high_risk_path(file_path: str) -> bool:
     norm = file_path.replace("\\", "/")
     if norm.startswith("./"):
@@ -340,6 +305,46 @@ def _check_override(input_data: dict) -> Optional[str]:
         if m:
             return m.group(1).strip()
     return None
+
+
+def _write_override_ledger(
+    task_dir: Optional[Path],
+    *,
+    decision: str,
+    reason: str,
+    message: str,
+    input_data: dict,
+) -> None:
+    if task_dir is None:
+        return
+
+    tool_name = input_data.get("tool_name", "") or input_data.get("toolName", "")
+    tool_input = input_data.get("tool_input", {}) or input_data.get("toolInput", {})
+    if not isinstance(tool_input, dict):
+        tool_input = {}
+
+    file_path = tool_input.get("file_path", "") or tool_input.get("filePath", "")
+    command = tool_input.get("command", "")
+    entry: dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "kind": "soft_warning" if decision == "accepted" else "hard_block_override_attempt",
+        "decision": decision,
+        "reason": reason,
+        "tool_name": tool_name,
+        "message": message.splitlines()[0] if message else "",
+    }
+    if isinstance(file_path, str) and file_path:
+        entry["path"] = file_path
+    if isinstance(command, str) and command:
+        entry["command"] = command
+
+    runtime_dir = task_dir / "runtime"
+    try:
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        with open(runtime_dir / "guardrail-overrides.jsonl", "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
 
 
 def _extract_prompt_text(input_data: dict) -> str:
@@ -601,8 +606,11 @@ def _check_file_operation(
 
             if task_dir and (task_dir / "before-dev.md").is_file():
                 implement_md = task_dir / "implement.md"
-                declared = _parse_declared_paths(implement_md)
-                if declared and not _is_path_declared(norm_path, declared):
+                declared_paths, declared_globs, scope_source = load_declared_scope(task_dir, implement_md)
+                if (
+                    (declared_paths or declared_globs)
+                    and not is_path_declared(norm_path, declared_paths, declared_globs)
+                ):
                     if _is_high_risk_path(norm_path):
                         return (
                             f"WARNING: Editing high-risk undeclared path: {norm_path}\n"
@@ -610,8 +618,8 @@ def _check_file_operation(
                             f"  Warned action: Write/Edit to source file\n"
                             f"  Reason: This file is in a high-risk area (auth, migration, "
                             f"schema, API contract, shared types) and is NOT declared in "
-                            f"implement.md 'Files / Areas Likely Touched'.\n"
-                            f"  Declared paths: {', '.join(declared[:5])}{'...' if len(declared) > 5 else ''}\n"
+                            f"{scope_source}.\n"
+                            f"  Declared scope: {format_declared_scope(declared_paths, declared_globs)}\n"
                             f"  Correct next step: Either add this path to implement.md, "
                             f"or use 'override team-kit guardrail: <reason>' if intentional."
                         ), False
@@ -700,6 +708,13 @@ def main() -> int:
         # Check for override attempt on hard blocks — always deny
         override_reason = _check_override(input_data)
         if override_reason:
+            _write_override_ledger(
+                _get_task_dir(root),
+                decision="denied",
+                reason=override_reason,
+                message=message,
+                input_data=input_data,
+            )
             _emit_deny(
                 f"{message}\n\n"
                 f"Override attempted with reason: {override_reason}\n"
@@ -711,6 +726,13 @@ def main() -> int:
     # Soft warning — check for override
     override_reason = _check_override(input_data)
     if override_reason:
+        _write_override_ledger(
+            _get_task_dir(root),
+            decision="accepted",
+            reason=override_reason,
+            message=message,
+            input_data=input_data,
+        )
         _emit_allow(f"Guardrail override accepted: {override_reason}")
     else:
         _emit_warn(message)

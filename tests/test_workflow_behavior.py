@@ -22,6 +22,8 @@ VALIDATE_WORKFLOW_STATE = REPO_ROOT / "trellis" / "scripts" / "validate_workflow
 VALIDATE_DELIVERY_SYNC = REPO_ROOT / "trellis" / "scripts" / "validate_delivery_sync.py"
 VALIDATE_RUNTIME_HARDENING = REPO_ROOT / "trellis" / "scripts" / "validate_runtime_hardening.py"
 VALIDATE_TRELLIS_CONFIG = REPO_ROOT / "trellis" / "scripts" / "validate_trellis_config.py"
+VALIDATE_SCOPE_MANIFEST = REPO_ROOT / "trellis" / "scripts" / "validate_scope_manifest.py"
+VALIDATE_GUARDRAIL_OVERRIDES = REPO_ROOT / "trellis" / "scripts" / "validate_guardrail_overrides.py"
 VALIDATE_SPEC_INDEX = REPO_ROOT / "trellis" / "scripts" / "validate_spec_index.py"
 PREPARE_FINISH_WORKSPACE = REPO_ROOT / "trellis" / "scripts" / "prepare_finish_workspace.py"
 FINALIZE_TASK_ARCHIVE = REPO_ROOT / "trellis" / "scripts" / "finalize_task_archive.py"
@@ -282,6 +284,20 @@ class ValidateTaskTests(unittest.TestCase):
                 }
             )
             + "\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L2",
+                    "profile": "light",
+                    "declared_paths": ["src/settings.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": False,
+                    "out_of_scope": ["auth flows"],
+                }
+            ),
             encoding="utf-8",
         )
         (task_dir / "validation" / "check-results.md").write_text(
@@ -1086,6 +1102,220 @@ class ValidateTaskTests(unittest.TestCase):
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
 
+    def test_l2_in_progress_requires_scope_manifest(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L2", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "scope-manifest.json").unlink()
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: user settings\n- Files likely touched: src/settings.py\n",
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("scope-manifest.json" in issue for issue in issues))
+
+    def test_scope_manifest_requires_declared_paths_or_globs(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L2", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: user settings\n- Files likely touched: src/settings.py\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L2",
+                    "profile": "light",
+                    "declared_paths": [],
+                    "declared_globs": [],
+                    "high_risk_allowed": False,
+                    "out_of_scope": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("declared_paths or declared_globs" in issue for issue in issues))
+
+    def test_valid_scope_manifest_satisfies_in_progress_scope_contract(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L2", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: user settings\n- Files likely touched: src/settings.py\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L2",
+                    "profile": "light",
+                    "declared_paths": ["src/settings.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": False,
+                    "out_of_scope": ["auth flows"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_finish_requires_guardrail_override_review_when_ledger_exists(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "runtime").mkdir(exist_ok=True)
+        (task_dir / "runtime" / "guardrail-overrides.jsonl").write_text(
+            json.dumps(
+                {
+                    "timestamp": "2026-06-08T10:00:00Z",
+                    "kind": "soft_warning",
+                    "decision": "accepted",
+                    "reason": "needed API compatibility shim",
+                    "tool_name": "Edit",
+                    "path": "api/users.py",
+                    "message": "WARNING: Editing high-risk undeclared path",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("Guardrail Overrides" in issue for issue in issues))
+
+    def test_finish_accepts_guardrail_override_review(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Guardrail Overrides
+
+                - [x] override ledger reviewed
+                - Ledger: runtime/guardrail-overrides.jsonl
+                - Decision: accepted - API compatibility shim stayed within approved risk.
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+                + self.standard_finish_suffix()
+            )
+        )
+        (task_dir / "runtime").mkdir(exist_ok=True)
+        (task_dir / "runtime" / "guardrail-overrides.jsonl").write_text(
+            json.dumps(
+                {
+                    "timestamp": "2026-06-08T10:00:00Z",
+                    "kind": "soft_warning",
+                    "decision": "accepted",
+                    "reason": "needed API compatibility shim",
+                    "tool_name": "Edit",
+                    "path": "api/users.py",
+                    "message": "WARNING: Editing high-risk undeclared path",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
 
 class ProtectDangerousActionsTests(unittest.TestCase):
     def make_repo(
@@ -1314,6 +1544,125 @@ class ProtectDangerousActionsTests(unittest.TestCase):
             response["hookSpecificOutput"]["permissionDecisionReason"],
         )
 
+    def test_scope_manifest_glob_allows_declared_high_risk_path(self):
+        implement_md = self.approval_block(
+            approved=True,
+            start_allowed=True,
+            user_message="开始实现",
+            timestamp="2026-06-04T10:00:00Z",
+            summary_approved="start implementation",
+        )
+        root, task_dir = self.make_repo(
+            status="in_progress",
+            implement_md=implement_md,
+            before_dev_md="# Before Dev\n- Scope: API users\n- Files likely touched: api/users/*.py\n",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": [],
+                    "declared_globs": ["api/users/*.py"],
+                    "high_risk_allowed": False,
+                    "out_of_scope": ["auth policy changes"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "api/users/list.py"},
+            "prompt": "继续实现",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNone(response)
+
+    def test_guardrail_override_writes_runtime_ledger(self):
+        implement_md = (
+            self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            )
+            + textwrap.dedent(
+                """\
+
+                ## Files / Areas Likely Touched
+
+                - `src/app.py`
+                """
+            )
+        )
+        root, task_dir = self.make_repo(
+            status="in_progress",
+            implement_md=implement_md,
+            before_dev_md="# Before Dev\n- Scope: src\n- Files likely touched: src/app.py\n",
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "api/users.py"},
+            "prompt": "override team-kit guardrail: needed API compatibility shim",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "allow",
+        )
+        ledger = task_dir / "runtime" / "guardrail-overrides.jsonl"
+        self.assertTrue(ledger.is_file())
+        entries = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["decision"], "accepted")
+        self.assertEqual(entries[0]["reason"], "needed API compatibility shim")
+        self.assertEqual(entries[0]["path"], "api/users.py")
+
+    def test_hard_block_override_attempt_is_denied_and_recorded(self):
+        root, task_dir = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+            before_dev_md="# Before Dev\n- Scope: src\n- Files likely touched: src/app.py\n",
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Bash",
+            "tool_input": {"command": "rm -rf dist"},
+            "prompt": "override team-kit guardrail: cleanup generated files",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "OVERRIDE DENIED",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
+        )
+        ledger = task_dir / "runtime" / "guardrail-overrides.jsonl"
+        self.assertTrue(ledger.is_file())
+        entries = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(entries[0]["decision"], "denied")
+        self.assertEqual(entries[0]["command"], "rm -rf dist")
+
     def test_finish_file_write_requires_explicit_finish_consent(self):
         root, _ = self.make_repo(
             status="in_progress",
@@ -1504,7 +1853,13 @@ class StopGuardTests(unittest.TestCase):
             ".trellis/tasks/T001-demo",
             encoding="utf-8",
         )
-        for src in (VALIDATE_TASK, VALIDATE_REVIEW_GATES, VALIDATE_DELIVERY_SYNC):
+        for src in (
+            VALIDATE_TASK,
+            VALIDATE_SCOPE_MANIFEST,
+            VALIDATE_GUARDRAIL_OVERRIDES,
+            VALIDATE_REVIEW_GATES,
+            VALIDATE_DELIVERY_SYNC,
+        ):
             (scripts_dir / src.name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
         (task_dir / "task.json").write_text(
             json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
@@ -1709,6 +2064,169 @@ class StopGuardTests(unittest.TestCase):
         )
 
         self.assertEqual(result.stdout.strip(), "")
+
+
+class ValidateScopeManifestTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(VALIDATE_SCOPE_MANIFEST, "validate_scope_manifest_module")
+
+    def make_task_dir(self, manifest: dict | None) -> Path:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / "T002-scope"
+        task_dir.mkdir()
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T002", "level": "L2", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        if manifest is not None:
+            (task_dir / "scope-manifest.json").write_text(
+                json.dumps(manifest),
+                encoding="utf-8",
+            )
+        return task_dir
+
+    def test_missing_manifest_fails_for_l2_task(self):
+        task_dir = self.make_task_dir(None)
+
+        ok, issues = self.module.validate_scope_manifest(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("scope-manifest.json" in issue for issue in issues))
+
+    def test_manifest_requires_path_or_glob(self):
+        task_dir = self.make_task_dir(
+            {
+                "version": 1,
+                "level": "L2",
+                "profile": "light",
+                "declared_paths": [],
+                "declared_globs": [],
+                "high_risk_allowed": False,
+                "out_of_scope": [],
+            }
+        )
+
+        ok, issues = self.module.validate_scope_manifest(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("declared_paths or declared_globs" in issue for issue in issues))
+
+    def test_valid_manifest_passes(self):
+        task_dir = self.make_task_dir(
+            {
+                "version": 1,
+                "level": "L2",
+                "profile": "light",
+                "declared_paths": ["src/settings.py"],
+                "declared_globs": ["tests/settings_*.py"],
+                "high_risk_allowed": False,
+                "out_of_scope": ["auth flows"],
+            }
+        )
+
+        ok, issues = self.module.validate_scope_manifest(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+
+class ValidateGuardrailOverridesTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(VALIDATE_GUARDRAIL_OVERRIDES, "validate_guardrail_overrides_module")
+
+    def make_task_dir(self, *, ledger: str, finish_md: str = "") -> Path:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / "T003-overrides"
+        (task_dir / "runtime").mkdir(parents=True)
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T003", "level": "L3", "status": "done"}),
+            encoding="utf-8",
+        )
+        (task_dir / "runtime" / "guardrail-overrides.jsonl").write_text(
+            ledger,
+            encoding="utf-8",
+        )
+        if finish_md:
+            (task_dir / "finish.md").write_text(finish_md, encoding="utf-8")
+        return task_dir
+
+    def test_override_line_requires_reason_and_decision(self):
+        task_dir = self.make_task_dir(
+            ledger=json.dumps(
+                {
+                    "timestamp": "2026-06-08T10:00:00Z",
+                    "tool_name": "Edit",
+                    "path": "api/users.py",
+                }
+            )
+            + "\n"
+        )
+
+        ok, issues = self.module.validate_guardrail_overrides(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("reason" in issue for issue in issues))
+        self.assertTrue(any("decision" in issue for issue in issues))
+
+    def test_override_requires_finish_review(self):
+        task_dir = self.make_task_dir(
+            ledger=json.dumps(
+                {
+                    "timestamp": "2026-06-08T10:00:00Z",
+                    "kind": "soft_warning",
+                    "decision": "accepted",
+                    "reason": "needed API compatibility shim",
+                    "tool_name": "Edit",
+                    "path": "api/users.py",
+                    "message": "WARNING",
+                }
+            )
+            + "\n",
+            finish_md="# Finish\n",
+        )
+
+        ok, issues = self.module.validate_guardrail_overrides(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("Guardrail Overrides" in issue for issue in issues))
+
+    def test_override_review_passes_when_finish_records_decision(self):
+        task_dir = self.make_task_dir(
+            ledger=json.dumps(
+                {
+                    "timestamp": "2026-06-08T10:00:00Z",
+                    "kind": "soft_warning",
+                    "decision": "accepted",
+                    "reason": "needed API compatibility shim",
+                    "tool_name": "Edit",
+                    "path": "api/users.py",
+                    "message": "WARNING",
+                }
+            )
+            + "\n",
+            finish_md=textwrap.dedent(
+                """\
+                # Finish
+
+                ## Guardrail Overrides
+
+                - [x] override ledger reviewed
+                - Ledger: runtime/guardrail-overrides.jsonl
+                - Decision: accepted - API compatibility shim stayed within approved risk.
+                """
+            ),
+        )
+
+        ok, issues = self.module.validate_guardrail_overrides(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
 
 
 class ValidateDeliverySyncTests(unittest.TestCase):
@@ -3850,6 +4368,46 @@ class RuntimeHardeningValidatorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
         self.assertIn("[PASS] validate_spec_index.py", result.stdout)
         self.assertIn("[PASS] validate_trellis_config.py", result.stdout)
+
+    def test_runtime_hardening_runs_phase_two_static_validators(self):
+        result = subprocess.run(
+            [sys.executable, str(VALIDATE_RUNTIME_HARDENING)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        self.assertIn("[PASS] validate_scope_manifest.py", result.stdout)
+        self.assertIn("[PASS] validate_guardrail_overrides.py", result.stdout)
+
+
+class PhaseTwoTemplateTests(unittest.TestCase):
+    def test_before_dev_template_includes_scope_manifest_contract(self):
+        content = (REPO_ROOT / "trellis" / "task-templates" / "before-dev.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("scope-manifest.json", content)
+        self.assertIn("declared_paths", content)
+        self.assertIn("declared_globs", content)
+
+    def test_finish_template_includes_guardrail_override_review(self):
+        content = (REPO_ROOT / "trellis" / "task-templates" / "finish.md.tmpl").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("## Guardrail Overrides", content)
+        self.assertIn("runtime/guardrail-overrides.jsonl", content)
+
+    def test_before_dev_skill_requires_scope_manifest_output(self):
+        content = (REPO_ROOT / "claude" / "skills" / "trellis-before-dev" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("scope-manifest.json", content)
+        self.assertIn("declared_paths", content)
+        self.assertIn("declared_globs", content)
 
 
 class TrellisNotifyTests(unittest.TestCase):

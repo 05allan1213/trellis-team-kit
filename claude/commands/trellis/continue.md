@@ -14,6 +14,8 @@ Resume working on the active Trellis task with full context recovery. Detect the
    - `design.md` — technical design (if exists)
    - `implement.md` — execution plan with Review Gate Contract (if exists)
    - `before-dev.md` — implementation constraints (if exists)
+   - `scope-manifest.json` — machine-readable scope contract (if exists)
+   - `runtime/guardrail-overrides.jsonl` — guardrail override audit ledger (if exists)
    - `finish.md` — spec update decision (if exists)
 
 3. **Determine the exact sub-phase** by checking artifact presence:
@@ -38,7 +40,11 @@ Resume working on the active Trellis task with full context recovery. Detect the
    - L4: prd.md, design.md, implement.md
    - L5: all of above
 
-6. **Output a resume summary** in this format:
+6. **Check scope/override audit**:
+   - L2+ with `before-dev.md` must have valid `scope-manifest.json`.
+   - If `runtime/guardrail-overrides.jsonl` exists, summarize the entry count and whether `finish.md` has a completed `Guardrail Overrides` review.
+
+7. **Output a resume summary** in this format:
 
 ```
 📋 Resuming Task: <id> — <title>
@@ -56,10 +62,16 @@ Last failure (if any):
 Missing artifacts:
   - <file> (required for L<level>)
 
+Scope manifest:
+  <present/missing/invalid/n/a> — <declared paths/globs summary>
+
+Guardrail overrides:
+  <none / N entries> — <finish review present/missing>
+
 Next step: <one clear actionable sentence>
 ```
 
-7. **Resume work** — Load the appropriate skill or dispatch the appropriate sub-agent based on the sub-phase:
+8. **Resume work** — Load the appropriate skill or dispatch the appropriate sub-agent based on the sub-phase:
    - PLANNING_PRD → trellis-brainstorm
    - PLANNING_GRILL → trellis-grill-me
    - PLANNING_DESIGN → write design.md

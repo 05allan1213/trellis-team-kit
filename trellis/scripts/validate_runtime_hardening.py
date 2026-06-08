@@ -85,6 +85,8 @@ def main() -> int:
         "validate_trellis_config.py",
         "validate_spec_index.py",
         "validate_routing_rules.py",
+        "validate_scope_manifest.py",
+        "validate_guardrail_overrides.py",
     ]
 
     results: list[tuple[str, bool, str]] = []
@@ -125,6 +127,8 @@ def main() -> int:
     print()
     print("Task-specific validators (require a task directory argument):")
     print(f"  python3 {scripts_dir}/validate_task.py <task-dir>")
+    print(f"  python3 {scripts_dir}/validate_scope_manifest.py <task-dir>")
+    print(f"  python3 {scripts_dir}/validate_guardrail_overrides.py <task-dir>")
     print(f"  python3 {scripts_dir}/validate_review_gates.py <task-dir>")
     print(f"  python3 {scripts_dir}/validate_delivery_sync.py <task-dir>")
     print(f"  python3 {scripts_dir}/validate_workflow_state.py <task-dir>")

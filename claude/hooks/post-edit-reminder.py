@@ -19,6 +19,16 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+_HOOKS_DIR = Path(__file__).resolve().parent
+if str(_HOOKS_DIR / "lib") not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR / "lib"))
+
+from scope_manifest import (  # type: ignore[import-not-found]
+    format_declared_scope,
+    is_path_declared,
+    load_declared_scope,
+)
+
 # Force UTF-8 on Windows
 if sys.platform.startswith("win"):
     import io as _io
@@ -152,48 +162,6 @@ def _determine_reminders(file_path: str) -> list[str]:
     return reminders
 
 
-def _parse_declared_paths(implement_md: Path) -> list[str]:
-    if not implement_md.is_file():
-        return []
-    try:
-        content = implement_md.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    paths: list[str] = []
-    in_section = False
-    for line in content.splitlines():
-        stripped = line.strip()
-        clean = stripped.lstrip("#").strip()
-        if clean.lower().startswith("files / areas likely touched") or \
-           clean.lower().startswith("files/areas likely touched"):
-            in_section = True
-            continue
-        if in_section:
-            if stripped.startswith("##"):
-                break
-            m = re.match(r"-\s*`([^`]+)`", stripped)
-            if m:
-                paths.append(m.group(1).strip())
-    return paths
-
-
-def _is_path_declared(file_path: str, declared: list[str]) -> bool:
-    norm = file_path.replace("\\", "/")
-    if norm.startswith("./"):
-        norm = norm[2:]
-    for declared_path in declared:
-        d = declared_path.replace("\\", "/")
-        if d.startswith("./"):
-            d = d[2:]
-        if norm == d or norm.startswith(d.rstrip("*").rstrip("/")):
-            return True
-        if d.endswith("/*") and norm.startswith(d[:-1]):
-            return True
-        if d.endswith("/") and norm.startswith(d):
-            return True
-    return False
-
-
 def _has_broad_declarations(declared: list[str]) -> list[str]:
     broad_patterns = ["*", "src/*", "**/*"]
     broad: list[str] = []
@@ -235,33 +203,32 @@ def _check_scope_guard(file_path: str, root: Path) -> Optional[str]:
         return None
 
     implement_md = task_dir / "implement.md"
-    declared = _parse_declared_paths(implement_md)
-    if not declared:
+    declared_paths, declared_globs, scope_source = load_declared_scope(task_dir, implement_md)
+    if not declared_paths and not declared_globs:
         return None
 
-    broad = _has_broad_declarations(declared)
+    broad = _has_broad_declarations(declared_paths + declared_globs)
     if broad:
         return (
-            f"scope-quality: implement.md has overly broad declarations: "
+            f"scope-quality: {scope_source} has overly broad declarations: "
             f"{', '.join(broad)}. Scope guard is less effective with broad patterns. "
             f"Consider using more specific paths like 'src/api/users.ts' instead of 'src/*'. "
-            f"To fix: Edit implement.md 'Files / Areas Likely Touched' section "
-            f"to list specific file paths."
+            f"To fix: edit scope-manifest.json declared_paths/declared_globs "
+            f"to list specific paths."
         )
 
     norm = file_path.replace("\\", "/")
     if norm.startswith(".trellis/") or norm.startswith(".claude/"):
         return None
 
-    if _is_path_declared(norm, declared):
+    if is_path_declared(norm, declared_paths, declared_globs):
         return None
 
     return (
-        f"scope-guard: File '{norm}' is NOT declared in implement.md "
-        f"'Files / Areas Likely Touched'. Declared paths: "
-        f"{', '.join(declared[:5])}{'...' if len(declared) > 5 else ''}. "
-        f"If this change is intentional, add the path to implement.md "
-        f"'Files / Areas Likely Touched' section. If not, revert this edit."
+        f"scope-guard: File '{norm}' is NOT declared in {scope_source}. "
+        f"Declared scope: {format_declared_scope(declared_paths, declared_globs)}. "
+        f"If this change is intentional, add the path or glob to scope-manifest.json. "
+        f"If not, revert this edit."
     )
 
 

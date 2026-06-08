@@ -91,7 +91,7 @@ Plan 阶段已确认。
    - 填写 user message / timestamp / summary approved
    - 勾选 `Allowed to run task.py start? -> yes`
 2. 然后再执行 task.py start，进入 in_progress。
-3. 运行 trellis-before-dev 读取所有 artifacts，输出 before-dev.md 约束。
+3. 运行 trellis-before-dev 读取所有 artifacts，输出 before-dev.md 约束和 scope-manifest.json 范围契约。
 4. 严格按照 prd.md 和 Acceptance Criteria 实现。
 5. 默认使用 trellis-implement → trellis-check → Review Gates subagent 路径。
 6. Check 通过后，按 implement.md 的 Review Gate Contract 执行审查门禁。

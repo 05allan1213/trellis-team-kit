@@ -30,8 +30,9 @@ This skill is a gate. You MUST NOT edit source code before completing it. Readin
 6. **Read relevant specs** — use `.trellis/spec/index.md` to route to the right spec files. Read the specific guideline files, not just the index.
 7. **Read relevant research** — any `research/*.md` files referenced by the task.
 8. **Read developer preferences when available** — if `.trellis/.developer` points to a workspace or there is exactly one `.trellis/workspace/<name>/preferences.md`, load it and apply only the preferences that do not conflict with task artifacts or team specs.
-9. **Output implementation constraints** — a concise list of what must be true during implementation.
-10. **Confirm task is `in_progress`** — verify status before proceeding.
+9. **Output implementation constraints** — write `before-dev.md` with a concise list of what must be true during implementation.
+10. **Write `scope-manifest.json`** — create the sibling machine-readable scope contract before editing source.
+11. **Confirm task is `in_progress`** — verify status before proceeding.
 
 ### Spec Reading
 
@@ -89,10 +90,34 @@ The index is NOT the goal — it points to the actual guideline files. Read thos
 - [boundary from prd.md or implement.md]
 ```
 
+### Scope Manifest
+
+Write `scope-manifest.json` next to `before-dev.md`:
+
+```json
+{
+  "version": 1,
+  "level": "L2",
+  "profile": "light",
+  "declared_paths": ["src/example.py"],
+  "declared_globs": ["tests/example_*.py"],
+  "high_risk_allowed": false,
+  "out_of_scope": ["auth policy changes"]
+}
+```
+
+Rules:
+- `declared_paths` are exact files or directories that the implementation may touch.
+- `declared_globs` are scoped glob patterns for generated or grouped files.
+- At least one of `declared_paths` or `declared_globs` must be non-empty.
+- `high_risk_allowed` may be `true` only when the PRD/implement plan explicitly allows high-risk scope.
+- `out_of_scope` captures boundaries from PRD, grill/design, or implement plan.
+
 ## Quality Bar
 
 - All task artifacts have been read (prd.md, design.md, implement.md, JSONL entries).
 - The implementation approval record is present in `implement.md`.
+- `scope-manifest.json` is written and matches `before-dev.md`.
 - Relevant spec files have been read (not just the index).
 - Developer preferences are loaded when available and only applied within team/spec boundaries.
 - Implementation constraints are specific and actionable.

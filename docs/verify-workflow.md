@@ -111,9 +111,13 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 
 **检查点**：
 - [ ] 生成 `before-dev.md`，含 Scope 和 Files likely touched
+- [ ] 同目录生成 `scope-manifest.json`
+- [ ] `scope-manifest.json` 含 `declared_paths` / `declared_globs`，且至少一个非空
+- [ ] `python3 .trellis/scripts/validate_scope_manifest.py <task-dir>` PASS
 
 **护栏测试**：
 - [ ] 删除 before-dev.md → 编辑源码被 PreToolUse deny
+- [ ] 删除 scope-manifest.json → `validate_task.py <task-dir>` FAIL
 
 ---
 
@@ -127,7 +131,10 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] `implement.jsonl` / `check.jsonl` 不重复 task artifacts（`prd.md`、`design.md`、`implement.md`、`finish.md`）
 
 **范围守卫测试**：
-- [ ] 编辑高风险且未在 implement.md 声明的路径 → PreToolUse warning
+- [ ] 编辑 `scope-manifest.json` declared_globs 覆盖的文件 → allow
+- [ ] 编辑高风险且未在 scope-manifest.json 声明的路径 → PreToolUse warning
+- [ ] 使用 `override team-kit guardrail: <reason>` 绕过 soft warning → 写入 `runtime/guardrail-overrides.jsonl`
+- [ ] 有 override ledger 但 finish.md 未复核 → `validate_guardrail_overrides.py <task-dir>` FAIL
 
 ---
 
@@ -229,4 +236,6 @@ python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/<task-dir>
 | Review FAIL 时 finish | stop-guard block |
 | Check 未通过时 finish | stop-guard block |
 | 编辑高风险未声明路径 | PreToolUse warning |
+| soft warning override | allow + 写 runtime/guardrail-overrides.jsonl |
+| override ledger 未复核 | validate_guardrail_overrides.py FAIL |
 | TRELLIS_DISABLE_HOOKS=1 | 所有 hooks 静默 skip |

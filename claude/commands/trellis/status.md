@@ -20,7 +20,10 @@ Show the current Trellis task status in a compact, actionable summary.
    - L4: prd.md, design.md, implement.md
    - L5: prd.md, design.md, implement.md, research/
 6. Check gate status: read review/ files for PASS/FAIL, read validation/test-results.md for build/test status.
-7. Output in this exact format:
+7. Check scope and override audit:
+   - If `before-dev.md` exists on an L2+ task, report whether `scope-manifest.json` exists and whether it has declared paths/globs.
+   - If `runtime/guardrail-overrides.jsonl` exists, report entry count and whether `finish.md` contains a completed `Guardrail Overrides` review.
+8. Output in this exact format:
 
 ```
 📋 Trellis Status
@@ -39,6 +42,14 @@ Gate results:
 Validation:
   build:   <PASS / FAIL / missing>
   test:    <PASS / FAIL / missing>
+
+Scope:
+  manifest: <PASS / missing / invalid / n/a>
+  declared: <N paths, M globs>
+
+Guardrail overrides:
+  ledger:  <none / N entries>
+  review:  <PASS / missing / n/a>
 
 Next step: <one actionable sentence>
 ```

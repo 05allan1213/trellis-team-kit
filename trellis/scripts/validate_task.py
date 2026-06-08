@@ -20,6 +20,13 @@ import re
 import sys
 from pathlib import Path
 
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from validate_guardrail_overrides import validate_guardrail_overrides  # type: ignore[import-not-found]
+from validate_scope_manifest import validate_scope_manifest  # type: ignore[import-not-found]
+
 LEVEL_ARTIFACT_REQUIREMENTS: dict[str, list[str]] = {
     "L0": [],
     "L1": [],
@@ -764,6 +771,17 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
         )
         warnings.extend(scope_warnings)
 
+    before_dev_md = task_dir / "before-dev.md"
+    require_scope_manifest = (
+        level in ("L2", "L3", "L4", "L5")
+        and not is_planning
+        and before_dev_md.is_file()
+    )
+    if require_scope_manifest:
+        scope_ok, scope_issues = validate_scope_manifest(task_dir)
+        if not scope_ok:
+            errors.extend(scope_issues)
+
     errors.extend(
         _check_implementation_approval(task_dir / "implement.md", task_id, status)
     )
@@ -779,8 +797,10 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
         errors.append(f"Task '{task_id}': status is '{status}' but finish.md is missing")
     elif finish_md.is_file():
         errors.extend(_check_finish_requirements(finish_md, task_id))
+        override_ok, override_issues = validate_guardrail_overrides(task_dir)
+        if not override_ok:
+            errors.extend(override_issues)
 
-    before_dev_md = task_dir / "before-dev.md"
     if status.lower() == "in_progress" and before_dev_md.is_file():
         try:
             bd_content = before_dev_md.read_text(encoding="utf-8")

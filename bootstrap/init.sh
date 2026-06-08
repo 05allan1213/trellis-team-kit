@@ -385,7 +385,7 @@ HOOK_COUNT=$((HOOK_COUNT + 1))
 # Install hook libs
 LIB_COUNT=0
 mkdir -p "$TARGET_ROOT/.claude/hooks/lib"
-for lib in __init__ hook_output workflow_state task_artifacts naming prompt_routing; do
+for lib in __init__ hook_output workflow_state task_artifacts naming prompt_routing scope_manifest; do
   get_file "claude/hooks/lib/$lib.py" "$TARGET_ROOT/.claude/hooks/lib/$lib.py"
   LIB_COUNT=$((LIB_COUNT + 1))
 done
@@ -412,7 +412,7 @@ for v in \
   validate_task validate_review_gates validate_runtime_hardening \
   validate_workflow_state validate_delivery_sync \
   prepare_finish_workspace finalize_task_archive \
-  validate_routing_rules; do
+  validate_routing_rules validate_scope_manifest validate_guardrail_overrides; do
   get_file "trellis/scripts/$v.py" "$TARGET_ROOT/.trellis/scripts/$v.py"
   VALIDATOR_COUNT=$((VALIDATOR_COUNT + 1))
 done

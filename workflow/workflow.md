@@ -662,8 +662,9 @@ Load `trellis-before-dev` skill. Before writing any code:
 4. Read `implement.jsonl` entries if present
 5. Read relevant specs
 6. Read relevant research
-7. Output constraints for this implementation
-8. Confirm task is `in_progress`
+7. Output constraints for this implementation in `before-dev.md`
+8. Write sibling `scope-manifest.json` with `declared_paths`, `declared_globs`, `high_risk_allowed`, `out_of_scope`, `level`, and `profile`
+9. Confirm task is `in_progress`
 
 #### 2.1 Implement `[required · repeatable]`
 
@@ -744,6 +745,12 @@ Allowed to proceed with finish?
 
 Files checked:
 - <file> — <what was verified>
+
+## Guardrail Overrides
+
+- [x] override ledger reviewed
+- Ledger: runtime/guardrail-overrides.jsonl
+- Decision: N/A - no overrides
 
 ## Spec Update Decision
 

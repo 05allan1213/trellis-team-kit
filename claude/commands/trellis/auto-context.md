@@ -23,7 +23,7 @@ These JSONL files tell sub-agents which context files to read. Currently manual 
 
    c. **Task artifacts**: Include prd.md, design.md, implement.md (these are always injected by hooks, so don't duplicate — skip these)
 
-   d. **Pattern-matched specs**: For each file in the task's declared scope (from implement.md "Files / Areas Likely Touched"), find matching spec files under `.trellis/spec/`
+   d. **Pattern-matched specs**: For each file or glob in the task's declared scope (from `scope-manifest.json`; fall back to implement.md "Files / Areas Likely Touched" only for older tasks), find matching spec files under `.trellis/spec/`
 
 3. **Generate implement.jsonl** — For each relevant file, create a JSONL entry:
    ```json

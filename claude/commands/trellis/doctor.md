@@ -43,11 +43,18 @@ Run a comprehensive health check on the Trellis setup. Diagnose hooks, templates
         - L3: prd.md, implement.md
         - L4: prd.md, design.md, implement.md
         - L5: all of above + research/
-     d. Check implement.md has Review Gate Contract section if it exists
-     e. Check no stale state (active-task pointing to non-existent directory)
+    d. Check implement.md has Review Gate Contract section if it exists
+    e. Check `scope-manifest.json` for L2+ tasks after `before-dev.md` exists:
+       - file exists
+       - `declared_paths` or `declared_globs` is non-empty
+       - `level` and `profile` are present
+    f. Check `runtime/guardrail-overrides.jsonl` if present:
+       - every line has reason and decision
+       - `finish.md` has completed `Guardrail Overrides` review before finish
+    g. Check no stale state (active-task pointing to non-existent directory)
 
 7. **Scripts availability** — Verify key scripts exist under `.trellis/scripts/`:
-   - task.py, validate_task.py, validate_review_gates.py, validate_runtime_hardening.py
+   - task.py, validate_task.py, validate_scope_manifest.py, validate_guardrail_overrides.py, validate_review_gates.py, validate_runtime_hardening.py
 
 8. **Git state** — Check `git status --porcelain` for any uncommitted `.trellis/` or `.claude/` changes that might indicate incomplete setup.
 
@@ -68,6 +75,8 @@ Git state:   ✅ Clean (or: ⚠️ 3 uncommitted setup files)
 Active task: T001-hello-world (L2, planning)
   Artifacts: prd.md ✅ implement.jsonl ✅ check.jsonl ❌ missing
   Gates:     implement.md missing Review Gate Contract ⚠️
+  Scope:     scope-manifest.json ✅ declared_paths=2 declared_globs=1
+  Overrides: runtime/guardrail-overrides.jsonl ⚠️ finish review missing
 
 Overall: ⚠️ 2 warnings (or: ✅ All checks passed, or: ❌ 3 failures)
 ```
