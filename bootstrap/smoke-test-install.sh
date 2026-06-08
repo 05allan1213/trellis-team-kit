@@ -72,6 +72,22 @@ assert_file() {
   fi
 }
 
+assert_team_specs_match() {
+  local project="$1"
+  local rel source_path installed_path
+
+  while IFS= read -r rel || [ -n "$rel" ]; do
+    [ -n "$rel" ] || continue
+    source_path="$REPO_ROOT/marketplace/specs/web-app/$rel"
+    installed_path="$project/.trellis/spec/$rel"
+    assert_file "$installed_path"
+    if ! cmp -s "$source_path" "$installed_path"; then
+      echo "[smoke] ERROR: installed spec differs from team template: $rel" >&2
+      exit 1
+    fi
+  done < "$REPO_ROOT/trellis/spec-manifest.txt"
+}
+
 assert_no_pycache() {
   local root="$1"
   if find "$root/.trellis/scripts" -type d -name '__pycache__' | grep -q .; then
@@ -126,6 +142,7 @@ run_case() {
   assert_file "$project/.claude/settings.json"
   assert_file "$project/.claude/settings.local.json"
   assert_file "$project/.trellis/workspace/$DEV_NAME/journal-1.md"
+  assert_team_specs_match "$project"
   assert_no_pycache "$project"
 
   (

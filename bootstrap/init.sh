@@ -184,10 +184,10 @@ get_file() {
 }
 
 ensure_spec_overlay() {
-  local manifest tmp rel installed
+  local manifest tmp rel refreshed
   manifest="trellis/spec-manifest.txt"
   tmp="$(mktemp)"
-  installed=0
+  refreshed=0
 
   get_file "$manifest" "$tmp"
   mkdir -p "$TARGET_ROOT/.trellis/spec"
@@ -195,14 +195,12 @@ ensure_spec_overlay() {
   while IFS= read -r rel || [ -n "$rel" ]; do
     [ -n "$rel" ] || continue
     mkdir -p "$(dirname "$TARGET_ROOT/.trellis/spec/$rel")"
-    if [ ! -f "$TARGET_ROOT/.trellis/spec/$rel" ]; then
-      get_file "marketplace/specs/web-app/$rel" "$TARGET_ROOT/.trellis/spec/$rel"
-      installed=$((installed + 1))
-    fi
+    get_file "marketplace/specs/web-app/$rel" "$TARGET_ROOT/.trellis/spec/$rel"
+    refreshed=$((refreshed + 1))
   done < "$tmp"
 
   rm -f "$tmp"
-  echo "$installed"
+  echo "$refreshed"
 }
 
 plugin_status_line() {
@@ -451,7 +449,7 @@ step 10 "Installing specs, templates, and recording version..."
 # from the team template so `.trellis/spec/index.md` is always present.
 SPEC_OVERLAY_COUNT="$(ensure_spec_overlay)"
 if [ "$SPEC_OVERLAY_COUNT" -gt 0 ]; then
-  info "  restored $SPEC_OVERLAY_COUNT missing spec files from team template"
+  info "  refreshed $SPEC_OVERLAY_COUNT team-managed spec files from team template"
 fi
 
 # Count the final installed spec tree after overlay.

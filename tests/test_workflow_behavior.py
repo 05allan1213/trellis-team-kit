@@ -3205,6 +3205,35 @@ class InitScriptTests(unittest.TestCase):
         self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
         self.assertFalse((root / ".trellis" / "scripts" / "__pycache__").exists())
 
+    def test_init_refreshes_existing_team_managed_specs(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        self._init_git_repo(root)
+
+        fake_bin = root / "fake-bin"
+        fake_bin.mkdir()
+        self._write_fake_trellis(fake_bin)
+        self._write_fake_claude(fake_bin)
+
+        stale_spec = root / ".trellis" / "spec" / "guides" / "testing.md"
+        stale_spec.parent.mkdir(parents=True)
+        stale_spec.write_text("# stale registry copy\n", encoding="utf-8")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+
+        result = self._run_init(root, env, mode="local")
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        expected = (
+            REPO_ROOT / "marketplace" / "specs" / "web-app" / "guides" / "testing.md"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(stale_spec.read_text(encoding="utf-8"), expected)
+        self.assertIn("refreshed", result.stdout)
+        self.assertIn("team-managed spec files", result.stdout)
+
 
 class SmokeInstallScriptTests(unittest.TestCase):
     def test_smoke_script_help_mentions_supported_modes(self):
