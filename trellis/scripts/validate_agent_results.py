@@ -18,6 +18,7 @@ VALID_AGENTS = {
     "trellis-architecture-deep-reviewer",
     "trellis-merge-reviewer",
 }
+WORKSTREAM_REQUIRED_AGENTS = {"trellis-implementer", "trellis-checker"}
 VALID_STATUS = {"PASS", "FAIL", "REDESIGN-REQUIRED", "BLOCKED"}
 OMC_MODE_VALUES = {"omc", "OMC", "omc ulw/ultrawork", "OMC ulw/ultrawork"}
 TASK_LOCAL_PATH_PREFIXES = (
@@ -60,14 +61,28 @@ def _normalize(path: str) -> str:
     return norm.strip("/")
 
 
-def _load_declared_scope(task_dir: Path) -> tuple[list[str], list[str]]:
+def _as_declared_workstreams(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    names: list[str] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        if isinstance(name, str) and name.strip():
+            names.append(name.strip())
+    return names
+
+
+def _load_scope_contract(task_dir: Path) -> tuple[list[str], list[str], list[str]]:
     manifest_path = task_dir / "scope-manifest.json"
     data, err = _read_json(manifest_path)
     if err or not isinstance(data, dict):
-        return [], []
+        return [], [], []
     return (
         [_normalize(item) for item in _as_string_list(data.get("declared_paths"))],
         [_normalize(item) for item in _as_string_list(data.get("declared_globs"))],
+        _as_declared_workstreams(data.get("workstreams")),
     )
 
 
@@ -168,13 +183,15 @@ def _validate_result_payload(
     path: Path,
     declared_paths: list[str],
     declared_globs: list[str],
+    declared_workstreams: list[str],
     omc_approved: bool,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], str | None]:
     errors: list[str] = []
     changed_files: list[str] = []
+    workstream: str | None = None
 
     if not isinstance(payload, dict):
-        return [f"{path.name}: must contain a JSON object"], changed_files
+        return [f"{path.name}: must contain a JSON object"], changed_files, workstream
 
     for field in ("version", "agent", "status", "changed_files", "validation", "blocking_issues"):
         if field not in payload:
@@ -187,6 +204,17 @@ def _validate_result_payload(
     if not isinstance(agent, str) or agent not in VALID_AGENTS:
         errors.append(f"{path.name}: invalid agent '{agent}'")
 
+    raw_workstream = payload.get("workstream")
+    if raw_workstream is not None:
+        if isinstance(raw_workstream, str) and raw_workstream.strip():
+            workstream = raw_workstream.strip()
+            if declared_workstreams and workstream not in declared_workstreams:
+                errors.append(f"{path.name}: unknown workstream '{workstream}'")
+        else:
+            errors.append(f"{path.name}: workstream must be a non-empty string when present")
+    elif declared_workstreams and agent in WORKSTREAM_REQUIRED_AGENTS:
+        errors.append(f"{path.name}: missing required workstream")
+
     status = payload.get("status")
     if not isinstance(status, str) or status not in VALID_STATUS:
         errors.append(f"{path.name}: invalid status '{status}'")
@@ -194,10 +222,21 @@ def _validate_result_payload(
         errors.append(f"{path.name}: agent status is {status}")
 
     changed = payload.get("changed_files")
-    if not isinstance(changed, list) or not all(isinstance(item, str) and item.strip() for item in changed):
-        errors.append(f"{path.name}: changed_files must be a list of strings")
+    if not isinstance(changed, list):
+        errors.append(f"{path.name}: changed_files must be a list of objects")
     else:
-        changed_files = [_normalize(item) for item in changed]
+        for index, item in enumerate(changed, 1):
+            if not isinstance(item, dict):
+                errors.append(f"{path.name}: changed_files must be a list of objects")
+                continue
+            file_path = item.get("path")
+            summary = item.get("summary")
+            if not isinstance(file_path, str) or not file_path.strip():
+                errors.append(f"{path.name}: changed_files item {index} missing path")
+                continue
+            if not isinstance(summary, str) or not summary.strip():
+                errors.append(f"{path.name}: changed_files item {index} missing summary")
+            changed_files.append(_normalize(file_path))
         for file_path in changed_files:
             if not _matches_declared(file_path, declared_paths, declared_globs):
                 errors.append(f"{path.name}: changed file '{file_path}' is not declared in scope-manifest.json")
@@ -232,7 +271,7 @@ def _validate_result_payload(
     if isinstance(execution_mode, str) and execution_mode in OMC_MODE_VALUES and not omc_approved:
         errors.append(f"{path.name}: OMC result requires explicit OMC approval in implement.md")
 
-    return errors, changed_files
+    return errors, changed_files, workstream
 
 
 def validate_agent_results(
@@ -253,24 +292,28 @@ def validate_agent_results(
             return False, [f"Task '{task_dir.name}': required agent-results/*.json is missing"]
         return True, []
 
-    declared_paths, declared_globs = _load_declared_scope(task_dir)
+    declared_paths, declared_globs, declared_workstreams = _load_scope_contract(task_dir)
     approved = _omc_approved(task_dir)
     errors: list[str] = []
     changed_by_file: dict[str, list[str]] = {}
+    result_workstreams: set[str] = set()
 
     for result_path in files:
         payload, err = _read_json(result_path)
         if err:
             errors.append(f"{result_path.name}: invalid JSON: {err}")
             continue
-        result_errors, changed_files = _validate_result_payload(
+        result_errors, changed_files, workstream = _validate_result_payload(
             payload,
             path=result_path,
             declared_paths=declared_paths,
             declared_globs=declared_globs,
+            declared_workstreams=declared_workstreams,
             omc_approved=approved,
         )
         errors.extend(result_errors)
+        if workstream:
+            result_workstreams.add(workstream)
         agent = payload.get("agent") if isinstance(payload, dict) else result_path.name
         for file_path in changed_files:
             changed_by_file.setdefault(file_path, []).append(str(agent))
@@ -281,6 +324,10 @@ def validate_agent_results(
             errors.append(
                 f"Changed file '{file_path}' was modified by multiple agents: {', '.join(unique_agents)}"
             )
+
+    for workstream in declared_workstreams:
+        if workstream not in result_workstreams:
+            errors.append(f"missing agent result for declared workstream '{workstream}'")
 
     return len(errors) == 0, errors
 

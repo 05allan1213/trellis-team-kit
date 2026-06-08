@@ -78,12 +78,16 @@ class InjectWorkflowStateTests(unittest.TestCase):
         context = self.run_hook("把按钮文案从提交改成保存")
 
         self.assertIn("Suggested route: L1", context)
+        self.assertIn("Workflow profile: quick.", context)
+        self.assertIn("Friction budget: minimal", context)
         self.assertIn("Recommended next step: direct inline edit without creating a task", context)
 
     def test_l2_prompt_gets_light_task_recommendation(self):
         context = self.run_hook("给 util 增一个日期格式化函数")
 
         self.assertIn("Suggested route: L2", context)
+        self.assertIn("Workflow profile: light.", context)
+        self.assertIn("Friction budget: low", context)
         self.assertIn("ask for task-creation consent", context)
         self.assertIn("keep planning light", context)
         self.assertIn("minimal implement.md", context)
@@ -104,6 +108,8 @@ class InjectWorkflowStateTests(unittest.TestCase):
         context = self.run_hook("把用户列表接口返回字段改一下")
 
         self.assertIn("Suggested route: L4", context)
+        self.assertIn("Workflow profile: strict.", context)
+        self.assertIn("Required: design.md + Review Gate Contract + architecture-review.", context)
         self.assertIn("strict cross-layer task", context)
         self.assertIn("architecture-review", context)
 
@@ -123,6 +129,8 @@ class InjectWorkflowStateTests(unittest.TestCase):
         context = self.run_hook("新增用户管理 CRUD 功能")
 
         self.assertIn("Suggested route: L3", context)
+        self.assertIn("Workflow profile: standard.", context)
+        self.assertIn("Friction budget: normal", context)
         self.assertIn("standard task", context)
         self.assertIn("code-review", context)
 
@@ -130,6 +138,8 @@ class InjectWorkflowStateTests(unittest.TestCase):
         context = self.run_hook("重构整个订单模块，拆成多个子 agent 并行做")
 
         self.assertIn("Suggested route: L5", context)
+        self.assertIn("Workflow profile: orchestrated.", context)
+        self.assertIn("Friction budget: very high", context)
         self.assertIn("Trellis-native parallel", context)
         self.assertIn("merge-review", context)
 
@@ -299,6 +309,31 @@ class ReplayWorkflowCasesTests(unittest.TestCase):
         self.assertIn("finish", result.stdout)
         self.assertIn("orchestration", result.stdout)
 
+    def test_replay_lab_includes_documented_plan_fixtures(self):
+        expected = {
+            "routing/l1-inline-copy.json",
+            "routing/l2-light-util.json",
+            "routing/l3-standard-feature.json",
+            "routing/l4-api-contract-change.json",
+            "routing/l5-multi-agent-refactor.json",
+            "routing/uncertain-scope.json",
+            "guardrails/planning-edit-source-block.json",
+            "guardrails/before-dev-missing-block.json",
+            "guardrails/high-risk-undeclared-warning.json",
+            "guardrails/override-ledger.json",
+            "finish/finish-without-approval-block.json",
+            "finish/finish-with-overrides-requires-review.json",
+            "orchestration/trellis-native-parallel-default.json",
+            "orchestration/omc-requires-explicit-approval.json",
+        }
+        replay_root = FIXTURES_DIR / "replay"
+        actual = {
+            path.relative_to(replay_root).as_posix()
+            for path in replay_root.rglob("*.json")
+        }
+
+        self.assertTrue(expected.issubset(actual), msg=f"Missing replay fixtures: {sorted(expected - actual)}")
+
 
 class ValidateTaskTests(unittest.TestCase):
     def setUp(self):
@@ -374,7 +409,7 @@ class ValidateTaskTests(unittest.TestCase):
                     "profile": "light",
                     "declared_paths": ["src/settings.py"],
                     "declared_globs": [],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": [],
                     "out_of_scope": ["auth flows"],
                 }
             ),
@@ -1251,7 +1286,7 @@ class ValidateTaskTests(unittest.TestCase):
                     "profile": "light",
                     "declared_paths": [],
                     "declared_globs": [],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": [],
                     "out_of_scope": [],
                 }
             ),
@@ -1262,6 +1297,147 @@ class ValidateTaskTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertTrue(any("declared_paths or declared_globs" in issue for issue in issues))
+
+    def test_scope_manifest_requires_high_risk_allowed_path_list(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L4", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: api\n- Files likely touched: api/users.py\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": ["api/users.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": True,
+                    "out_of_scope": ["auth policy changes"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("high_risk_allowed must be a list of strings" in issue for issue in issues))
+
+    def test_scope_manifest_requires_out_of_scope_boundaries(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: settings\n- Files likely touched: src/settings.py\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L3",
+                    "profile": "standard",
+                    "declared_paths": ["src/settings.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("out_of_scope must be non-empty" in issue for issue in issues))
+
+    def test_scope_manifest_requires_high_risk_scope_allowlist_coverage(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L4", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: api\n- Files likely touched: api/users/*.py\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": [],
+                    "declared_globs": ["api/users/*.py"],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["auth policy changes"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("high-risk declared scope" in issue for issue in issues))
 
     def test_valid_scope_manifest_satisfies_in_progress_scope_contract(self):
         task_dir = self.make_task_dir(
@@ -1298,7 +1474,7 @@ class ValidateTaskTests(unittest.TestCase):
                     "profile": "light",
                     "declared_paths": ["src/settings.py"],
                     "declared_globs": [],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": [],
                     "out_of_scope": ["auth flows"],
                 }
             ),
@@ -1432,7 +1608,7 @@ class ValidateTaskTests(unittest.TestCase):
                     "profile": "orchestrated",
                     "declared_paths": ["src/orders"],
                     "declared_globs": ["tests/orders/*.py"],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": [],
                     "out_of_scope": ["billing"],
                 }
             ),
@@ -1748,7 +1924,7 @@ class ProtectDangerousActionsTests(unittest.TestCase):
                     "profile": "strict",
                     "declared_paths": [],
                     "declared_globs": ["api/users/*.py"],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": ["api/users/*.py"],
                     "out_of_scope": ["auth policy changes"],
                 }
             ),
@@ -1764,6 +1940,52 @@ class ProtectDangerousActionsTests(unittest.TestCase):
         response = self.run_hook(root, payload)
 
         self.assertIsNone(response)
+
+    def test_declared_high_risk_path_without_high_risk_allowlist_warns(self):
+        implement_md = self.approval_block(
+            approved=True,
+            start_allowed=True,
+            user_message="开始实现",
+            timestamp="2026-06-04T10:00:00Z",
+            summary_approved="start implementation",
+        )
+        root, task_dir = self.make_repo(
+            status="in_progress",
+            implement_md=implement_md,
+            before_dev_md="# Before Dev\n- Scope: API users\n- Files likely touched: api/users/*.py\n",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": [],
+                    "declared_globs": ["api/users/*.py"],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["auth policy changes"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "api/users/list.py"},
+            "prompt": "继续实现",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "allow",
+        )
+        self.assertIn(
+            "WARNING: Editing high-risk path without high_risk_allowed",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
+        )
 
     def test_guardrail_override_writes_runtime_ledger(self):
         implement_md = (
@@ -2289,7 +2511,7 @@ class ValidateScopeManifestTests(unittest.TestCase):
                 "profile": "light",
                 "declared_paths": [],
                 "declared_globs": [],
-                "high_risk_allowed": False,
+                "high_risk_allowed": [],
                 "out_of_scope": [],
             }
         )
@@ -2307,7 +2529,7 @@ class ValidateScopeManifestTests(unittest.TestCase):
                 "profile": "light",
                 "declared_paths": ["src/settings.py"],
                 "declared_globs": ["tests/settings_*.py"],
-                "high_risk_allowed": False,
+                "high_risk_allowed": [],
                 "out_of_scope": ["auth flows"],
             }
         )
@@ -2466,8 +2688,12 @@ class ValidateAgentResultsTests(unittest.TestCase):
                     "profile": "orchestrated",
                     "declared_paths": ["src/orders"],
                     "declared_globs": ["tests/orders/*.py"],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": [],
                     "out_of_scope": ["billing changes"],
+                    "workstreams": [
+                        {"name": "orders-api", "owner": "trellis-implementer"},
+                        {"name": "orders-tests", "owner": "trellis-checker"},
+                    ],
                 }
             ),
             encoding="utf-8",
@@ -2481,11 +2707,16 @@ class ValidateAgentResultsTests(unittest.TestCase):
         )
 
     def valid_result(self, *, agent: str = "trellis-implementer", changed_files: list[str] | None = None) -> dict:
+        files = changed_files or ["src/orders/service.py"]
         return {
             "version": 1,
             "agent": agent,
             "status": "PASS",
-            "changed_files": changed_files or ["src/orders/service.py"],
+            "workstream": "orders-api" if agent == "trellis-implementer" else "orders-tests",
+            "changed_files": [
+                {"path": file_path, "summary": "validated by replay test"}
+                for file_path in files
+            ],
             "validation": [
                 {"command": "pytest tests/orders", "status": "PASS"}
             ],
@@ -2510,6 +2741,52 @@ class ValidateAgentResultsTests(unittest.TestCase):
         self.assertTrue(any("changed_files" in issue for issue in issues))
         self.assertTrue(any("validation" in issue for issue in issues))
         self.assertTrue(any("blocking_issues" in issue for issue in issues))
+
+    def test_agent_result_rejects_legacy_changed_files_string_list(self):
+        task_dir = self.make_task_dir()
+        payload = self.valid_result()
+        payload["changed_files"] = ["src/orders/service.py"]
+        self.write_result(task_dir, "trellis-implementer-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("changed_files must be a list of objects" in issue for issue in issues))
+
+    def test_declared_workstream_without_agent_result_fails(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"]),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("missing agent result for declared workstream 'orders-tests'" in issue for issue in issues))
+
+    def test_agent_result_requires_workstream_when_declared(self):
+        task_dir = self.make_task_dir()
+        payload = self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"])
+        payload.pop("workstream")
+        self.write_result(task_dir, "trellis-implementer-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("missing required workstream" in issue for issue in issues))
+
+    def test_agent_result_rejects_unknown_workstream(self):
+        task_dir = self.make_task_dir()
+        payload = self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"])
+        payload["workstream"] = "billing"
+        self.write_result(task_dir, "trellis-implementer-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("unknown workstream 'billing'" in issue for issue in issues))
 
     def test_duplicate_changed_files_fail_merge_review_readiness(self):
         task_dir = self.make_task_dir()
@@ -2544,6 +2821,16 @@ class ValidateAgentResultsTests(unittest.TestCase):
 
     def test_task_local_result_artifacts_do_not_require_scope_declaration(self):
         task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"]),
+        )
+        self.write_result(
+            task_dir,
+            "trellis-checker-b.json",
+            self.valid_result(agent="trellis-checker", changed_files=["tests/orders/test_service.py"]),
+        )
         self.write_result(
             task_dir,
             "trellis-merge-reviewer-a.json",
@@ -2691,7 +2978,13 @@ class SubagentStopGuardAgentResultsTests(unittest.TestCase):
                     "version": 1,
                     "agent": "trellis-implementer",
                     "status": "PASS",
-                    "changed_files": ["src/orders/service.py"],
+                    "workstream": "orders-api",
+                    "changed_files": [
+                        {
+                            "path": "src/orders/service.py",
+                            "summary": "implemented workflow",
+                        }
+                    ],
                     "validation": [{"command": "pytest tests/orders", "status": "PASS"}],
                     "blocking_issues": [],
                     "non_blocking_issues": [],

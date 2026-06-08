@@ -130,8 +130,8 @@ before-dev.md 必须填写：
 
 scope-manifest.json 必须填写：
 - `declared_paths` / `declared_globs` — 至少一个非空
-- `high_risk_allowed` — 是否明确允许高风险范围
-- `out_of_scope` — 不做什么
+- `high_risk_allowed` — 明确允许的高风险 path/glob 列表；声明 API/auth/schema/migration/shared types 等高风险范围时必须覆盖
+- `out_of_scope` — 不做什么，必须至少写一条边界
 
 ## 范围守卫
 
@@ -169,8 +169,9 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 ```
 
 `trellis-implementer`、`trellis-checker` 和各类 reviewer 在输出 markdown
-汇报时同步写入 JSON，记录 `changed_files`、`validation`、`blocking_issues`、
-`risks` 和 `scope_expansion`。`trellis-merge-review` 会聚合
+汇报时同步写入 JSON，记录 `workstream`、对象化 `changed_files`
+（每项含 `path` / `summary`）、`validation`、`blocking_issues`、`risks` 和
+`scope_expansion`。`trellis-merge-review` 会聚合
 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl` 和
 `scope-manifest.json`，检查重复编辑、未声明路径、失败验证、未解决 blocker
 以及 OMC 是否有显式批准。

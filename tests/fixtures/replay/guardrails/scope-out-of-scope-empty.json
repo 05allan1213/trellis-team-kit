@@ -1,0 +1,36 @@
+{
+  "name": "scope manifest with empty out_of_scope fails",
+  "run": "validate-scope-manifest",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-scope-empty-out",
+      "task_json": {
+        "id": "replay-scope-empty-out",
+        "level": "L3",
+        "status": "in_progress"
+      },
+      "files": {
+        "scope-manifest.json": {
+          "version": 1,
+          "level": "L3",
+          "profile": "standard",
+          "declared_paths": [
+            "src/settings.py"
+          ],
+          "declared_globs": [],
+          "high_risk_allowed": [],
+          "out_of_scope": []
+        }
+      }
+    }
+  },
+  "expect": {
+    "contains": [
+      "FAIL:",
+      "out_of_scope must be non-empty"
+    ],
+    "not_contains": [
+      "PASS:"
+    ]
+  }
+}

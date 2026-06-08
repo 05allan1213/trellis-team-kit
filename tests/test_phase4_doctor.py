@@ -131,7 +131,7 @@ class WorkflowDoctorTests(unittest.TestCase):
                     "profile": "orchestrated",
                     "declared_paths": ["src/orders"],
                     "declared_globs": [],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": [],
                     "out_of_scope": [],
                 }
             ),
@@ -182,7 +182,7 @@ class WorkflowDoctorTests(unittest.TestCase):
                     "profile": "strict",
                     "declared_paths": ["src/orders"],
                     "declared_globs": [],
-                    "high_risk_allowed": False,
+                    "high_risk_allowed": [],
                     "out_of_scope": [],
                 }
             ),

@@ -1,0 +1,27 @@
+{
+  "name": "finish with override ledger requires review",
+  "run": "validate-guardrail-overrides",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-finish-overrides",
+      "task_json": {
+        "id": "replay-finish-overrides",
+        "level": "L4",
+        "status": "in_progress"
+      },
+      "files": {
+        "runtime/guardrail-overrides.jsonl": "{\"timestamp\":\"2026-06-08T10:00:00+00:00\",\"kind\":\"soft_warning\",\"decision\":\"accepted\",\"reason\":\"fixture override\",\"tool_name\":\"Edit\",\"message\":\"WARNING: Editing high-risk undeclared path\",\"path\":\"api/users.py\"}\n",
+        "finish.md": "# Finish\n\n## Guardrail Overrides\n\n- [ ] override ledger reviewed\n- Ledger: runtime/guardrail-overrides.jsonl\n- Decision:\n"
+      }
+    }
+  },
+  "expect": {
+    "contains": [
+      "FAIL:",
+      "finish.md missing completed 'Guardrail Overrides' review"
+    ],
+    "not_contains": [
+      "PASS:"
+    ]
+  }
+}

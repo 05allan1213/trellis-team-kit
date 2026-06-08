@@ -119,6 +119,8 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] 生成 `before-dev.md`，含 Scope 和 Files likely touched
 - [ ] 同目录生成 `scope-manifest.json`
 - [ ] `scope-manifest.json` 含 `declared_paths` / `declared_globs`，且至少一个非空
+- [ ] `scope-manifest.json` 含非空 `out_of_scope`
+- [ ] 高风险 declared scope 已被 `high_risk_allowed` path/glob 覆盖
 - [ ] `python3 .trellis/scripts/validate_scope_manifest.py <task-dir>` PASS
 
 **护栏测试**：
@@ -144,7 +146,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] `implement.jsonl` / `check.jsonl` 只保留 curated spec/research context
 - [ ] `implement.jsonl` / `check.jsonl` 不重复 task artifacts（`prd.md`、`design.md`、`implement.md`、`finish.md`）
 - [ ] trellis-implementer 写入 `agent-results/trellis-implementer-<timestamp>.json`
-- [ ] agent result 含 `status`、`changed_files`、`validation`、`blocking_issues`
+- [ ] agent result 含 `status`、`workstream`、对象化 `changed_files`、`validation`、`blocking_issues`
 - [ ] `python3 .trellis/scripts/validate_agent_results.py <task-dir>` PASS
 
 **范围守卫测试**：

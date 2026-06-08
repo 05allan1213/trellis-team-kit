@@ -1,0 +1,38 @@
+{
+  "name": "high-risk declared scope without allowlist fails",
+  "run": "validate-scope-manifest",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-high-risk-scope",
+      "task_json": {
+        "id": "replay-high-risk-scope",
+        "level": "L4",
+        "status": "in_progress"
+      },
+      "files": {
+        "scope-manifest.json": {
+          "version": 1,
+          "level": "L4",
+          "profile": "strict",
+          "declared_paths": [],
+          "declared_globs": [
+            "api/users/*.py"
+          ],
+          "high_risk_allowed": [],
+          "out_of_scope": [
+            "auth policy changes"
+          ]
+        }
+      }
+    }
+  },
+  "expect": {
+    "contains": [
+      "FAIL:",
+      "high-risk declared scope"
+    ],
+    "not_contains": [
+      "PASS:"
+    ]
+  }
+}

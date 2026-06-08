@@ -105,7 +105,7 @@ Write `scope-manifest.json` next to `before-dev.md`:
   "profile": "light",
   "declared_paths": ["src/example.py"],
   "declared_globs": ["tests/example_*.py"],
-  "high_risk_allowed": false,
+  "high_risk_allowed": ["api/example.py"],
   "out_of_scope": ["auth policy changes"]
 }
 ```
@@ -114,8 +114,11 @@ Rules:
 - `declared_paths` are exact files or directories that the implementation may touch.
 - `declared_globs` are scoped glob patterns for generated or grouped files.
 - At least one of `declared_paths` or `declared_globs` must be non-empty.
-- `high_risk_allowed` may be `true` only when the PRD/implement plan explicitly allows high-risk scope.
-- `out_of_scope` captures boundaries from PRD, grill/design, or implement plan.
+- `high_risk_allowed` is a path/glob list and must cover declared API, auth,
+  schema, migration, shared-types, contract, or proto scope explicitly allowed by
+  the PRD/implement plan.
+- `out_of_scope` captures boundaries from PRD, grill/design, or implement plan
+  and must contain at least one boundary.
 
 ## Quality Bar
 

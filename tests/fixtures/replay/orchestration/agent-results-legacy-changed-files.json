@@ -1,0 +1,70 @@
+{
+  "name": "agent result legacy changed_files string list fails",
+  "run": "validate-agent-results",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-agent-legacy",
+      "task_json": {
+        "id": "replay-agent-legacy",
+        "level": "L5",
+        "status": "in_progress"
+      },
+      "files": {
+        "implement.md": "# Implement\n\n## Execution Mode Decision\n\nRecommended mode:\n- [ ] main session\n- [ ] single Trellis subagent\n- [ ] Trellis subagents\n- [x] Trellis-native parallel + worktree\n- [ ] OMC ulw/ultrawork + worktree + parent/child\n\nOMC approval:\n- [x] not applicable\n- [ ] user explicitly approved OMC\n\n## Review Gate Contract\n\n- [x] trellis-check\n- [x] trellis-code-review\n- [x] trellis-merge-review\n",
+        "scope-manifest.json": {
+          "version": 1,
+          "level": "L5",
+          "profile": "orchestrated",
+          "declared_paths": [
+            "src/orders"
+          ],
+          "declared_globs": [
+            "tests/orders/*.py"
+          ],
+          "high_risk_allowed": [],
+          "out_of_scope": [
+            "billing changes"
+          ],
+          "workstreams": [
+            {
+              "name": "orders-api",
+              "owner": "trellis-implementer"
+            },
+            {
+              "name": "orders-tests",
+              "owner": "trellis-checker"
+            }
+          ]
+        },
+        "agent-results/trellis-implementer-a.json": {
+          "version": 1,
+          "agent": "trellis-implementer",
+          "status": "PASS",
+          "workstream": "orders-api",
+          "changed_files": [
+            "src/orders/service.py"
+          ],
+          "validation": [
+            {
+              "command": "pytest tests/orders",
+              "status": "PASS"
+            }
+          ],
+          "blocking_issues": [],
+          "non_blocking_issues": [],
+          "risks": [],
+          "scope_expansion": []
+        }
+      }
+    }
+  },
+  "expect": {
+    "contains": [
+      "FAIL:",
+      "changed_files must be a list of objects"
+    ],
+    "not_contains": [
+      "PASS:"
+    ]
+  }
+}

@@ -663,7 +663,7 @@ Load `trellis-before-dev` skill. Before writing any code:
 5. Read relevant specs
 6. Read relevant research
 7. Output constraints for this implementation in `before-dev.md`
-8. Write sibling `scope-manifest.json` with `declared_paths`, `declared_globs`, `high_risk_allowed`, `out_of_scope`, `level`, and `profile`
+8. Write sibling `scope-manifest.json` with `declared_paths`, `declared_globs`, `high_risk_allowed`, `out_of_scope`, `level`, and `profile`; `out_of_scope` must be non-empty, and high-risk declared scope must be covered by `high_risk_allowed`
 9. Confirm task is `in_progress`
 
 #### 2.1 Implement `[required · repeatable]`
@@ -686,9 +686,9 @@ Spawn the implement sub-agent:
 
 The implement agent must also write
 `<task path>/agent-results/trellis-implementer-<timestamp>.json` with
-`version`, `agent`, `status`, `changed_files`, `validation`,
-`blocking_issues`, `non_blocking_issues`, `risks`, `scope_expansion`, and
-`execution_mode`.
+`version`, `agent`, `status`, `workstream`, object-shaped `changed_files`
+entries containing `path` and `summary`, `validation`, `blocking_issues`,
+`non_blocking_issues`, `risks`, `scope_expansion`, and `execution_mode`.
 
 #### 2.2 Quality check `[required · repeatable]`
 

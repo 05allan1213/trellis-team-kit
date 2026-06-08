@@ -1,0 +1,19 @@
+{
+  "name": "L4 API contract change routes to strict profile",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "把用户列表接口返回字段改一下"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: L4",
+      "Workflow profile: strict.",
+      "Friction budget: high",
+      "Required: design.md + Review Gate Contract + architecture-review.",
+      "architecture-review"
+    ],
+    "not_contains": [
+      "direct inline edit"
+    ]
+  }
+}

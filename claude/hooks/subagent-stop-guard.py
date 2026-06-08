@@ -159,8 +159,18 @@ def _validate_agent_result_file(path: Path, subagent_type: str) -> list[str]:
         errors.append(f"{path.name}: agent must be {subagent_type}")
     if payload.get("status") not in ("PASS", "FAIL", "REDESIGN-REQUIRED", "BLOCKED"):
         errors.append(f"{path.name}: invalid status")
-    if not isinstance(payload.get("changed_files"), list):
-        errors.append(f"{path.name}: changed_files must be a list")
+    changed_files = payload.get("changed_files")
+    if not isinstance(changed_files, list):
+        errors.append(f"{path.name}: changed_files must be a list of objects")
+    else:
+        for index, item in enumerate(changed_files, 1):
+            if not isinstance(item, dict):
+                errors.append(f"{path.name}: changed_files must be a list of objects")
+                continue
+            if not isinstance(item.get("path"), str) or not item.get("path", "").strip():
+                errors.append(f"{path.name}: changed_files item {index} missing path")
+            if not isinstance(item.get("summary"), str) or not item.get("summary", "").strip():
+                errors.append(f"{path.name}: changed_files item {index} missing summary")
     if not isinstance(payload.get("validation"), list):
         errors.append(f"{path.name}: validation must be a list")
     if not isinstance(payload.get("blocking_issues"), list):

@@ -1,0 +1,18 @@
+{
+  "name": "L3 standard feature routes to standard profile",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "新增用户管理 CRUD 功能"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: L3",
+      "Workflow profile: standard.",
+      "Friction budget: normal",
+      "trellis-code-review"
+    ],
+    "not_contains": [
+      "Suggested route: L5"
+    ]
+  }
+}

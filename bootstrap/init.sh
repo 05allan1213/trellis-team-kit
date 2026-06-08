@@ -427,9 +427,27 @@ mkdir -p "$TARGET_ROOT/.trellis/replay/guardrails"
 mkdir -p "$TARGET_ROOT/.trellis/replay/finish"
 mkdir -p "$TARGET_ROOT/.trellis/replay/orchestration"
 for replay_case in \
+  routing/l1-inline-copy.json \
+  routing/l2-light-util.json \
+  routing/l3-standard-feature.json \
+  routing/l4-api-contract-change.json \
+  routing/l5-multi-agent-refactor.json \
   routing/standard-feature-routes-l3.json \
+  routing/uncertain-scope.json \
+  guardrails/before-dev-missing-block.json \
   guardrails/contains-and-not-contains.json \
+  guardrails/high-risk-allowlist-missing.json \
+  guardrails/high-risk-undeclared-warning.json \
+  guardrails/override-ledger.json \
+  guardrails/planning-edit-source-block.json \
+  guardrails/scope-out-of-scope-empty.json \
+  finish/finish-with-overrides-requires-review.json \
+  finish/finish-without-approval-block.json \
   finish/finish-without-approval-blocks.json \
+  orchestration/agent-results-incomplete-workstreams.json \
+  orchestration/agent-results-legacy-changed-files.json \
+  orchestration/omc-requires-explicit-approval.json \
+  orchestration/trellis-native-parallel-default.json \
   orchestration/omc-prompt-routes-l5-without-start.json; do
   get_file "tests/fixtures/replay/$replay_case" "$TARGET_ROOT/.trellis/replay/$replay_case"
   REPLAY_COUNT=$((REPLAY_COUNT + 1))

@@ -1,0 +1,17 @@
+{
+  "name": "L1 inline copy routes to quick profile",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "把按钮文案从提交改成保存"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: L1",
+      "Workflow profile: quick.",
+      "direct inline edit"
+    ],
+    "not_contains": [
+      "create a Trellis task"
+    ]
+  }
+}

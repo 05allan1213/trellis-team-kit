@@ -215,7 +215,16 @@ schema:
   "version": 1,
   "agent": "trellis-merge-reviewer",
   "status": "PASS",
-  "changed_files": [],
+  "changed_files": [
+    {
+      "path": "review/merge-review.md",
+      "summary": "recorded merge-review verdict"
+    },
+    {
+      "path": "agent-results/trellis-merge-reviewer-<timestamp>.json",
+      "summary": "recorded merge-review agent result"
+    }
+  ],
   "validation": [
     {"command": "git diff --name-only", "status": "PASS"}
   ],
@@ -228,8 +237,8 @@ schema:
 ```
 
 Use `status: "FAIL"` when the merge review verdict is FAIL. `changed_files`
-must include the review artifacts you wrote. `validation` must include the
-read-only inspection commands you ran.
+must include the review artifacts you wrote as objects with `path` and
+`summary`. `validation` must include the read-only inspection commands you ran.
 
 ### Step 9: Report Verdict
 

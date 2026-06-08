@@ -1,0 +1,34 @@
+{
+  "name": "planning source edit is blocked",
+  "run": "script",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-planning",
+      "active": true,
+      "task_json": {
+        "id": "replay-planning",
+        "level": "L3",
+        "status": "planning"
+      },
+      "files": {
+        "implement.md": "# Implement\n"
+      }
+    }
+  },
+  "input": {
+    "command": [
+      "python3",
+      "{hooks}/protect-dangerous-actions.py"
+    ],
+    "stdin": "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"src/app.py\"},\"prompt\":\"edit source\"}"
+  },
+  "expect": {
+    "contains": [
+      "BLOCKED: Editing source files during planning phase",
+      "permissionDecision"
+    ],
+    "not_contains": [
+      "Guardrail override accepted"
+    ]
+  }
+}

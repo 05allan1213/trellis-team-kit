@@ -238,7 +238,15 @@ def _run_script(case: dict[str, Any], workspace: Path) -> str:
     command = input_data.get("command")
     if not isinstance(command, list) or not command:
         raise ValueError("script cases require input.command as a non-empty list")
-    args = [str(part).replace("{workspace}", str(workspace)).replace("{repo}", str(REPO_ROOT)) for part in command]
+    replacements = {
+        "{workspace}": str(workspace),
+        "{repo}": str(REPO_ROOT),
+        "{hooks}": str(HOOKS_DIR),
+        "{trellis_scripts}": str(TRELLIS_SCRIPTS_DIR),
+    }
+    args = [str(part) for part in command]
+    for placeholder, value in replacements.items():
+        args = [part.replace(placeholder, value) for part in args]
     stdin = str(input_data.get("stdin", ""))
     return _run_subprocess(args, input_text=stdin, cwd=workspace)
 

@@ -1,0 +1,17 @@
+{
+  "name": "L2 light util routes to light profile",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "补一个日期格式化工具函数"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: L2",
+      "Workflow profile: light.",
+      "minimal implement.md"
+    ],
+    "not_contains": [
+      "Suggested route: L4"
+    ]
+  }
+}

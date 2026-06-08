@@ -1,0 +1,33 @@
+{
+  "name": "in-progress source edit without before-dev is blocked",
+  "run": "script",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-before-dev",
+      "active": true,
+      "task_json": {
+        "id": "replay-before-dev",
+        "level": "L3",
+        "status": "in_progress"
+      },
+      "files": {
+        "implement.md": "# Implement\n\n## Implementation Approval\n\nApproval status:\n- [x] approved\n\nApproval source:\n- user message: start implementation\n- timestamp: 2026-06-08T10:00:00Z\n- summary approved: start implementation\n\nAllowed to run task.py start?\n- [x] yes\n- [ ] no\n"
+      }
+    }
+  },
+  "input": {
+    "command": [
+      "python3",
+      "{hooks}/protect-dangerous-actions.py"
+    ],
+    "stdin": "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"src/app.py\"},\"prompt\":\"continue\"}"
+  },
+  "expect": {
+    "contains": [
+      "BLOCKED: Editing source files without before-dev constraints"
+    ],
+    "not_contains": [
+      "WARNING:"
+    ]
+  }
+}

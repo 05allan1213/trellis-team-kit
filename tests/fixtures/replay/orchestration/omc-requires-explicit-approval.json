@@ -1,0 +1,19 @@
+{
+  "name": "OMC requires explicit approval before use",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "Use OMC ultrawork to parallel refactor the entire orders module"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: L5",
+      "Workflow profile: orchestrated.",
+      "explicit user approval",
+      "merge-review"
+    ],
+    "not_contains": [
+      "start OMC",
+      "Starting OMC"
+    ]
+  }
+}

@@ -22,8 +22,12 @@ guide.
 
 - Writing code before `before-dev.md` and `scope-manifest.json` exist.
 - Leaving both `declared_paths` and `declared_globs` empty.
+- Leaving `out_of_scope` empty instead of recording at least one explicit
+  boundary.
 - Expanding into high-risk files without the PRD or implement plan allowing
   that scope.
+- Declaring API, auth, schema, migration, shared-types, contract, or proto scope
+  without also listing the same path/glob in `high_risk_allowed`.
 - Editing outside the declared scope and failing to record the reason.
 
 ## Override Ledger Mistakes
@@ -37,7 +41,10 @@ guide.
 
 - Dispatching Trellis subagents without requiring an `agent-results/*.json`
   handoff.
-- Omitting `status`, `changed_files`, `validation`, or `blocking_issues`.
+- Omitting `status`, `workstream`, `changed_files`, `validation`, or
+  `blocking_issues` when workstreams are declared.
+- Writing legacy `changed_files` string lists instead of objects with `path` and
+  `summary`.
 - Reporting PASS while validation failed or blocking issues remain.
 - Letting two agents edit the same file without merge-review detecting and
   resolving the conflict.

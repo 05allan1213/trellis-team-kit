@@ -76,7 +76,7 @@ from task_artifacts import (  # type: ignore[import-not-found]
 from scope_manifest import (  # type: ignore[import-not-found]
     format_declared_scope,
     is_path_declared,
-    load_declared_scope,
+    load_scope_contract,
 )
 
 # ---- Hard block: dangerous bash command patterns ----
@@ -606,7 +606,7 @@ def _check_file_operation(
 
             if task_dir and (task_dir / "before-dev.md").is_file():
                 implement_md = task_dir / "implement.md"
-                declared_paths, declared_globs, scope_source = load_declared_scope(task_dir, implement_md)
+                declared_paths, declared_globs, high_risk_allowed, scope_source = load_scope_contract(task_dir, implement_md)
                 if (
                     (declared_paths or declared_globs)
                     and not is_path_declared(norm_path, declared_paths, declared_globs)
@@ -623,6 +623,23 @@ def _check_file_operation(
                             f"  Correct next step: Either add this path to implement.md, "
                             f"or use 'override team-kit guardrail: <reason>' if intentional."
                         ), False
+                if (
+                    (declared_paths or declared_globs)
+                    and is_path_declared(norm_path, declared_paths, declared_globs)
+                    and _is_high_risk_path(norm_path)
+                    and not is_path_declared(norm_path, high_risk_allowed, high_risk_allowed)
+                ):
+                    return (
+                        f"WARNING: Editing high-risk path without high_risk_allowed: {norm_path}\n"
+                        f"  Current state: IN_PROGRESS\n"
+                        f"  Warned action: Write/Edit to source file\n"
+                        f"  Reason: This file is in a high-risk area and is declared in "
+                        f"{scope_source}, but it is not listed in high_risk_allowed.\n"
+                        f"  High-risk allowlist: {format_declared_scope(high_risk_allowed, [])}\n"
+                        f"  Correct next step: Add this exact high-risk path or glob to "
+                        f"scope-manifest.json high_risk_allowed, or use "
+                        f"'override team-kit guardrail: <reason>' if intentional."
+                    ), False
 
     # Check soft warning patterns
     if tool_name in ("Write", "Edit"):

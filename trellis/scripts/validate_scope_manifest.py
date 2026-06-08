@@ -3,12 +3,26 @@
 from __future__ import annotations
 
 import json
+import fnmatch
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 LEVELS_REQUIRING_SCOPE = {"L2", "L3", "L4", "L5"}
 VALID_PROFILES = {"quick", "light", "standard", "strict", "orchestrated"}
+HIGH_RISK_PATTERNS = (
+    r"(^|/)auth/",
+    r"(^|/)authentication/",
+    r"(^|/)migrations?/",
+    r"(^|/)schema\.",
+    r"(^|/)api/",
+    r"(^|/)routes/",
+    r"(^|/)endpoints/",
+    r"(^|/)(shared|common)/types",
+    r"(^|/)contracts?/",
+    r"(^|/)proto/",
+)
 
 
 def _read_task_json(task_dir: Path) -> tuple[dict[str, Any] | None, list[str]]:
@@ -27,8 +41,38 @@ def _read_task_json(task_dir: Path) -> tuple[dict[str, Any] | None, list[str]]:
 def _non_empty_string_list(value: Any) -> bool:
     return (
         isinstance(value, list)
+        and bool(value)
         and all(isinstance(item, str) and item.strip() for item in value)
     )
+
+
+def _normalize_scope_entry(value: str) -> str:
+    normalized = value.replace("\\", "/").strip()
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized.strip("/")
+
+
+def _is_high_risk_scope_entry(value: str) -> bool:
+    normalized = _normalize_scope_entry(value)
+    return any(re.search(pattern, normalized) for pattern in HIGH_RISK_PATTERNS)
+
+
+def _scope_entry_allowed(entry: str, allowlist: list[str]) -> bool:
+    normalized = _normalize_scope_entry(entry)
+    for allowed in allowlist:
+        allowed_norm = _normalize_scope_entry(allowed)
+        if not allowed_norm:
+            continue
+        if normalized == allowed_norm:
+            return True
+        if normalized.startswith(allowed_norm.rstrip("/") + "/"):
+            return True
+        if fnmatch.fnmatchcase(normalized, allowed_norm):
+            return True
+        if fnmatch.fnmatchcase(allowed_norm, normalized):
+            return True
+    return False
 
 
 def _validate_manifest_payload(
@@ -76,14 +120,30 @@ def _validate_manifest_payload(
         )
 
     high_risk_allowed = manifest.get("high_risk_allowed")
-    if not isinstance(high_risk_allowed, bool):
-        errors.append(
-            f"Task '{task_id}': scope-manifest.json high_risk_allowed must be boolean"
-        )
+    if not _non_empty_string_list(high_risk_allowed):
+        if high_risk_allowed != []:
+            errors.append(
+                f"Task '{task_id}': scope-manifest.json high_risk_allowed must be a list of strings"
+            )
+    if isinstance(high_risk_allowed, list):
+        high_risk_allowlist = [
+            _normalize_scope_entry(item)
+            for item in high_risk_allowed
+            if isinstance(item, str) and item.strip()
+        ]
+        for entry in [*(declared_paths or []), *(declared_globs or [])]:
+            if isinstance(entry, str) and _is_high_risk_scope_entry(entry) and not _scope_entry_allowed(entry, high_risk_allowlist):
+                errors.append(
+                    f"Task '{task_id}': high-risk declared scope '{entry}' must be covered by high_risk_allowed"
+                )
 
     out_of_scope = manifest.get("out_of_scope")
     if not _non_empty_string_list(out_of_scope):
-        if out_of_scope != []:
+        if out_of_scope == []:
+            errors.append(
+                f"Task '{task_id}': scope-manifest.json out_of_scope must be non-empty"
+            )
+        else:
             errors.append(
                 f"Task '{task_id}': scope-manifest.json out_of_scope must be a list of strings"
             )

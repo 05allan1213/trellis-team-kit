@@ -144,6 +144,8 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
         return (
             "No active task.\n"
             "Suggested route: L1 tiny inline edit.\n"
+            "Workflow profile: quick.\n"
+            "Friction budget: minimal, because this should be local, reversible, and low-risk.\n"
             "Recommended next step: direct inline edit without creating a task.\n"
             "If the scope expands, touches shared/high-risk files, or the user wants "
             "traceability, switch to a standard Trellis task."
@@ -153,6 +155,8 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
         return (
             "No active task.\n"
             "Suggested route: L2 lightweight task.\n"
+            "Workflow profile: light.\n"
+            "Friction budget: low, because this needs a small task but not the full workflow.\n"
             "Recommended next step: ask for task-creation consent and keep planning light "
             "(prd.md + minimal implement.md + trellis-check).\n"
             "Task creation approval is NOT implementation approval."
@@ -162,6 +166,8 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
         return (
             "No active task.\n"
             "Suggested route: L3 standard task.\n"
+            "Workflow profile: standard.\n"
+            "Friction budget: normal, because this is broader than a tiny edit but not cross-layer.\n"
             "Recommended next step: ask for task-creation consent, create a Trellis task, "
             "produce PRD + grill-me + implement.md + JSONLs, then run trellis-check "
             "+ trellis-code-review after implementation.\n"
@@ -172,6 +178,9 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
         return (
             "No active task.\n"
             "Suggested route: L4 strict cross-layer task.\n"
+            "Workflow profile: strict.\n"
+            "Friction budget: high, because this touches API / schema / auth / shared risk.\n"
+            "Required: design.md + Review Gate Contract + architecture-review.\n"
             "Recommended next step: ask for task-creation consent, create a Trellis task, "
             "produce PRD + grill-me + design.md + implement.md + JSONLs, then use "
             "trellis-check + spec-review + code-review + architecture-review.\n"
@@ -183,6 +192,8 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
         return (
             "No active task.\n"
             "Suggested route: L5 orchestrated multi-agent / large refactor task.\n"
+            "Workflow profile: orchestrated.\n"
+            "Friction budget: very high, because this may need multiple agents, worktrees, or parent/child integration.\n"
             "Recommended next step: create a parent task, plan child work, prefer "
             "Trellis-native parallel + worktree first, and use OMC ulw/ultrawork only "
             "after explicit user approval. merge-review is mandatory before finish.\n"

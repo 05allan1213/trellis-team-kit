@@ -1,0 +1,48 @@
+{
+  "name": "high-risk undeclared path emits soft warning",
+  "run": "script",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-high-risk",
+      "active": true,
+      "task_json": {
+        "id": "replay-high-risk",
+        "level": "L4",
+        "status": "in_progress"
+      },
+      "files": {
+        "implement.md": "# Implement\n\n## Implementation Approval\n\nApproval status:\n- [x] approved\n\nApproval source:\n- user message: start implementation\n- timestamp: 2026-06-08T10:00:00Z\n- summary approved: start implementation\n\nAllowed to run task.py start?\n- [x] yes\n- [ ] no\n",
+        "before-dev.md": "# Before Dev\n- Scope: app\n- Files likely touched: src/app.py\n",
+        "scope-manifest.json": {
+          "version": 1,
+          "level": "L4",
+          "profile": "strict",
+          "declared_paths": [
+            "src/app.py"
+          ],
+          "declared_globs": [],
+          "high_risk_allowed": [],
+          "out_of_scope": [
+            "api contract changes"
+          ]
+        }
+      }
+    }
+  },
+  "input": {
+    "command": [
+      "python3",
+      "{hooks}/protect-dangerous-actions.py"
+    ],
+    "stdin": "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"api/users.py\"},\"prompt\":\"continue\"}"
+  },
+  "expect": {
+    "contains": [
+      "WARNING: Editing high-risk undeclared path",
+      "permissionDecision"
+    ],
+    "not_contains": [
+      "BLOCKED:"
+    ]
+  }
+}

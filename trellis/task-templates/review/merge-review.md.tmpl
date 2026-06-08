@@ -101,6 +101,7 @@ Unresolved blocking issues:
 
 - `{TASK_DIR}/agent-results/trellis-merge-reviewer-<timestamp>.json`: <!-- written / not written -->
 - Required JSON fields: version, agent, status, changed_files, validation, blocking_issues, non_blocking_issues, risks, scope_expansion, execution_mode
+- `changed_files` shape: object list with `path` and `summary`; implementer/checker results must include a declared `workstream` when `scope-manifest.json` declares workstreams.
 
 ## Risk Level
 

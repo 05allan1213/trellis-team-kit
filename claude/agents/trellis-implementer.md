@@ -168,14 +168,28 @@ The JSON object must match this schema contract:
   "version": 1,
   "agent": "trellis-implementer",
   "status": "PASS",
-  "changed_files": ["src/example.ts"],
+  "workstream": "api-users",
+  "phase": "IMPLEMENTING",
+  "changed_files": [
+    {
+      "path": "src/example.ts",
+      "summary": "implemented the requested behavior"
+    }
+  ],
   "validation": [
     {"command": "npm run lint", "status": "PASS"}
   ],
   "blocking_issues": [],
   "non_blocking_issues": [],
   "risks": [],
+  "scope": {
+    "expanded": false,
+    "undeclared_paths": []
+  },
   "scope_expansion": [],
+  "git": {
+    "committed": false
+  },
   "execution_mode": "single-agent"
 }
 ```
@@ -185,7 +199,9 @@ Rules:
 - `version` must be exactly `1`.
 - `agent` must be `trellis-implementer`.
 - `status` must be one of `PASS`, `FAIL`, or `BLOCKED`.
-- `changed_files` must list repository-relative files changed by you.
+- `workstream` must match a declared `scope-manifest.json` workstream when
+  workstreams are declared.
+- `changed_files` must be a list of objects with `path` and `summary`.
 - `validation` must contain every verification command or inspection you ran.
   Each item must include `command` and `status`, where `status` is `PASS` if
   the command completed successfully and `FAIL` if it failed or could not be

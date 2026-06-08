@@ -26,6 +26,6 @@
   - <!-- exact/path.ext -->
 - declared_globs:
   - <!-- src/module/*.py -->
-- high_risk_allowed: false
+- high_risk_allowed: []
 - out_of_scope:
   - <!-- explicit boundary -->

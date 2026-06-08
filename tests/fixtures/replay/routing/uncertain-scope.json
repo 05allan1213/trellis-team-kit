@@ -1,0 +1,17 @@
+{
+  "name": "uncertain scope asks for level confirmation",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "顺便把相关地方都优化一下，范围你看着办"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: UNCERTAIN",
+      "ask the user to confirm",
+      "Do NOT start implementing"
+    ],
+    "not_contains": [
+      "Task creation approval is NOT implementation approval."
+    ]
+  }
+}

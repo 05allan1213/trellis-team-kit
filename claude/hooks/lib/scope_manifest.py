@@ -25,6 +25,10 @@ def _as_string_list(value: Any) -> list[str]:
     return result
 
 
+def _manifest_string_list(manifest: dict[str, Any], key: str) -> list[str]:
+    return _as_string_list(manifest.get(key))
+
+
 def load_scope_manifest(task_dir: Path) -> dict[str, Any] | None:
     manifest_path = task_dir / "scope-manifest.json"
     if not manifest_path.is_file():
@@ -74,11 +78,24 @@ def load_declared_scope(task_dir: Path, implement_md: Path) -> tuple[list[str], 
     manifest = load_scope_manifest(task_dir)
     if manifest is not None:
         return (
-            _as_string_list(manifest.get("declared_paths")),
-            _as_string_list(manifest.get("declared_globs")),
+            _manifest_string_list(manifest, "declared_paths"),
+            _manifest_string_list(manifest, "declared_globs"),
             "scope-manifest.json",
         )
     return parse_markdown_declared_paths(implement_md), [], "implement.md"
+
+
+def load_scope_contract(task_dir: Path, implement_md: Path) -> tuple[list[str], list[str], list[str], str]:
+    """Return declared paths, globs, high-risk allowlist, and source label."""
+    manifest = load_scope_manifest(task_dir)
+    if manifest is not None:
+        return (
+            _manifest_string_list(manifest, "declared_paths"),
+            _manifest_string_list(manifest, "declared_globs"),
+            _manifest_string_list(manifest, "high_risk_allowed"),
+            "scope-manifest.json",
+        )
+    return parse_markdown_declared_paths(implement_md), [], [], "implement.md"
 
 
 def _matches_path(norm: str, declared_path: str) -> bool:
