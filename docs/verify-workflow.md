@@ -129,6 +129,9 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] 代码文件创建在声明范围内
 - [ ] `implement.jsonl` / `check.jsonl` 只保留 curated spec/research context
 - [ ] `implement.jsonl` / `check.jsonl` 不重复 task artifacts（`prd.md`、`design.md`、`implement.md`、`finish.md`）
+- [ ] trellis-implementer 写入 `agent-results/trellis-implementer-<timestamp>.json`
+- [ ] agent result 含 `status`、`changed_files`、`validation`、`blocking_issues`
+- [ ] `python3 .trellis/scripts/validate_agent_results.py <task-dir>` PASS
 
 **范围守卫测试**：
 - [ ] 编辑 `scope-manifest.json` declared_globs 覆盖的文件 → allow
@@ -145,6 +148,8 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 **检查点**：
 - [ ] `check.jsonl` 非空，每行为有效 JSON
 - [ ] 自检通过（文件存在、功能正确等）
+- [ ] trellis-checker 写入 `agent-results/trellis-checker-<timestamp>.json`
+- [ ] validation 失败或 blocking issue 未清空时 `validate_agent_results.py <task-dir>` FAIL
 
 ---
 
@@ -156,6 +161,10 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] `trellis-check` 的结果写入 `validation/check-results.md`
 - [ ] review gate 结果写入对应的 `review/*.md`
 - [ ] 包含 `- [x] PASS` 格式的 verdict
+- [ ] review agents 写入对应 `agent-results/*.json`
+- [ ] merge-review 聚合 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl`、`scope-manifest.json`
+- [ ] 两个 agent 声明修改同一文件时 merge-review / `validate_agent_results.py` FAIL
+- [ ] OMC execution result 缺少 explicit OMC approval 时 FAIL
 
 **Review FAIL 回流测试**：
 - [ ] 将某个已选中的 `review/*.md` verdict 改为 `FAIL` → `validate_review_gates.py` 报 FAIL
@@ -220,6 +229,10 @@ python3 .trellis/scripts/validate_task.py .trellis/tasks/<task-dir>
 # Review gate 验证
 python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/<task-dir>
 # 预期：PASS
+
+# Agent result 验证
+python3 .trellis/scripts/validate_agent_results.py .trellis/tasks/<task-dir>
+# 预期：PASS
 ```
 
 ---
@@ -238,4 +251,5 @@ python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/<task-dir>
 | 编辑高风险未声明路径 | PreToolUse warning |
 | soft warning override | allow + 写 runtime/guardrail-overrides.jsonl |
 | override ledger 未复核 | validate_guardrail_overrides.py FAIL |
+| agent result 缺失或结构错误 | validate_agent_results.py FAIL |
 | TRELLIS_DISABLE_HOOKS=1 | 所有 hooks 静默 skip |

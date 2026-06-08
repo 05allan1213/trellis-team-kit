@@ -684,6 +684,12 @@ Spawn the implement sub-agent:
 - **Task description**: Implement per prd.md, consulting `research/`; finish by running lint and type-check
 - **Dispatch prompt guard**: `Active task: <task path>`. Tell the agent it is already `trellis-implementer`.
 
+The implement agent must also write
+`<task path>/agent-results/trellis-implementer-<timestamp>.json` with
+`version`, `agent`, `status`, `changed_files`, `validation`,
+`blocking_issues`, `non_blocking_issues`, `risks`, `scope_expansion`, and
+`execution_mode`.
+
 #### 2.2 Quality check `[required · repeatable]`
 
 Spawn the check sub-agent:
@@ -691,11 +697,14 @@ Spawn the check sub-agent:
 - **Task description**: Review all code changes against spec and prd; fix findings directly; ensure lint/type-check pass
 - **Dispatch prompt guard**: `Active task: <task path>`. Tell the agent it is already `trellis-checker`.
 
-The check agent outputs: PASS/FAIL, commands run, failures, fixes applied.
+The check agent outputs: PASS/FAIL, commands run, failures, fixes applied, and
+`<task path>/agent-results/trellis-checker-<timestamp>.json`.
 
 #### 2.3 Review gates `[required · repeatable]`
 
-After check PASS, run each selected review gate from the contract. Each reviewer outputs PASS/FAIL with blocking issues.
+After check PASS, run each selected review gate from the contract. Each
+reviewer outputs PASS/FAIL with blocking issues and writes its matching
+`agent-results/*.json`.
 
 FAIL → return to IMPLEMENTING → fix → re-check → re-review.
 
@@ -789,7 +798,15 @@ Reply 'ok' to execute. Reply with edits, or 'manual' to abort.
 
 Required for: worktree, multi-subagent, OMC parallel, PR merge, conflict resolution, parent/child task.
 
-Load `trellis-merge-review` skill. Output PASS/FAIL to `review/merge-review.md`.
+Load `trellis-merge-review` skill. It must read:
+
+- `agent-results/*.json`
+- `runtime/guardrail-overrides.jsonl`
+- `scope-manifest.json`
+
+Output PASS/FAIL to `review/merge-review.md`, and fail on duplicate agent
+edits, undeclared changed paths, failed validation, unresolved blocking issues,
+unreviewed guardrail overrides, or OMC outputs without explicit approval.
 
 #### 3.4 Validation `[required · once]`
 
@@ -811,8 +828,9 @@ Finish-work does NOT: write code, fix bugs, bypass failed gates, push.
 After archive, reopen the archived task and verify:
 1. `task.json` still has `level`
 2. L3-L5 or existing `implement.jsonl` / `check.jsonl` still resolve and still contain only spec/research context
-3. workspace journal and index mention the task with real commit information
-4. tracked runtime state files such as `.omc/state/*` are excluded from the commit/dirty set
+3. `validate_agent_results.py <archived-task-dir>` passes when agent results are required
+4. workspace journal and index mention the task with real commit information
+5. tracked runtime state files such as `.omc/state/*` are excluded from the commit/dirty set
 
 #### 3.6 Debug retrospective `[on demand]`
 

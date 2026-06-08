@@ -25,6 +25,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from validate_guardrail_overrides import validate_guardrail_overrides  # type: ignore[import-not-found]
+from validate_agent_results import validate_agent_results  # type: ignore[import-not-found]
 from validate_scope_manifest import validate_scope_manifest  # type: ignore[import-not-found]
 
 LEVEL_ARTIFACT_REQUIREMENTS: dict[str, list[str]] = {
@@ -764,6 +765,11 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
     errors.extend(
         _check_execution_mode_decision(task_dir / "implement.md", task_id, level)
     )
+
+    if not is_planning:
+        agent_results_ok, agent_results_issues = validate_agent_results(task_dir)
+        if not agent_results_ok:
+            errors.extend(agent_results_issues)
 
     if level in LEVEL_ARTIFACT_REQUIREMENTS and not is_planning:
         scope_warnings = _check_scope_quality(

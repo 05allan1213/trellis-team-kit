@@ -61,6 +61,15 @@ AGENTS_REVIEW = (
     AGENT_ARCHITECTURE_DEEP_REVIEWER, AGENT_MERGE_REVIEWER,
 )
 AGENTS_ALL = AGENTS_IMPLEMENT_CHECK + AGENTS_REVIEW + (AGENT_SPEC_UPDATER,)
+AGENTS_REQUIRE_AGENT_RESULT = (AGENT_IMPLEMENT, AGENT_CHECK) + AGENTS_REVIEW
+AGENT_RESULT_REQUIRED_FIELDS = (
+    "version",
+    "agent",
+    "status",
+    "changed_files",
+    "validation",
+    "blocking_issues",
+)
 
 
 def _find_trellis_root(start: Path) -> Optional[Path]:
@@ -112,6 +121,85 @@ def _get_agent_output(input_data: dict) -> str:
                 return val
 
     return ""
+
+
+def _get_current_task_dir(root: Path) -> Optional[Path]:
+    active_file = root / TRELLIS_DIR / "active-task"
+    if not active_file.is_file():
+        return None
+    try:
+        raw = active_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not raw:
+        return None
+    task_dir = Path(raw)
+    if not task_dir.is_absolute():
+        task_dir = root / task_dir
+    return task_dir if task_dir.is_dir() else None
+
+
+def _validate_agent_result_file(path: Path, subagent_type: str) -> list[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return [f"{path.name}: invalid JSON ({e})"]
+
+    if not isinstance(payload, dict):
+        return [f"{path.name}: must contain a JSON object"]
+
+    missing = [field for field in AGENT_RESULT_REQUIRED_FIELDS if field not in payload]
+    if missing:
+        return [f"{path.name}: missing required field(s): {', '.join(missing)}"]
+
+    errors: list[str] = []
+    if payload.get("version") != 1:
+        errors.append(f"{path.name}: version must be 1")
+    if payload.get("agent") != subagent_type:
+        errors.append(f"{path.name}: agent must be {subagent_type}")
+    if payload.get("status") not in ("PASS", "FAIL", "REDESIGN-REQUIRED", "BLOCKED"):
+        errors.append(f"{path.name}: invalid status")
+    if not isinstance(payload.get("changed_files"), list):
+        errors.append(f"{path.name}: changed_files must be a list")
+    if not isinstance(payload.get("validation"), list):
+        errors.append(f"{path.name}: validation must be a list")
+    if not isinstance(payload.get("blocking_issues"), list):
+        errors.append(f"{path.name}: blocking_issues must be a list")
+    return errors
+
+
+def _find_agent_result_errors(task_dir: Path, subagent_type: str) -> list[str]:
+    results_dir = task_dir / "agent-results"
+    if not results_dir.is_dir():
+        return [f"missing {results_dir}/ for subagent result JSON"]
+
+    files = sorted(results_dir.glob("*.json"))
+    if not files:
+        return [f"missing agent-results/*.json for subagent '{subagent_type}'"]
+
+    candidate_errors: list[str] = []
+    saw_candidate = False
+    for path in files:
+        matches_name = path.name.startswith(f"{subagent_type}-")
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            if matches_name:
+                saw_candidate = True
+                candidate_errors.append(f"{path.name}: invalid JSON ({e})")
+            continue
+        matches_payload = isinstance(payload, dict) and payload.get("agent") == subagent_type
+        if not matches_name and not matches_payload:
+            continue
+        saw_candidate = True
+        errors = _validate_agent_result_file(path, subagent_type)
+        if not errors:
+            return []
+        candidate_errors.extend(errors)
+
+    if not saw_candidate:
+        return [f"missing agent-results JSON for subagent '{subagent_type}'"]
+    return candidate_errors
 
 
 # -- Validators --------------------------------------------------------------
@@ -293,6 +381,27 @@ def main() -> int:
         missing = _validate_research_output(output_text)
 
     if not missing:
+        if subagent_type in AGENTS_REQUIRE_AGENT_RESULT:
+            task_dir = _get_current_task_dir(root)
+            if task_dir is None:
+                _emit_block(
+                    f"Subagent '{subagent_type}' stopped but the active Trellis task "
+                    f"could not be resolved. Cannot validate agent-results JSON."
+                )
+            result_errors = _find_agent_result_errors(task_dir, subagent_type)
+            if result_errors:
+                reason = (
+                    f"Subagent '{subagent_type}' must write a machine-readable "
+                    f"agent-results JSON before stopping:\n\n"
+                )
+                for item in result_errors:
+                    reason += f"  - {item}\n"
+                reason += (
+                    f"\nWrite {task_dir}/agent-results/"
+                    f"{subagent_type}-<timestamp>.json with version, agent, status, "
+                    f"changed_files, validation, and blocking_issues."
+                )
+                _emit_block(reason)
         return 0
 
     reason = (

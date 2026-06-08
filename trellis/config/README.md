@@ -72,13 +72,15 @@ Workflow profile 配置文件，用于把任务等级映射到流程摩擦和门
 
 OMC `ulw/ultrawork` 只属于高级执行选项，需要明确用户批准；默认多 agent 路径仍是 Trellis-native subagent / worktree / parallel。
 
-## Scope / Override Validators
+## Scope / Override / Agent Result Validators
 
-阶段二新增两个 task-level 校验器：
+阶段二和阶段三新增三个 task-level 校验器：
 
 - `validate_scope_manifest.py <task-dir>` — 校验 L2+ task 的 `scope-manifest.json`
 - `validate_guardrail_overrides.py <task-dir>` — 校验 `runtime/guardrail-overrides.jsonl` 与 `finish.md` 复核状态
+- `validate_agent_results.py <task-dir>` — 校验多 agent / worktree / OMC 任务的 `agent-results/*.json`
 
-`validate_task.py <task-dir>` 会在 before-dev 后联动这些校验器。全局
-`validate_runtime_hardening.py` 只检查脚本可用性；实际 task 状态必须传入
-task 目录单独验证。
+`validate_task.py <task-dir>` 会在 before-dev 后联动 scope/override 校验，
+并在需要 merge-review 的并行任务上联动 agent result 校验。全局
+`validate_runtime_hardening.py` 只检查脚本可用性；实际 task 状态必须传入 task
+目录单独验证。

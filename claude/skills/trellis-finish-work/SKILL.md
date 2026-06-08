@@ -78,6 +78,7 @@ The archive wrapper must leave the archived task in a validator-clean state:
 ```bash
 python3 ./.trellis/scripts/validate_task.py <archived-task-dir>
 python3 ./.trellis/scripts/validate_review_gates.py <archived-task-dir>
+python3 ./.trellis/scripts/validate_agent_results.py <archived-task-dir>
 python3 ./.trellis/scripts/validate_workflow_state.py <archived-task-dir>
 ```
 
@@ -85,6 +86,7 @@ Required post-archive checks:
 - `task.json` still contains `level`
 - `implement.jsonl` / `check.jsonl` still resolve after archive
 - JSONL still contains only spec/research context, not duplicated task artifacts
+- `agent-results/*.json` is valid when merge-review / parallel / OMC execution requires it
 - journal / workspace index entries are updated with real commit information
 - no `.omc/state/*` runtime state files remain in the tracked dirty set
 

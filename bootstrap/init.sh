@@ -412,7 +412,8 @@ for v in \
   validate_task validate_review_gates validate_runtime_hardening \
   validate_workflow_state validate_delivery_sync \
   prepare_finish_workspace finalize_task_archive \
-  validate_routing_rules validate_scope_manifest validate_guardrail_overrides; do
+  validate_routing_rules validate_scope_manifest validate_guardrail_overrides \
+  validate_agent_results; do
   get_file "trellis/scripts/$v.py" "$TARGET_ROOT/.trellis/scripts/$v.py"
   VALIDATOR_COUNT=$((VALIDATOR_COUNT + 1))
 done

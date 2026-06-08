@@ -10,6 +10,11 @@ Commands run:
 
 Specs / files inspected:
 
+Machine-readable inputs:
+- `{TASK_DIR}/agent-results/*.json`:
+- `{TASK_DIR}/runtime/guardrail-overrides.jsonl`:
+- `{TASK_DIR}/scope-manifest.json`:
+
 ## Conflict Resolution Check
 
 | Conflicting File | Ours | Theirs | Resolution Strategy |
@@ -21,6 +26,45 @@ Specs / files inspected:
 | Functionality | Our Implementation | Their Implementation | Action |
 |--------------|-------------------|---------------------|--------|
 | <!-- feature 1 --> | <!-- file:line --> | <!-- file:line --> | <!-- keep ours / keep theirs / merge --> |
+
+## Agent Results Aggregation
+
+| Agent | Status | Changed Files | Validation | Blocking Issues |
+|-------|--------|---------------|------------|-----------------|
+| <!-- agent --> | <!-- PASS / FAIL --> | <!-- paths --> | <!-- PASS / FAIL / not run --> | <!-- issues or none --> |
+
+Duplicate changed files across agents:
+- <!-- path -> agents, or none -->
+
+Failed validation:
+- <!-- agent -> failure, or none -->
+
+Unresolved blocking issues:
+- <!-- agent -> issue, or none -->
+
+## Scope Manifest Check
+
+- scope-manifest.json: <!-- present / missing / malformed -->
+- Declared paths/globs checked: <!-- summary -->
+- Undeclared changed paths:
+  - <!-- path, or none -->
+- Scope expansions reviewed:
+  - <!-- expansion, review status, or none -->
+
+## Guardrail Override Check
+
+- runtime/guardrail-overrides.jsonl: <!-- absent / present -->
+- Overrides reviewed: <!-- yes / no / not applicable -->
+- Unreviewed overrides:
+  - <!-- override summary, or none -->
+
+## OMC Approval Check
+
+- OMC outputs detected: <!-- yes / no -->
+- Explicit OMC approval: <!-- yes / no / not applicable -->
+- OMC approval issues:
+  - <!-- issue, or none -->
+- Note: OMC is optional advanced execution, not the default path.
 
 ## Blocking Issues
 
@@ -52,6 +96,11 @@ Specs / files inspected:
 
 1. <!-- Post-merge step 1 -->
 2. <!-- Post-merge step 2 -->
+
+## Result Artifact
+
+- `{TASK_DIR}/agent-results/trellis-merge-reviewer-<timestamp>.json`: <!-- written / not written -->
+- Required JSON fields: version, agent, status, changed_files, validation, blocking_issues, non_blocking_issues, risks, scope_expansion, execution_mode
 
 ## Risk Level
 

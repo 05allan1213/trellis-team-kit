@@ -17,19 +17,51 @@ One or more trigger conditions are met:
 
 ## Core Rules
 
-Merge review is about integration quality — whether the combined output of multiple sources is coherent and complete. It is not about individual code quality (that is `trellis-code-review`).
+Merge review is about integration quality - whether the combined output of multiple sources is coherent and complete. It is not about individual code quality (that is `trellis-code-review`).
 
 For L4/L5 tasks, merge review is required when the task used worktree, OMC, or parent/child structure.
 
+OMC is an optional advanced execution path, not the default. If OMC output is present, merge review must confirm that the task has explicit OMC approval before treating those outputs as valid merge sources.
+
 ## Workflow
 
-1. **Identify the merge sources** — which worktrees, agents, or child tasks contributed code.
-2. **Read all changed files** — `git diff` from the merge base.
-3. **Read task artifacts** — `prd.md`, `design.md`, `implement.md`.
-4. **Check each dimension** below.
-5. **Write findings** to `review/merge-review.md`.
+1. **Identify the merge sources** - which worktrees, agents, or child tasks contributed code.
+2. **Read all changed files** - `git diff` from the merge base.
+3. **Read task artifacts** - `prd.md`, `design.md`, `implement.md`.
+4. **Read and aggregate machine-readable task artifacts**:
+   - `{TASK_DIR}/agent-results/*.json`
+   - `{TASK_DIR}/runtime/guardrail-overrides.jsonl`
+   - `{TASK_DIR}/scope-manifest.json`
+5. **Check each dimension** below.
+6. **Write findings** to `review/merge-review.md`.
 
 ### Dimensions
+
+#### Agent Result Aggregation
+
+- Read every `{TASK_DIR}/agent-results/*.json` file and aggregate `agent`, `status`, `changed_files`, `validation`, `blocking_issues`, `non_blocking_issues`, `risks`, `scope_expansion`, and `execution_mode`.
+- Report duplicate changed files across agents as an integration risk, including which agents reported each path.
+- Report failed validation from any agent result.
+- Report unresolved blocking issues from any agent result.
+- Treat malformed or missing required result fields as blocking if they prevent reliable aggregation.
+
+#### Scope Manifest Compliance
+
+- Read `{TASK_DIR}/scope-manifest.json`.
+- Compare aggregated changed files and `git diff --name-only` against `declared_paths` and `declared_globs`.
+- Report any undeclared changed path unless it is explicitly covered by a reviewed scope expansion.
+
+#### Guardrail Override Review
+
+- Read `{TASK_DIR}/runtime/guardrail-overrides.jsonl` when it exists.
+- Report any guardrail override that is not explicitly reviewed in the task finish/review artifacts.
+- Treat unreviewed guardrail overrides as blocking.
+
+#### OMC Approval Check
+
+- If any merge source, agent result, execution mode, or task artifact indicates OMC output, confirm `implement.md` records explicit OMC approval.
+- Report OMC outputs without explicit OMC approval as blocking.
+- Do not require OMC for ordinary worktree or Trellis-native multi-agent execution.
 
 #### Conflict Resolution Logic
 
@@ -78,19 +110,40 @@ For L4/L5 tasks, merge review is required when the task used worktree, OMC, or p
 - [source]: [what it contributed]
 
 ## Conflict Resolution Logic
-- [conflict description]: [how resolved] — [correct?]
+- [conflict description]: [how resolved] - [correct?]
 - (or "no conflicts")
 
 ## Duplicate Implementations
-- [duplicate]: [source A vs source B] — [recommended consolidation]
+- [duplicate]: [source A vs source B] - [recommended consolidation]
 - (or "none")
 
 ## Missing Files
-- [expected file]: [which source should have produced it] — [status]
+- [expected file]: [which source should have produced it] - [status]
 - (or "none")
 
+## Agent Results Aggregation
+- Results read: [list of agent-results JSON files]
+- Duplicate changed files across agents: [path -> agents] (or "none")
+- Failed validation: [agent -> validation failure] (or "none")
+- Unresolved blocking issues: [agent -> issue] (or "none")
+
+## Scope Manifest Check
+- scope-manifest.json: [present / missing / malformed]
+- Undeclared changed paths: [paths] (or "none")
+- Scope expansions reviewed: [summary]
+
+## Guardrail Override Check
+- runtime/guardrail-overrides.jsonl: [absent / present]
+- Overrides reviewed: [yes / no / not applicable]
+- Unreviewed overrides: [entries] (or "none")
+
+## OMC Approval Check
+- OMC outputs detected: [yes / no]
+- Explicit OMC approval: [yes / no / not applicable]
+- OMC approval issues: [summary] (or "none")
+
 ## Interface Inconsistencies
-- [interface]: [how sources differ] — [which is correct per design.md]
+- [interface]: [how sources differ] - [which is correct per design.md]
 - (or "none")
 
 ## Integration Completeness
@@ -106,16 +159,22 @@ For L4/L5 tasks, merge review is required when the task used worktree, OMC, or p
 (or "none")
 
 ## Verdict
-- PASS — merge is coherent and complete
-- FAIL — must resolve blocking issues:
+- PASS - merge is coherent and complete
+- FAIL - must resolve blocking issues:
   1. [blocking issue summary]
 ```
 
 ## Quality Bar
 
 - All merge sources are identified and their contributions mapped.
+- Machine-readable agent results, guardrail overrides, and scope manifest are read and aggregated.
+- Duplicate changed files across agents are reported.
+- Changed paths outside `scope-manifest.json` declarations are reported.
+- Failed validation and unresolved blocking issues from agent results are reported.
+- Guardrail overrides are confirmed reviewed before PASS.
+- OMC outputs are blocked unless explicit OMC approval is present; OMC remains optional and advanced, not default.
 - Conflict resolution is checked for correctness, not just absence of markers.
 - Duplicate implementations are flagged for consolidation.
 - Missing files are identified by comparing expected outputs against actual.
 - Integration completeness is verified against `prd.md` acceptance criteria.
-- FAIL verdict is honest — incomplete integration will cause problems later.
+- FAIL verdict is honest - incomplete integration will cause problems later.

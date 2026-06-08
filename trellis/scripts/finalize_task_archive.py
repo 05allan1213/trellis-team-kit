@@ -658,7 +658,12 @@ def archive_if_needed(repo_root: Path, task_arg: Path) -> Path:
 
 def run_post_archive_validators(repo_root: Path, archived_task: Path) -> list[str]:
     failures: list[str] = []
-    for name in ("validate_task.py", "validate_review_gates.py", "validate_workflow_state.py"):
+    for name in (
+        "validate_task.py",
+        "validate_review_gates.py",
+        "validate_workflow_state.py",
+        "validate_agent_results.py",
+    ):
         script = repo_root / ".trellis" / "scripts" / name
         if not script.is_file():
             continue

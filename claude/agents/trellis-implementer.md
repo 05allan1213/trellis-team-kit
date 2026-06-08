@@ -48,6 +48,8 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 4. **Verify** -- run lint, typecheck, and relevant tests.
 5. **Report results** -- changed files, summary, validation attempted, unresolved
    risks.
+6. **Write agent result JSON** -- write a machine-readable result under
+   `{TASK_DIR}/agent-results/` before replying.
 
 ## Allowed Actions
 
@@ -56,6 +58,8 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 - Run lint, typecheck, and test commands via Bash.
 - Search code with Glob, Grep.
 - Follow spec guidelines from `.trellis/spec/`.
+- Write agent result JSON to
+  `{TASK_DIR}/agent-results/trellis-implementer-<timestamp>.json`.
 
 ## Forbidden Actions
 
@@ -112,6 +116,10 @@ If verification fails, fix the issues and re-run. Record all attempts.
 Report changed files, implementation summary, verification results, and any
 unresolved risks.
 
+Before replying to the main session, write the required agent result JSON
+described below. The JSON is required even when implementation fails or is
+blocked.
+
 ## Output Format
 
 ```markdown
@@ -136,4 +144,58 @@ unresolved risks.
 ### Unresolved Risks
 
 - <risk or concern, or "None identified">
+
+### Agent Result JSON
+
+- `{TASK_DIR}/agent-results/trellis-implementer-<timestamp>.json`
 ```
+
+## Agent Result JSON Protocol
+
+Create `{TASK_DIR}/agent-results/` if needed and write one JSON file at:
+
+```text
+{TASK_DIR}/agent-results/trellis-implementer-<timestamp>.json
+```
+
+Use a unique timestamp such as `20260608T153000Z`. This JSON file is required
+before your final response. In your final response, mention the JSON path.
+
+The JSON object must match this schema contract:
+
+```json
+{
+  "version": 1,
+  "agent": "trellis-implementer",
+  "status": "PASS",
+  "changed_files": ["src/example.ts"],
+  "validation": [
+    {"command": "npm run lint", "status": "PASS"}
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "risks": [],
+  "scope_expansion": [],
+  "execution_mode": "single-agent"
+}
+```
+
+Rules:
+
+- `version` must be exactly `1`.
+- `agent` must be `trellis-implementer`.
+- `status` must be one of `PASS`, `FAIL`, or `BLOCKED`.
+- `changed_files` must list repository-relative files changed by you.
+- `validation` must contain every verification command or inspection you ran.
+  Each item must include `command` and `status`, where `status` is `PASS` if
+  the command completed successfully and `FAIL` if it failed or could not be
+  completed.
+- `blocking_issues` must list unresolved blockers; it must be empty on `PASS`.
+- `non_blocking_issues` must list non-blocking findings or follow-up notes.
+- `risks` must list residual implementation or validation risks.
+- `scope_expansion` must list changed files or behaviors outside the expected
+  task scope, or `[]` if none.
+- `execution_mode` must record the mode used, such as `single-agent`,
+  `trellis-native parallel + worktree`, or `omc`.
+- If status is `FAIL` or `BLOCKED`, still write the JSON and explain the reason
+  in `blocking_issues` or `risks`.

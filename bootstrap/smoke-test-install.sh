@@ -114,6 +114,7 @@ run_case() {
   assert_file "$project/.trellis/config/workflow_profiles.json"
   assert_file "$project/.trellis/scripts/validate_scope_manifest.py"
   assert_file "$project/.trellis/scripts/validate_guardrail_overrides.py"
+  assert_file "$project/.trellis/scripts/validate_agent_results.py"
   assert_file "$project/.claude/settings.json"
   assert_file "$project/.claude/settings.local.json"
   assert_file "$project/.trellis/workspace/$DEV_NAME/journal-1.md"

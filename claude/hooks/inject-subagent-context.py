@@ -72,6 +72,10 @@ AGENTS_REVIEW = (
 AGENTS_ALL = (
     AGENT_RESEARCH, AGENT_IMPLEMENT, AGENT_CHECK,
 ) + AGENTS_REVIEW + (AGENT_SPEC_UPDATER, AGENT_MERGE_REVIEWER)
+AGENTS_REQUIRE_AGENT_RESULT = (
+    AGENT_IMPLEMENT,
+    AGENT_CHECK,
+) + AGENTS_REVIEW + (AGENT_MERGE_REVIEWER,)
 
 MAX_CONTEXT_CHARS = 32000  # Limit total injected context
 
@@ -368,6 +372,33 @@ def _get_merge_reviewer_context(repo_root: str, task_dir: str) -> str:
     return "\n\n".join(parts)
 
 
+def _get_agent_result_instruction(subagent_type: str, task_dir: str | None) -> str:
+    if subagent_type not in AGENTS_REQUIRE_AGENT_RESULT or not task_dir:
+        return ""
+
+    return (
+        "## Required Agent Result JSON\n"
+        f"Before your final response, write `{task_dir}/agent-results/"
+        f"{subagent_type}-<timestamp>.json` with this schema:\n"
+        "```json\n"
+        "{\n"
+        '  "version": 1,\n'
+        f'  "agent": "{subagent_type}",\n'
+        '  "status": "PASS",\n'
+        '  "changed_files": [],\n'
+        '  "validation": [{"command": "<command or review performed>", "status": "PASS"}],\n'
+        '  "blocking_issues": [],\n'
+        '  "non_blocking_issues": [],\n'
+        '  "risks": [],\n'
+        '  "scope_expansion": [],\n'
+        '  "execution_mode": "main session"\n'
+        "}\n"
+        "```\n"
+        "Set status to FAIL, REDESIGN-REQUIRED, or BLOCKED when appropriate. "
+        "Mention the JSON path in your final response."
+    )
+
+
 def main() -> int:
     if os.environ.get("TRELLIS_HOOKS") == "0" or os.environ.get("TRELLIS_DISABLE_HOOKS") == "1":
         return 0
@@ -423,8 +454,17 @@ def main() -> int:
     if not additional_context:
         return 0
 
-    if len(additional_context) > MAX_CONTEXT_CHARS:
-        additional_context = additional_context[:MAX_CONTEXT_CHARS] + "\n\n[... context truncated ...]"
+    result_instruction = _get_agent_result_instruction(subagent_type, task_dir)
+    suffix = f"\n\n{result_instruction}" if result_instruction else ""
+
+    if len(additional_context) + len(suffix) > MAX_CONTEXT_CHARS:
+        available = max(0, MAX_CONTEXT_CHARS - len(suffix) - len("\n\n[... context truncated ...]"))
+        additional_context = (
+            additional_context[:available]
+            + "\n\n[... context truncated ...]"
+        )
+
+    additional_context = f"{additional_context}{suffix}"
 
     output = {
         "hookSpecificOutput": {

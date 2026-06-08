@@ -24,6 +24,7 @@ VALIDATE_RUNTIME_HARDENING = REPO_ROOT / "trellis" / "scripts" / "validate_runti
 VALIDATE_TRELLIS_CONFIG = REPO_ROOT / "trellis" / "scripts" / "validate_trellis_config.py"
 VALIDATE_SCOPE_MANIFEST = REPO_ROOT / "trellis" / "scripts" / "validate_scope_manifest.py"
 VALIDATE_GUARDRAIL_OVERRIDES = REPO_ROOT / "trellis" / "scripts" / "validate_guardrail_overrides.py"
+VALIDATE_AGENT_RESULTS = REPO_ROOT / "trellis" / "scripts" / "validate_agent_results.py"
 VALIDATE_SPEC_INDEX = REPO_ROOT / "trellis" / "scripts" / "validate_spec_index.py"
 PREPARE_FINISH_WORKSPACE = REPO_ROOT / "trellis" / "scripts" / "prepare_finish_workspace.py"
 FINALIZE_TASK_ARCHIVE = REPO_ROOT / "trellis" / "scripts" / "finalize_task_archive.py"
@@ -1316,6 +1317,109 @@ class ValidateTaskTests(unittest.TestCase):
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
 
+    def test_l5_parallel_task_requires_agent_results(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+
+                ## Observable Outcomes
+
+                - Outcome: saving a record shows the updated state
+                - Evidence: local verification
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: none
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L5", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "design.md").write_text("# Design\n", encoding="utf-8")
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: orders\n- Files likely touched: src/orders\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L5",
+                    "profile": "orchestrated",
+                    "declared_paths": ["src/orders"],
+                    "declared_globs": ["tests/orders/*.py"],
+                    "high_risk_allowed": False,
+                    "out_of_scope": ["billing"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [x] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                - [x] trellis-improve-codebase-architecture deep-review
+                - [x] trellis-merge-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "review").mkdir(exist_ok=True)
+        for name in (
+            "spec-review.md",
+            "code-review.md",
+            "architecture-review.md",
+            "architecture-deep-review.md",
+            "merge-review.md",
+        ):
+            (task_dir / "review" / name).write_text("## Verdict\nPASS\n", encoding="utf-8")
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("agent-results" in issue for issue in issues))
+
 
 class ProtectDangerousActionsTests(unittest.TestCase):
     def make_repo(
@@ -1857,6 +1961,7 @@ class StopGuardTests(unittest.TestCase):
             VALIDATE_TASK,
             VALIDATE_SCOPE_MANIFEST,
             VALIDATE_GUARDRAIL_OVERRIDES,
+            VALIDATE_AGENT_RESULTS,
             VALIDATE_REVIEW_GATES,
             VALIDATE_DELIVERY_SYNC,
         ):
@@ -2227,6 +2332,307 @@ class ValidateGuardrailOverridesTests(unittest.TestCase):
         ok, issues = self.module.validate_guardrail_overrides(task_dir)
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+
+class ValidateAgentResultsTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(VALIDATE_AGENT_RESULTS, "validate_agent_results_module")
+
+    def make_task_dir(self) -> Path:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / "T004-agents"
+        (task_dir / "agent-results").mkdir(parents=True)
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T004", "level": "L5", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Agents
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [x] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-code-review
+                - [x] trellis-merge-review
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L5",
+                    "profile": "orchestrated",
+                    "declared_paths": ["src/orders"],
+                    "declared_globs": ["tests/orders/*.py"],
+                    "high_risk_allowed": False,
+                    "out_of_scope": ["billing changes"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return task_dir
+
+    def write_result(self, task_dir: Path, name: str, payload: dict) -> None:
+        (task_dir / "agent-results" / name).write_text(
+            json.dumps(payload),
+            encoding="utf-8",
+        )
+
+    def valid_result(self, *, agent: str = "trellis-implementer", changed_files: list[str] | None = None) -> dict:
+        return {
+            "version": 1,
+            "agent": agent,
+            "status": "PASS",
+            "changed_files": changed_files or ["src/orders/service.py"],
+            "validation": [
+                {"command": "pytest tests/orders", "status": "PASS"}
+            ],
+            "blocking_issues": [],
+            "non_blocking_issues": [],
+            "risks": [],
+            "scope_expansion": [],
+        }
+
+    def test_agent_result_requires_core_fields(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-20260608T100000Z.json",
+            {"version": 1, "agent": "trellis-implementer"},
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("status" in issue for issue in issues))
+        self.assertTrue(any("changed_files" in issue for issue in issues))
+        self.assertTrue(any("validation" in issue for issue in issues))
+        self.assertTrue(any("blocking_issues" in issue for issue in issues))
+
+    def test_duplicate_changed_files_fail_merge_review_readiness(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"]),
+        )
+        self.write_result(
+            task_dir,
+            "trellis-checker-b.json",
+            self.valid_result(agent="trellis-checker", changed_files=["src/orders/service.py"]),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("modified by multiple agents" in issue for issue in issues))
+
+    def test_undeclared_changed_file_fails(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            self.valid_result(changed_files=["api/orders.py"]),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("not declared" in issue for issue in issues))
+
+    def test_task_local_result_artifacts_do_not_require_scope_declaration(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-merge-reviewer-a.json",
+            self.valid_result(
+                agent="trellis-merge-reviewer",
+                changed_files=[
+                    "review/merge-review.md",
+                    "agent-results/trellis-merge-reviewer-a.json",
+                ],
+            ),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_failed_validation_fails(self):
+        task_dir = self.make_task_dir()
+        payload = self.valid_result()
+        payload["validation"] = [{"command": "pytest tests/orders", "status": "FAIL"}]
+        self.write_result(task_dir, "trellis-checker-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("validation failed" in issue for issue in issues))
+
+    def test_blocking_issues_fail(self):
+        task_dir = self.make_task_dir()
+        payload = self.valid_result(agent="trellis-code-reviewer")
+        payload["blocking_issues"] = ["src/orders/service.py:42 misses idempotency"]
+        self.write_result(task_dir, "trellis-code-reviewer-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("blocking issue" in issue for issue in issues))
+
+    def test_omc_agent_result_requires_explicit_approval(self):
+        task_dir = self.make_task_dir()
+        payload = self.valid_result()
+        payload["execution_mode"] = "omc"
+        self.write_result(task_dir, "trellis-implementer-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("explicit OMC approval" in issue for issue in issues))
+
+    def test_valid_agent_results_pass(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"]),
+        )
+        self.write_result(
+            task_dir,
+            "trellis-checker-b.json",
+            self.valid_result(agent="trellis-checker", changed_files=["tests/orders/test_service.py"]),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+
+class SubagentStopGuardAgentResultsTests(unittest.TestCase):
+    def make_repo(self) -> tuple[Path, Path]:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / ".trellis" / "tasks" / "T005-agent-stop"
+        task_dir.mkdir(parents=True)
+        (root / ".trellis" / "active-task").write_text(
+            ".trellis/tasks/T005-agent-stop",
+            encoding="utf-8",
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T005", "level": "L5", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        return root, task_dir
+
+    def run_hook(self, root: Path, payload: dict) -> dict | None:
+        result = subprocess.run(
+            [sys.executable, str(STOP_GUARD_HOOK.parent / "subagent-stop-guard.py")],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        if not result.stdout.strip():
+            return None
+        return json.loads(result.stdout)
+
+    def valid_implementer_output(self) -> str:
+        return textwrap.dedent(
+            """\
+            ## Implementation Complete
+
+            ### Files Modified
+
+            - `src/orders/service.py` -- implemented workflow
+
+            ### Implementation Summary
+
+            Implemented order workflow.
+
+            ### Validation Attempted
+
+            - Tests: pass
+
+            ### Unresolved Risks
+
+            - None identified
+
+            Did not commit.
+            """
+        )
+
+    def test_blocks_when_agent_result_json_missing(self):
+        root, _ = self.make_repo()
+
+        response = self.run_hook(
+            root,
+            {
+                "cwd": str(root),
+                "agent_type": "trellis-implementer",
+                "last_assistant_message": self.valid_implementer_output(),
+            },
+        )
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response["decision"], "block")
+        self.assertIn("agent-results", response["reason"])
+
+    def test_accepts_when_agent_result_json_exists(self):
+        root, task_dir = self.make_repo()
+        (task_dir / "agent-results").mkdir()
+        (task_dir / "agent-results" / "trellis-implementer-20260608T100000Z.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-implementer",
+                    "status": "PASS",
+                    "changed_files": ["src/orders/service.py"],
+                    "validation": [{"command": "pytest tests/orders", "status": "PASS"}],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        response = self.run_hook(
+            root,
+            {
+                "cwd": str(root),
+                "agent_type": "trellis-implementer",
+                "last_assistant_message": self.valid_implementer_output(),
+            },
+        )
+
+        self.assertIsNone(response)
 
 
 class ValidateDeliverySyncTests(unittest.TestCase):
@@ -2682,6 +3088,7 @@ class InitScriptTests(unittest.TestCase):
         self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
         self.assertTrue((root / ".trellis" / "config" / "config.json").is_file())
         self.assertTrue((root / ".trellis" / "config" / "workflow_profiles.json").is_file())
+        self.assertTrue((root / ".trellis" / "scripts" / "validate_agent_results.py").is_file())
         self.assertIn("OVERALL: PASS — Runtime hardening checks passed", result.stdout)
         self.assertIn("superpowers@claude-plugins-official", result.stdout)
         self.assertIn("disabled", result.stdout)
@@ -4380,6 +4787,7 @@ class RuntimeHardeningValidatorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
         self.assertIn("[PASS] validate_scope_manifest.py", result.stdout)
         self.assertIn("[PASS] validate_guardrail_overrides.py", result.stdout)
+        self.assertIn("[PASS] validate_agent_results.py", result.stdout)
 
 
 class PhaseTwoTemplateTests(unittest.TestCase):

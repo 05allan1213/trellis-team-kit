@@ -162,6 +162,19 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 
 **L3-L5 必须选择对应级别的 review gate，未选够 = FAIL。**
 
+多 agent / worktree / OMC 任务还必须保留机器可读交接记录：
+
+```text
+.trellis/tasks/<task>/agent-results/<agent-name>-<timestamp>.json
+```
+
+`trellis-implementer`、`trellis-checker` 和各类 reviewer 在输出 markdown
+汇报时同步写入 JSON，记录 `changed_files`、`validation`、`blocking_issues`、
+`risks` 和 `scope_expansion`。`trellis-merge-review` 会聚合
+`agent-results/*.json`、`runtime/guardrail-overrides.jsonl` 和
+`scope-manifest.json`，检查重复编辑、未声明路径、失败验证、未解决 blocker
+以及 OMC 是否有显式批准。
+
 ## Finish 前自动验证
 
 `stop-guard` hook 在任务完成前自动运行：
@@ -169,6 +182,7 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 1. `validate_task.py` — 检查必需产物是否齐全、L3-L5 JSONL 是否非空，以及 `finish.md` 里的 `Finish Approval` / `Observable Outcomes` / `Delivery Sync Check` / `Spec Update Decision` 是否完整
 2. `validate_review_gates.py` — 检查 mandatory gates 是否选中、review 文件是否存在且有结论
 3. `validate_delivery_sync.py` — 检查代码里已移除的公开路径是否还残留在 README / docs 中
+4. `validate_agent_results.py` — 对需要 merge-review 的并行 / OMC / 多 agent 任务检查 `agent-results/*.json`
 
 `prepare_finish_workspace.py` 不是 `stop-guard` 自动执行的 validator；它由 commit/archive 前的 guard 强制要求先运行，用来补齐 `.gitignore` 本地状态规则，并把 `.omc/` / `settings.local.json` 等本地状态从 git index 中移除。
 
@@ -346,6 +360,7 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 ```bash
 python3 .trellis/scripts/validate_task.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/T001-xxx
+python3 .trellis/scripts/validate_agent_results.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_delivery_sync.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_workflow_state.py .trellis/tasks/T001-xxx
 ```
