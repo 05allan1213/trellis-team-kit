@@ -1,0 +1,17 @@
+{
+  "name": "OMC prompt routes to L5 without starting OMC",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "Use OMC ultrawork to parallel refactor the entire orders module"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: L5",
+      "explicit user approval"
+    ],
+    "not_contains": [
+      "start OMC",
+      "Starting OMC"
+    ]
+  }
+}

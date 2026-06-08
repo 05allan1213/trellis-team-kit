@@ -115,6 +115,13 @@ run_case() {
   assert_file "$project/.trellis/scripts/validate_scope_manifest.py"
   assert_file "$project/.trellis/scripts/validate_guardrail_overrides.py"
   assert_file "$project/.trellis/scripts/validate_agent_results.py"
+  assert_file "$project/.trellis/scripts/replay_workflow_cases.py"
+  assert_file "$project/.trellis/scripts/detect_spec_update_candidates.py"
+  assert_file "$project/.trellis/scripts/trellis_doctor.py"
+  assert_file "$project/.trellis/replay/routing/standard-feature-routes-l3.json"
+  assert_file "$project/.trellis/replay/guardrails/contains-and-not-contains.json"
+  assert_file "$project/.trellis/replay/finish/finish-without-approval-blocks.json"
+  assert_file "$project/.trellis/replay/orchestration/omc-prompt-routes-l5-without-start.json"
   assert_file "$project/.claude/settings.json"
   assert_file "$project/.claude/settings.local.json"
   assert_file "$project/.trellis/workspace/$DEV_NAME/journal-1.md"
@@ -123,6 +130,7 @@ run_case() {
   (
     cd "$project"
     run_python_no_bytecode .trellis/scripts/validate_runtime_hardening.py >/dev/null
+    run_python_no_bytecode .trellis/scripts/replay_workflow_cases.py .trellis/replay >/dev/null
     bash "$REPO_ROOT/bootstrap/personalize-local.sh" "$DEV_NAME" >/dev/null
   )
   assert_file "$project/.trellis/workspace/$DEV_NAME/preferences.md"

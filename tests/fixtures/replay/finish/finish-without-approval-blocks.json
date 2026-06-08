@@ -1,0 +1,33 @@
+{
+  "name": "finish without approval blocks finish",
+  "run": "validate-task",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-finish",
+      "task_json": {
+        "id": "replay-finish",
+        "level": "L3",
+        "status": "completed"
+      },
+      "files": {
+        "prd.md": "# PRD\n",
+        "research/grill-me.md": "# Grill\n",
+        "implement.md": "# Implement: Replay\n\n## Review Gate Contract\n\n- [x] trellis-check\n\n## Implementation Approval\n\nApproval status:\n- [x] approved\n\nApproval source:\n- user message: start implementation\n- timestamp: 2026-06-04T10:00:00Z\n- summary approved: start implementation\n\nAllowed to run task.py start?\n- [x] yes\n- [ ] no\n",
+        "implement.jsonl": "{\"file\":\"$TASK_DIR/research/grill-me.md\",\"reason\":\"Replay context\"}\n",
+        "check.jsonl": "{\"file\":\"$TASK_DIR/research/grill-me.md\",\"reason\":\"Replay validation context\"}\n",
+        "validation/check-results.md": "## Verdict: PASS\n",
+        "agent-results/checker.json": "{\"agent\":\"checker\",\"role\":\"checker\",\"status\":\"pass\",\"changed_files\":[],\"validation\":[{\"command\":\"python3 -m unittest replay\",\"status\":\"pass\"}],\"blocking_issues\":[]}\n",
+        "finish.md": "# Finish: Replay\n\n## Observable Outcomes\n\n- Outcome: replay attempted finish\n- Evidence: fixture\n\n## Spec Update Decision\n\n- Need update?: no\n- Reason: replay fixture\n\n## Delivery Sync Check\n\n- [x] README / user docs reviewed\n- [x] Example commands / scripts reviewed\n- [x] Public API paths / contracts reviewed\n- [x] Implemented vs planned status reviewed\n\nFiles checked:\n- README.md - reviewed\n"
+      }
+    }
+  },
+  "expect": {
+    "contains": [
+      "FAIL:",
+      "finish.md missing 'Finish Approval' section"
+    ],
+    "not_contains": [
+      "PASS: Task"
+    ]
+  }
+}

@@ -233,6 +233,18 @@ python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/<task-dir>
 # Agent result 验证
 python3 .trellis/scripts/validate_agent_results.py .trellis/tasks/<task-dir>
 # 预期：PASS
+
+# Workflow doctor
+python3 .trellis/scripts/trellis_doctor.py workflow .trellis/tasks/<task-dir>
+# 预期：PASS，或输出具体 To fix 修复路径
+
+# Replay Lab
+python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
+# 预期：Replay cases 全部 PASS
+
+# Spec update candidate detector
+python3 .trellis/scripts/detect_spec_update_candidates.py
+# 预期：输出 JSON，列出需要同步的 spec/workflow/docs 候选项
 ```
 
 ---
@@ -252,4 +264,5 @@ python3 .trellis/scripts/validate_agent_results.py .trellis/tasks/<task-dir>
 | soft warning override | allow + 写 runtime/guardrail-overrides.jsonl |
 | override ledger 未复核 | validate_guardrail_overrides.py FAIL |
 | agent result 缺失或结构错误 | validate_agent_results.py FAIL |
+| workflow 状态不一致 | trellis_doctor.py workflow FAIL + To fix |
 | TRELLIS_DISABLE_HOOKS=1 | 所有 hooks 静默 skip |

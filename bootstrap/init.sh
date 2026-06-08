@@ -400,8 +400,8 @@ for cmd in finish-work continue create-manifest status doctor new auto-context; 
 done
 info "  $COMMAND_COUNT commands installed"
 
-# --- Step 9: Install validators, helpers, and config ---
-step 9 "Installing validators, helpers, and config..."
+# --- Step 9: Install validators, helpers, replay fixtures, and config ---
+step 9 "Installing validators, helpers, replay fixtures, and config..."
 VALIDATOR_COUNT=0
 mkdir -p "$TARGET_ROOT/.trellis/scripts"
 mkdir -p "$TARGET_ROOT/.trellis/config"
@@ -413,7 +413,8 @@ for v in \
   validate_workflow_state validate_delivery_sync \
   prepare_finish_workspace finalize_task_archive \
   validate_routing_rules validate_scope_manifest validate_guardrail_overrides \
-  validate_agent_results; do
+  validate_agent_results replay_workflow_cases detect_spec_update_candidates \
+  trellis_doctor; do
   get_file "trellis/scripts/$v.py" "$TARGET_ROOT/.trellis/scripts/$v.py"
   VALIDATOR_COUNT=$((VALIDATOR_COUNT + 1))
 done
@@ -421,7 +422,23 @@ done
 get_file "trellis/config/config.json" "$TARGET_ROOT/.trellis/config/config.json"
 get_file "trellis/config/routing_rules.json" "$TARGET_ROOT/.trellis/config/routing_rules.json"
 get_file "trellis/config/workflow_profiles.json" "$TARGET_ROOT/.trellis/config/workflow_profiles.json"
+
+REPLAY_COUNT=0
+mkdir -p "$TARGET_ROOT/.trellis/replay/routing"
+mkdir -p "$TARGET_ROOT/.trellis/replay/guardrails"
+mkdir -p "$TARGET_ROOT/.trellis/replay/finish"
+mkdir -p "$TARGET_ROOT/.trellis/replay/orchestration"
+for replay_case in \
+  routing/standard-feature-routes-l3.json \
+  guardrails/contains-and-not-contains.json \
+  finish/finish-without-approval-blocks.json \
+  orchestration/omc-prompt-routes-l5-without-start.json; do
+  get_file "tests/fixtures/replay/$replay_case" "$TARGET_ROOT/.trellis/replay/$replay_case"
+  REPLAY_COUNT=$((REPLAY_COUNT + 1))
+done
+
 info "  $VALIDATOR_COUNT team-kit Trellis scripts installed"
+info "  $REPLAY_COUNT replay fixtures installed"
 info "  config.json installed"
 info "  routing_rules.json installed"
 info "  workflow_profiles.json installed"
@@ -506,6 +523,7 @@ echo "    Hooks:          $FINAL_HOOK_TOTAL total ($HOOK_COUNT team-kit managed)
 echo "    Hook libs:      $FINAL_HOOK_LIB_TOTAL total ($LIB_COUNT team-kit managed)"
 echo "    Commands:       $FINAL_COMMAND_TOTAL total ($COMMAND_COUNT team-kit managed)"
 echo "    Trellis scripts: $FINAL_TRELLIS_SCRIPT_TOTAL total ($VALIDATOR_COUNT team-kit managed)"
+echo "    Replay cases:    $REPLAY_COUNT team-kit managed"
 echo "    Spec files:     $SPEC_COUNT total"
 echo "    Templates:      $TEMPLATE_COUNT total (team-kit managed)"
 echo ""

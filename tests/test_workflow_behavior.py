@@ -26,6 +26,10 @@ VALIDATE_SCOPE_MANIFEST = REPO_ROOT / "trellis" / "scripts" / "validate_scope_ma
 VALIDATE_GUARDRAIL_OVERRIDES = REPO_ROOT / "trellis" / "scripts" / "validate_guardrail_overrides.py"
 VALIDATE_AGENT_RESULTS = REPO_ROOT / "trellis" / "scripts" / "validate_agent_results.py"
 VALIDATE_SPEC_INDEX = REPO_ROOT / "trellis" / "scripts" / "validate_spec_index.py"
+REPLAY_WORKFLOW_CASES = REPO_ROOT / "trellis" / "scripts" / "replay_workflow_cases.py"
+DETECT_SPEC_UPDATE_CANDIDATES = (
+    REPO_ROOT / "trellis" / "scripts" / "detect_spec_update_candidates.py"
+)
 PREPARE_FINISH_WORKSPACE = REPO_ROOT / "trellis" / "scripts" / "prepare_finish_workspace.py"
 FINALIZE_TASK_ARCHIVE = REPO_ROOT / "trellis" / "scripts" / "finalize_task_archive.py"
 INIT_SH = REPO_ROOT / "bootstrap" / "init.sh"
@@ -219,6 +223,76 @@ class InjectWorkflowTaskPhaseTests(unittest.TestCase):
         context = self.run_hook(root)
 
         self.assertIn("Inferred phase: FINISHING", context)
+
+
+class ReplayWorkflowCasesTests(unittest.TestCase):
+    def setUp(self):
+        self.module = load_module(REPLAY_WORKFLOW_CASES, "replay_workflow_cases_module")
+
+    def test_runner_api_replays_hook_case_and_checks_absence(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            cases_dir = root / "replay" / "routing"
+            cases_dir.mkdir(parents=True)
+            (cases_dir / "standard-feature.json").write_text(
+                json.dumps(
+                    {
+                        "name": "standard feature routes L3",
+                        "run": "inject-workflow-state",
+                        "input": {"prompt": "implement CRUD feature"},
+                        "expect": {
+                            "contains": ["Suggested route: L3"],
+                            "not_contains": ["Suggested route: L5"],
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            results = self.module.run_replay_cases(cases_dir)
+
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0].passed, msg=results[0].message)
+        self.assertIn("Suggested route: L3", results[0].text)
+
+    def test_runner_api_reports_contains_failure(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            cases_dir = root / "replay" / "routing"
+            cases_dir.mkdir(parents=True)
+            (cases_dir / "bad-expectation.json").write_text(
+                json.dumps(
+                    {
+                        "name": "bad expectation",
+                        "run": "inject-workflow-state",
+                        "input": {"prompt": "implement CRUD feature"},
+                        "expect": {"contains": ["Suggested route: L5"]},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            results = self.module.run_replay_cases(cases_dir)
+
+        self.assertEqual(len(results), 1)
+        self.assertFalse(results[0].passed)
+        self.assertIn("missing expected text", results[0].message)
+
+    def test_replay_lab_cli_runs_checked_in_fixtures(self):
+        result = subprocess.run(
+            [sys.executable, str(REPLAY_WORKFLOW_CASES), str(FIXTURES_DIR / "replay")],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("PASS", result.stdout)
+        self.assertIn("routing", result.stdout)
+        self.assertIn("guardrails", result.stdout)
+        self.assertIn("finish", result.stdout)
+        self.assertIn("orchestration", result.stdout)
 
 
 class ValidateTaskTests(unittest.TestCase):
@@ -4761,6 +4835,171 @@ class TrellisConfigValidatorTests(unittest.TestCase):
             self.assertTrue(any("dispatch_mode" in issue for issue in issues))
         finally:
             path.unlink()
+
+
+class SpecUpdateCandidateDetectorTests(unittest.TestCase):
+    def run_detector(self, *paths: str, cwd: Path = REPO_ROOT) -> dict:
+        result = subprocess.run(
+            [sys.executable, str(DETECT_SPEC_UPDATE_CANDIDATES), *paths],
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        return json.loads(result.stdout)
+
+    def candidate_targets(self, payload: dict) -> set[str]:
+        return {candidate["target"] for candidate in payload["candidates"]}
+
+    def test_detects_phase_four_spec_update_rules_from_cli_args(self):
+        paths = [
+            "claude/hooks/inject-workflow-state.py",
+            "claude/skills/trellis-implement/SKILL.md",
+            "trellis/config/routing_rules.json",
+            "omc/orchestration.md",
+            "tests/fixtures/replay/routing/l1-inline-copy.json",
+        ]
+
+        payload = self.run_detector(*paths)
+
+        self.assertTrue(payload["need_spec_update"])
+        self.assertEqual(payload["changed_files"], paths)
+        self.assertEqual(
+            self.candidate_targets(payload),
+            {
+                "spec/guides/ai-behavior/guardrails.md",
+                "spec/guides/ai-behavior/skill-routing.md",
+                "workflow/routing.md",
+                "spec/guides/ai-behavior/orchestration.md",
+                "spec/guides/ai-behavior/common-mistakes.md",
+            },
+        )
+        self.assertTrue(all(candidate["reason"] for candidate in payload["candidates"]))
+
+    def test_detects_agent_and_workflow_documentation_targets(self):
+        payload = self.run_detector(
+            "claude/agents/trellis-implementer.md",
+            "workflow/workflow.md",
+        )
+
+        self.assertTrue(payload["need_spec_update"])
+        self.assertEqual(
+            self.candidate_targets(payload),
+            {
+                "spec/guides/ai-behavior/agent-results.md",
+                "README.md",
+            },
+        )
+
+    def test_detects_installed_layout_documentation_targets(self):
+        payload = self.run_detector(
+            ".claude/hooks/inject-workflow-state.py",
+            ".claude/skills/trellis-implement/SKILL.md",
+            ".trellis/config/routing_rules.json",
+            ".trellis/workflow.md",
+        )
+
+        self.assertTrue(payload["need_spec_update"])
+        self.assertEqual(
+            self.candidate_targets(payload),
+            {
+                "spec/guides/ai-behavior/guardrails.md",
+                "spec/guides/ai-behavior/skill-routing.md",
+                "workflow/routing.md",
+                "README.md",
+            },
+        )
+
+    def test_detects_runtime_and_installation_documentation_targets(self):
+        payload = self.run_detector(
+            "trellis/scripts/trellis_doctor.py",
+            "trellis/scripts/replay_workflow_cases.py",
+            "claude/commands/trellis/doctor.md",
+            "bootstrap/init.sh",
+            "README.md",
+            "docs/verify-workflow.md",
+        )
+
+        self.assertTrue(payload["need_spec_update"])
+        self.assertEqual(
+            self.candidate_targets(payload),
+            {
+                "docs/verify-workflow.md",
+                "README.md",
+                "claude/commands/trellis/doctor.md",
+                "bootstrap/smoke-test-install.sh",
+            },
+        )
+
+    def test_no_candidate_when_paths_do_not_match_rules(self):
+        payload = self.run_detector("docs/examples/README.md")
+
+        self.assertFalse(payload["need_spec_update"])
+        self.assertEqual(payload["candidates"], [])
+        self.assertEqual(payload["changed_files"], ["docs/examples/README.md"])
+
+    def test_reads_changed_paths_from_git_diff_when_no_cli_args(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            hook_path = root / "claude" / "hooks" / "demo.py"
+            hook_path.parent.mkdir(parents=True)
+            hook_path.write_text("print('before')\n", encoding="utf-8")
+
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True, text=True)
+            subprocess.run(
+                ["git", "commit", "-m", "initial"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            hook_path.write_text("print('after')\n", encoding="utf-8")
+
+            payload = self.run_detector(cwd=root)
+
+        self.assertTrue(payload["need_spec_update"])
+        self.assertEqual(payload["changed_files"], ["claude/hooks/demo.py"])
+        self.assertEqual(
+            self.candidate_targets(payload),
+            {"spec/guides/ai-behavior/guardrails.md"},
+        )
+
+    def test_reads_untracked_paths_from_git_when_no_cli_args(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+
+            replay_path = root / "tests" / "fixtures" / "replay" / "routing" / "new-case.json"
+            replay_path.parent.mkdir(parents=True)
+            replay_path.write_text("{}", encoding="utf-8")
+
+            payload = self.run_detector(cwd=root)
+
+        self.assertTrue(payload["need_spec_update"])
+        self.assertEqual(
+            payload["changed_files"],
+            ["tests/fixtures/replay/routing/new-case.json"],
+        )
+        self.assertEqual(
+            self.candidate_targets(payload),
+            {"spec/guides/ai-behavior/common-mistakes.md"},
+        )
 
 
 class RuntimeHardeningValidatorTests(unittest.TestCase):

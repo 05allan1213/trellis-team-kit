@@ -1,0 +1,16 @@
+{
+  "name": "routing case runs through inject-workflow-state",
+  "run": "inject-workflow-state",
+  "input": {
+    "prompt": "implement CRUD feature"
+  },
+  "expect": {
+    "contains": [
+      "Suggested route: L3",
+      "standard task"
+    ],
+    "not_contains": [
+      "Suggested route: L5"
+    ]
+  }
+}

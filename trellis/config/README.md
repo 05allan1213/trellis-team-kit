@@ -79,6 +79,7 @@ OMC `ulw/ultrawork` 只属于高级执行选项，需要明确用户批准；默
 - `validate_scope_manifest.py <task-dir>` — 校验 L2+ task 的 `scope-manifest.json`
 - `validate_guardrail_overrides.py <task-dir>` — 校验 `runtime/guardrail-overrides.jsonl` 与 `finish.md` 复核状态
 - `validate_agent_results.py <task-dir>` — 校验多 agent / worktree / OMC 任务的 `agent-results/*.json`
+- `trellis_doctor.py workflow <task-dir>` — 汇总当前任务的 workflow alignment 并给出 `To fix:` 修复路径
 
 `validate_task.py <task-dir>` 会在 before-dev 后联动 scope/override 校验，
 并在需要 merge-review 的并行任务上联动 agent result 校验。全局

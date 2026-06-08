@@ -363,6 +363,14 @@ python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_agent_results.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_delivery_sync.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_workflow_state.py .trellis/tasks/T001-xxx
+python3 .trellis/scripts/trellis_doctor.py workflow .trellis/tasks/T001-xxx
+python3 .trellis/scripts/detect_spec_update_candidates.py
+```
+
+回放真实 workflow 失败样本：
+
+```bash
+python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
 ```
 
 ## 维护者参考

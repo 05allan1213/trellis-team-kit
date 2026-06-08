@@ -1,0 +1,19 @@
+{
+  "name": "contains and not_contains assertions work",
+  "run": "script",
+  "input": {
+    "command": [
+      "python3",
+      "-c",
+      "print('guardrail override ledger reviewed')"
+    ]
+  },
+  "expect": {
+    "contains": [
+      "guardrail override ledger reviewed"
+    ],
+    "not_contains": [
+      "hard block bypassed"
+    ]
+  }
+}

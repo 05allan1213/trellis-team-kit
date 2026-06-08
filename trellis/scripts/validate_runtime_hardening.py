@@ -38,6 +38,19 @@ def find_spec_dir(scripts_dir: Path) -> Path | None:
     return None
 
 
+def find_replay_dir(scripts_dir: Path) -> Path | None:
+    """Find replay fixtures for either an installed project or this source repo."""
+    installed_replay_dir = scripts_dir.parent / "replay"
+    if installed_replay_dir.is_dir():
+        return installed_replay_dir
+
+    source_replay_dir = scripts_dir.parent.parent / "tests" / "fixtures" / "replay"
+    if source_replay_dir.is_dir():
+        return source_replay_dir
+
+    return None
+
+
 def run_validator(script_path: Path, args: list[str] | None = None) -> tuple[str, bool, str]:
     """Run a validator script. Returns (name, passed, output)."""
     cmd = ["python3", str(script_path)]
@@ -78,6 +91,7 @@ def main() -> int:
     print()
 
     spec_dir = find_spec_dir(scripts_dir)
+    replay_dir = find_replay_dir(scripts_dir)
     validators = [
         "validate_claude_settings.py",
         "validate_naming_map.py",
@@ -88,6 +102,9 @@ def main() -> int:
         "validate_scope_manifest.py",
         "validate_guardrail_overrides.py",
         "validate_agent_results.py",
+        "replay_workflow_cases.py",
+        "detect_spec_update_candidates.py",
+        "trellis_doctor.py",
     ]
 
     results: list[tuple[str, bool, str]] = []
@@ -102,6 +119,11 @@ def main() -> int:
                 results.append((vname, False, "Spec directory not found"))
                 continue
             args = [str(spec_dir)]
+        elif vname == "replay_workflow_cases.py":
+            if replay_dir is None:
+                results.append((vname, False, "Replay fixture directory not found"))
+                continue
+            args = [str(replay_dir)]
         name, passed, output = run_validator(vpath, args)
         results.append((name, passed, output))
 
@@ -134,6 +156,11 @@ def main() -> int:
     print(f"  python3 {scripts_dir}/validate_review_gates.py <task-dir>")
     print(f"  python3 {scripts_dir}/validate_delivery_sync.py <task-dir>")
     print(f"  python3 {scripts_dir}/validate_workflow_state.py <task-dir>")
+    print(f"  python3 {scripts_dir}/trellis_doctor.py workflow <task-dir>")
+    print()
+    print("Replay/spec maintenance:")
+    print(f"  python3 {scripts_dir}/replay_workflow_cases.py <replay-fixtures-dir>")
+    print(f"  python3 {scripts_dir}/detect_spec_update_candidates.py [changed-file ...]")
 
     return 0 if all_pass else 1
 
