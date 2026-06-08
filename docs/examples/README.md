@@ -74,7 +74,7 @@
 **工作流**: 创建 task → prd.md → grill-me → design.md → implement.md → before-dev → implement（worktree）→ check → spec-review + code-review + architecture-review → update-spec → commit → merge-review → validate → finish
 **产物**: `prd.md`、`design.md`、`implement.md`
 **门禁**: 所有适用门禁 + merge-review
-**执行方式**: Subagent + worktree（L4），OMC + worktree（L5）
+**执行方式**: Subagent + worktree（L4），Trellis-native parallel + worktree（L5 默认），OMC 仅在显式批准后使用
 
 ---
 
@@ -85,7 +85,7 @@
 **工作流**: 创建 parent task → prd.md（含子任务映射）→ grill-me → design.md → implement.md → 创建 child tasks → 并行实现各 child → 各自 check → 各自 review → parent merge-review → validate → finish
 **产物**: Parent：`prd.md`、`design.md`、`implement.md`、child 映射。Children：各自的 `prd.md`、`implement.md`
 **门禁**: 全部门禁 + merge-review（强制）
-**执行方式**: OMC + worktree + parent/child
+**执行方式**: Trellis-native parallel + worktree + parent/child 默认；OMC 仅在显式批准后使用
 
 ---
 

@@ -40,7 +40,7 @@ A reviewer's job is to **protect the codebase**, not to be nice to the diff.
 - Is error handling appropriate?
 - Are there debug logs, suppressed errors, or unsafe type bypasses left in?
 
-### Layer 3: Consistency (L3+)
+### Layer 3: Consistency (L3-L5)
 
 - Does the code follow existing patterns in the codebase?
 - Are naming conventions consistent?
@@ -98,7 +98,7 @@ Every review must produce:
 
 ## How to Use
 
-1. **After implementation (L3+)**: Load this guide before running `trellis-code-review` or `trellis-spec-review`
+1. **After implementation (L3-L5)**: Load this guide before running `trellis-code-review` or `trellis-spec-review`
 2. **Before merge (L4/L5)**: Use as lens for `trellis-merge-review`
 3. **When review fails repeatedly**: The review itself may be wrong — check if the PRD or design is the real issue
 

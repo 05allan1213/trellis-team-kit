@@ -419,9 +419,11 @@ done
 # Install config files required by validators
 get_file "trellis/config/config.json" "$TARGET_ROOT/.trellis/config/config.json"
 get_file "trellis/config/routing_rules.json" "$TARGET_ROOT/.trellis/config/routing_rules.json"
+get_file "trellis/config/workflow_profiles.json" "$TARGET_ROOT/.trellis/config/workflow_profiles.json"
 info "  $VALIDATOR_COUNT team-kit Trellis scripts installed"
 info "  config.json installed"
 info "  routing_rules.json installed"
+info "  workflow_profiles.json installed"
 
 # --- Step 10: Install specs, templates, and record version ---
 step 10 "Installing specs, templates, and recording version..."

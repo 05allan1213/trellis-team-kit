@@ -63,8 +63,8 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 | L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Main session | Light check |
 | L2 | Light implementation | Recommended | prd.md | Main/subagent | check |
 | L3 | Normal feature/bugfix | Yes | prd.md + implement.md | subagent | check + code-review |
-| L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | subagent + worktree (default) / OMC `ulw` optional | check + spec-review + code-review + architecture-review |
-| L5 | Large refactor/multi-agent | Yes | Full artifacts | Trellis-native parallel + worktree / OMC `ulw` + parent/child | All + merge-review |
+| L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | subagent + worktree by default; OMC `ulw` only with explicit approval | check + spec-review + code-review + architecture-review |
+| L5 | Large refactor/multi-agent | Yes | Full artifacts | Trellis-native parallel + worktree by default; OMC `ulw` only with explicit approval | All + merge-review |
 
 ### Triage Rules
 
@@ -90,7 +90,7 @@ Without implementation consent:
 
 ```
 Request → classify L0-L5 → task creation consent → task.py create
-  → brainstorm (prd.md) → grill-me → design (L3+) → implement plan
+  → brainstorm (prd.md) → grill-me → design (L4/L5 required, L3 optional) → implement plan
   → implementation consent → task.py start
   → before-dev → implement → check → review gates (per contract)
   → update-spec + observable outcomes → commit → merge-review (L4/L5) → validate → finish-work
@@ -98,7 +98,7 @@ Request → classify L0-L5 → task creation consent → task.py create
 
 ## Review Gate Contract
 
-All L3+ tasks must configure. Defaults:
+All L3-L5 tasks must configure. Defaults:
 
 | Gate | L2 | L3 | L4 | L5 |
 |------|:--:|:--:|:--:|:--:|

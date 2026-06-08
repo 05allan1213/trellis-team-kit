@@ -3,7 +3,7 @@ name: trellis-code-reviewer
 description: |
   Code quality review agent. Checks correctness, readability, maintainability,
   error handling, performance, tests, security, and unnecessary complexity.
-  Outputs PASS/FAIL. Dispatch during REVIEWING phase for L3+ tasks where
+  Outputs PASS/FAIL. Dispatch during REVIEWING phase for L3-L5 tasks where
   code-review is selected in the Review Gate Contract.
 tools: Read, Bash, Glob, Grep
 ---

@@ -12,7 +12,7 @@ Key behaviors:
 - When WAITING_IMPLEMENTATION_APPROVAL, explicitly forbids source editing,
   implementer spawn, and task.py start.
 - When there is no active task, uses the scorer-based router from
-  prompt_routing.py to suggest an L0/L1/L2/L3+/UNCERTAIN route.
+  prompt_routing.py to suggest an L0/L1/L2/L3/L4/L5/UNCERTAIN route.
 
 Trigger: UserPromptSubmit
 """
@@ -158,13 +158,34 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
             "Task creation approval is NOT implementation approval."
         )
 
-    if route == "L3+":
+    if route == "L3":
         return (
             "No active task.\n"
-            "Suggested route: L3+ standard task.\n"
+            "Suggested route: L3 standard task.\n"
             "Recommended next step: ask for task-creation consent, create a Trellis task, "
-            "and plan fully before implementation (PRD, design if needed, implement plan, "
-            "review gates).\n"
+            "produce PRD + grill-me + implement.md + JSONLs, then run trellis-check "
+            "+ trellis-code-review after implementation.\n"
+            "Task creation approval is NOT implementation approval."
+        )
+
+    if route == "L4":
+        return (
+            "No active task.\n"
+            "Suggested route: L4 strict cross-layer task.\n"
+            "Recommended next step: ask for task-creation consent, create a Trellis task, "
+            "produce PRD + grill-me + design.md + implement.md + JSONLs, then use "
+            "trellis-check + spec-review + code-review + architecture-review.\n"
+            "Do not start implementation until explicit approval. "
+            "Task creation approval is NOT implementation approval."
+        )
+
+    if route == "L5":
+        return (
+            "No active task.\n"
+            "Suggested route: L5 orchestrated multi-agent / large refactor task.\n"
+            "Recommended next step: create a parent task, plan child work, prefer "
+            "Trellis-native parallel + worktree first, and use OMC ulw/ultrawork only "
+            "after explicit user approval. merge-review is mandatory before finish.\n"
             "Task creation approval is NOT implementation approval."
         )
 
@@ -173,11 +194,11 @@ def _build_no_task_body(input_data: dict, root: Optional[Path] = None) -> str:
             "No active task.\n"
             "Suggested route: UNCERTAIN — the current request has ambiguous scope.\n"
             "Recommended next step:\n"
-            "1. FIRST, give a suggested level (L1/L2/L3+) and a one-sentence reason.\n"
+            "1. FIRST, give a suggested level (L1/L2/L3/L4/L5) and a one-sentence reason.\n"
             "   - Example: 「我倾向按 L2 处理。理由：它看起来更像局部实现改动，"
             "目前没有看到明确的 API / DB / shared contract 变更信号。」\n"
             "2. THEN, ask the user to confirm: accept the suggestion, or choose a "
-            "different level (L1/L2/L3+), or provide more context for re-evaluation.\n"
+            "different level (L1/L2/L3/L4/L5), or provide more context for re-evaluation.\n"
             "3. Do NOT start implementing until the user has confirmed the level.\n"
             "The suggestion is a recommendation, NOT a final decision. "
             "The user has the final say on routing level."

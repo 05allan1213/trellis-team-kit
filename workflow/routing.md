@@ -2,7 +2,7 @@
 
 ## Routing Model
 
-The level hierarchy (L0 → L1 → L2 → L3+) remains unchanged, but the decision mechanism has been migrated from the old **heuristic first-match** to a **scorer-based model**.
+The level hierarchy is now L0 → L1 → L2 → L3 → L4 → L5. The decision mechanism uses a **scorer-based model** instead of the old heuristic first-match router.
 
 ### Design Philosophy
 
@@ -17,9 +17,9 @@ This direction explicitly abandons the goal of "making rules correctly guess mos
 
 ### Two-Phase Decision Flow
 
-1. **Intent Gate**: Distinguish pure Q&A / explanation requests (L0) from change requests (L1/L2/L3+). This combines question signals, change-action signals, and code/engineering object signals.
+1. **Intent Gate**: Distinguish pure Q&A / explanation requests (L0) from change requests (L1/L2/L3/L4/L5). This combines question signals, change-action signals, and code/engineering object signals.
 
-2. **Level Scoring**: Score each level (L1/L2/L3+) for change requests:
+2. **Level Scoring**: Score each level (L1/L2/L3/L4/L5) for change requests:
    - Rules carry type-based weights (keyword +1, phrase +2, regex +2, pair +3, triple +4)
    - Negative rules can suppress specific levels
    - Final decision compares the top score against the runner-up, combined with risk signals
@@ -35,10 +35,10 @@ The router returns `UNCERTAIN` when any of the following conditions are met:
 
 When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 
-1. **AI Suggestion**: The main model first gives a suggested level (L1/L2/L3+) with a one-sentence reason. The suggestion must be clearly labeled as a recommendation, not a final decision.
+1. **AI Suggestion**: The main model first gives a suggested level (L1/L2/L3/L4/L5) with a one-sentence reason. The suggestion must be clearly labeled as a recommendation, not a final decision.
    - Example: 「我倾向按 L2 处理。理由：它看起来更像局部实现改动，目前没有看到明确的 API / DB / shared contract 变更信号。」
 
-2. **User Confirmation**: The user can accept the suggestion, choose a different level (L1/L2/L3+), or provide more context for re-evaluation.
+2. **User Confirmation**: The user can accept the suggestion, choose a different level (L1/L2/L3/L4/L5), or provide more context for re-evaluation.
 
 3. **No implementation before confirmation**: The system must NOT start implementing until the user has confirmed the routing level.
 
@@ -102,7 +102,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 
 - **Create task**: Yes
 - **Artifacts**: `prd.md` + `design.md` + `implement.md` + research
-- **Execution**: subagent + worktree or OMC
+- **Execution**: subagent + worktree by default; OMC only with explicit approval
 - **Gates**: check + spec-review + code-review + architecture-review
 
 **Examples**:
@@ -116,7 +116,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 
 - **Create task**: Yes
 - **Artifacts**: Full artifacts
-- **Execution**: OMC + worktree + parent/child task
+- **Execution**: Trellis-native parallel + worktree by default; OMC + worktree + parent/child only with explicit approval
 - **Gates**: All gates + merge-review
 
 **Examples**:
@@ -161,7 +161,9 @@ User makes a request
 ├── Scorer evaluates change signals:
 │   ├── L1 score >> others → L1 tiny inline edit
 │   ├── L2 score >> others → L2 light task path
-│   ├── L3+ score >> others (strong structured signals) → L3+ standard task
+│   ├── L3 score >> others → L3 standard task
+│   ├── L4 score >> others → L4 strict cross-layer task
+│   ├── L5 score >> others → L5 orchestrated task
 │   ├── Scores too close / weak signals / ambiguous target → UNCERTAIN
 │   │   └── AI suggests level → User confirms or changes → proceed at confirmed level
 │   └── No signal → generic (answer directly or ask)

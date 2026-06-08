@@ -88,11 +88,12 @@ class InjectWorkflowStateTests(unittest.TestCase):
         self.assertIn("Suggested route: L2", context)
         self.assertIn("keep planning light", context)
 
-    def test_chinese_l3_prompt_gets_standard_task_recommendation(self):
+    def test_chinese_api_contract_prompt_gets_l4_recommendation(self):
         context = self.run_hook("把用户列表接口返回字段改一下")
 
-        self.assertIn("Suggested route: L3+", context)
-        self.assertIn("create a Trellis task", context)
+        self.assertIn("Suggested route: L4", context)
+        self.assertIn("strict cross-layer task", context)
+        self.assertIn("architecture-review", context)
 
     def test_chinese_ui_tweak_stays_l1(self):
         context = self.run_hook("把支付页按钮间距调一下")
@@ -100,11 +101,32 @@ class InjectWorkflowStateTests(unittest.TestCase):
         self.assertIn("Suggested route: L1", context)
         self.assertIn("direct inline edit without creating a task", context)
 
-    def test_chinese_schema_change_goes_l3(self):
+    def test_chinese_schema_change_routes_l4(self):
         context = self.run_hook("给订单表加一个 status 字段")
 
-        self.assertIn("Suggested route: L3+", context)
+        self.assertIn("Suggested route: L4", context)
         self.assertIn("create a Trellis task", context)
+
+    def test_standard_feature_routes_l3(self):
+        context = self.run_hook("新增用户管理 CRUD 功能")
+
+        self.assertIn("Suggested route: L3", context)
+        self.assertIn("standard task", context)
+        self.assertIn("code-review", context)
+
+    def test_large_refactor_routes_l5(self):
+        context = self.run_hook("重构整个订单模块，拆成多个子 agent 并行做")
+
+        self.assertIn("Suggested route: L5", context)
+        self.assertIn("Trellis-native parallel", context)
+        self.assertIn("merge-review", context)
+
+    def test_omc_requires_explicit_approval(self):
+        context = self.run_hook("用 OMC ultrawork 并行重构整个订单模块")
+
+        self.assertIn("Suggested route: L5", context)
+        self.assertIn("explicit user approval", context)
+        self.assertNotIn("start OMC", context)
 
     def test_color_conversion_function_stays_l2(self):
         context = self.run_hook("补一个颜色转换函数")
@@ -934,6 +956,130 @@ class ValidateTaskTests(unittest.TestCase):
                 """
             ),
             encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def make_l4_in_progress_task(self, implement_md: str) -> Path:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        (root / ".trellis" / "spec" / "guides").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "guides" / "index.md").write_text(
+            "# Guides\n", encoding="utf-8"
+        )
+
+        task_dir = root / "T004-cross-layer"
+        (task_dir / "research").mkdir(parents=True)
+        (task_dir / "validation").mkdir(parents=True)
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T004", "level": "L4", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "prd.md").write_text("# PRD\n", encoding="utf-8")
+        (task_dir / "design.md").write_text("# Design\n", encoding="utf-8")
+        (task_dir / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
+        (task_dir / "implement.md").write_text(implement_md, encoding="utf-8")
+        (task_dir / "implement.jsonl").write_text(
+            json.dumps({"file": ".trellis/spec/guides/index.md", "reason": "guidance"}) + "\n",
+            encoding="utf-8",
+        )
+        (task_dir / "check.jsonl").write_text(
+            json.dumps({"file": "$TASK_DIR/research/grill-me.md", "reason": "risks"}) + "\n",
+            encoding="utf-8",
+        )
+        (task_dir / "validation" / "check-results.md").write_text(
+            "## Verdict: PASS\n", encoding="utf-8"
+        )
+        return task_dir
+
+    def test_l4_requires_execution_mode_decision(self):
+        task_dir = self.make_l4_in_progress_task(
+            textwrap.dedent(
+                """\
+                # Implement: Cross Layer
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            )
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("Execution Mode Decision" in issue for issue in issues))
+
+    def test_l4_accepts_trellis_native_execution_mode_decision(self):
+        task_dir = self.make_l4_in_progress_task(
+            textwrap.dedent(
+                """\
+                # Implement: Cross Layer
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [x] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                Reason:
+                - API contract change needs strict review but not parallel execution.
+
+                Why not heavier:
+                - OMC is unnecessary because one workstream is enough.
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            )
         )
 
         ok, issues = self.module.validate_task(task_dir)
@@ -2017,6 +2163,7 @@ class InitScriptTests(unittest.TestCase):
         self.assertTrue((root / ".trellis" / "workspace" / "alice" / "index.md").is_file())
         self.assertTrue((root / ".trellis" / "workspace" / "alice" / "journal-1.md").is_file())
         self.assertTrue((root / ".trellis" / "config" / "config.json").is_file())
+        self.assertTrue((root / ".trellis" / "config" / "workflow_profiles.json").is_file())
         self.assertIn("OVERALL: PASS — Runtime hardening checks passed", result.stdout)
         self.assertIn("superpowers@claude-plugins-official", result.stdout)
         self.assertIn("disabled", result.stdout)
@@ -2124,6 +2271,27 @@ class FinalizeTaskArchiveTests(unittest.TestCase):
 
                 Selected level:
                 - [x] L4 Architecture / Cross-layer Task
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [x] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                Reason:
+                - Archived L4 fixture uses strict Trellis-native execution.
+
+                Why not heavier:
+                - Parallel execution and OMC are unnecessary for this fixture.
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
 
                 ## Review Gate Contract
 
@@ -2513,9 +2681,25 @@ class PromptRoutingScorerTests(unittest.TestCase):
         d = self.classify("给 util 增一个日期格式化函数")
         self.assertEqual(d.route, "L2")
 
-    def test_l3_api(self):
+    def test_l4_api_contract(self):
         d = self.classify("把用户列表接口返回字段改一下")
-        self.assertEqual(d.route, "L3+")
+        self.assertEqual(d.route, "L4")
+
+    def test_l3_standard_feature(self):
+        d = self.classify("新增用户管理 CRUD 功能")
+        self.assertEqual(d.route, "L3")
+
+    def test_l4_schema_change(self):
+        d = self.classify("给订单表新增 status 字段")
+        self.assertEqual(d.route, "L4")
+
+    def test_l5_large_refactor(self):
+        d = self.classify("重构整个订单模块，拆成多个子 agent 并行做")
+        self.assertEqual(d.route, "L5")
+
+    def test_l5_omc_advanced_path(self):
+        d = self.classify("用 OMC ultrawork 并行重构整个订单模块")
+        self.assertEqual(d.route, "L5")
 
     def test_l0_question(self):
         d = self.classify("这个函数是什么意思?")
@@ -2537,7 +2721,9 @@ class PromptRoutingScorerTests(unittest.TestCase):
         d = self.classify("补一个颜色转换函数")
         self.assertIn("L1", d.scores)
         self.assertIn("L2", d.scores)
-        self.assertIn("L3+", d.scores)
+        self.assertIn("L3", d.scores)
+        self.assertIn("L4", d.scores)
+        self.assertIn("L5", d.scores)
         self.assertGreater(d.scores["L2"], 0)
 
     def test_reasons_populated(self):
@@ -2674,7 +2860,7 @@ class WorkspaceOverrideTests(unittest.TestCase):
             (root / ".trellis").mkdir()
             # No override file — should use default rules
             d = self.routing.classify_no_task_prompt("补一个工具函数", root=root)
-            self.assertIn(d.route, ("L1", "L2", "L3+", "UNCERTAIN", "L0"))
+            self.assertIn(d.route, ("L1", "L2", "L3", "L4", "L5", "UNCERTAIN", "L0"))
 
     def test_workspace_override_replaces_rules(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2700,7 +2886,7 @@ class WorkspaceOverrideTests(unittest.TestCase):
                         }
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -2770,7 +2956,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                     {"id": "dup", "type": "keyword", "terms": ["b"], "weight": 1},
                 ],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -2800,7 +2986,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                     {"id": "no_terms", "type": "keyword", "weight": 1},
                 ],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -2825,7 +3011,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                 "question_patterns": [],
                 "change_keywords": [],
             },
-            "levels": {"L1": [], "L2": [], "L3+": []},
+            "levels": {"L1": [], "L2": [], "L3": [], "L4": [], "L5": []},
             "negative_rules": [
                 {
                     "id": "bad_neg",
@@ -2876,7 +3062,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                     {"id": "bad_re", "type": "regex", "patterns": ["("], "weight": 1},
                 ],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -2906,7 +3092,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                     {"id": "bad_elem", "type": "keyword", "terms": [123], "weight": 1},
                 ],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -2942,7 +3128,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                     },
                 ],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -2967,7 +3153,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                 "question_patterns": ["[bad"],
                 "change_keywords": [],
             },
-            "levels": {"L1": [], "L2": [], "L3+": []},
+            "levels": {"L1": [], "L2": [], "L3": [], "L4": [], "L5": []},
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
         }
@@ -3024,7 +3210,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                 "question_patterns": [],
                 "change_keywords": [],
             },
-            "levels": {"L1": [], "L2": [], "L3+": []},
+            "levels": {"L1": [], "L2": [], "L3": [], "L4": [], "L5": []},
             "negative_rules": [
                 {
                     "id": [1, 2],
@@ -3056,7 +3242,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                 "question_patterns": [],
                 "change_keywords": [],
             },
-            "levels": {"L1": [], "L2": [], "L3+": []},
+            "levels": {"L1": [], "L2": [], "L3": [], "L4": [], "L5": []},
             "negative_rules": [
                 {
                     "patterns": ["x"],
@@ -3092,7 +3278,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                     {"type": "keyword", "terms": ["test"], "weight": 1},
                 ],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3123,7 +3309,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                     {"id": "r1", "type": "keyword", "terms": ["test"], "weight": "3"},
                 ],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3149,7 +3335,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                 "question_patterns": [],
                 "change_keywords": [],
             },
-            "levels": {"L1": [], "L2": [], "L3+": []},
+            "levels": {"L1": [], "L2": [], "L3": [], "L4": [], "L5": []},
             "negative_rules": [],
             "uncertainty": {"min_score": "2", "min_gap": "1"},
         }
@@ -3177,7 +3363,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
             "levels": {
                 "L1": [{"id": "r1", "type": "keyword", "terms": ["x"], "weight": True}],
                 "L2": [],
-                "L3+": [],
+                "L3": [], "L4": [], "L5": [],
             },
             "negative_rules": [],
             "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3203,7 +3389,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                 "question_patterns": [],
                 "change_keywords": [],
             },
-            "levels": {"L1": [], "L2": [], "L3+": []},
+            "levels": {"L1": [], "L2": [], "L3": [], "L4": [], "L5": []},
             "negative_rules": [
                 {"id": "neg1", "patterns": ["x"], "apply_against": ["L1"], "weight": False}
             ],
@@ -3230,7 +3416,7 @@ class RoutingRulesValidatorTests(unittest.TestCase):
                 "question_patterns": [],
                 "change_keywords": [],
             },
-            "levels": {"L1": [], "L2": [], "L3+": []},
+            "levels": {"L1": [], "L2": [], "L3": [], "L4": [], "L5": []},
             "negative_rules": [],
             "uncertainty": {"min_score": True, "min_gap": False},
         }
@@ -3245,6 +3431,32 @@ class RoutingRulesValidatorTests(unittest.TestCase):
             self.assertTrue(any("number" in i for i in issues))
         finally:
             path.unlink()
+
+
+class WorkflowProfilesConfigTests(unittest.TestCase):
+    def test_workflow_profiles_config_exists_and_maps_levels(self):
+        path = REPO_ROOT / "trellis" / "config" / "workflow_profiles.json"
+        self.assertTrue(path.is_file(), "workflow_profiles.json must exist")
+
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data.get("version"), 1)
+
+        profiles = data.get("profiles")
+        self.assertIsInstance(profiles, dict)
+        expected = {
+            "quick": ["L1"],
+            "light": ["L2"],
+            "standard": ["L3"],
+            "strict": ["L4"],
+            "orchestrated": ["L5"],
+        }
+        for name, levels in expected.items():
+            with self.subTest(profile=name):
+                self.assertIn(name, profiles)
+                profile = profiles[name]
+                self.assertEqual(profile.get("levels"), levels)
+                self.assertIn("execution", profile)
+                self.assertIn("required_gates", profile)
 
 
 class RuntimeBoolHandlingTests(unittest.TestCase):
@@ -3271,7 +3483,7 @@ class RuntimeBoolHandlingTests(unittest.TestCase):
                         {"id": "r1", "type": "keyword", "terms": ["test"], "weight": True}
                     ],
                     "L2": [],
-                    "L3+": []
+                    "L3": [], "L4": [], "L5": []
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 1}
@@ -3297,7 +3509,7 @@ class RuntimeBoolHandlingTests(unittest.TestCase):
                         {"id": "r1", "type": "keyword", "terms": ["test"], "weight": 5}
                     ],
                     "L2": [],
-                    "L3+": []
+                    "L3": [], "L4": [], "L5": []
                 },
                 "negative_rules": [
                     {
@@ -3330,7 +3542,7 @@ class RuntimeBoolHandlingTests(unittest.TestCase):
                         {"id": "r1", "type": "keyword", "terms": ["test"], "weight": 1}
                     ],
                     "L2": [],
-                    "L3+": []
+                    "L3": [], "L4": [], "L5": []
                 },
                 "negative_rules": [],
                 "uncertainty": {
@@ -3373,7 +3585,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                         {"id": "bad_re", "type": "regex", "patterns": ["("], "weight": 1}
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3402,7 +3614,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                         }
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3432,7 +3644,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                         }
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3462,7 +3674,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                         }
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3483,7 +3695,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                 "levels": {
                     "L1": [],
                     "L2": [],
-                    "L3+": [
+                    "L4": [
                         {
                             "id": "bad_triple",
                             "type": "triple",
@@ -3516,7 +3728,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                         {"id": "r1", "type": "keyword", "terms": ["test"], "weight": "3"}
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3540,7 +3752,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                         {"id": "r1", "type": [], "terms": ["test"], "weight": 1}
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": 2, "min_gap": 2},
@@ -3564,7 +3776,7 @@ class MalformedOverrideRuntimeTests(unittest.TestCase):
                         {"id": "r1", "type": "keyword", "terms": ["test"], "weight": 1}
                     ],
                     "L2": [],
-                    "L3+": [],
+                    "L3": [], "L4": [], "L5": [],
                 },
                 "negative_rules": [],
                 "uncertainty": {"min_score": "2", "min_gap": "1"},

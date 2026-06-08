@@ -22,9 +22,9 @@ import sys
 from pathlib import Path
 
 
-# Types allowed inside levels.L1 / L2 / L3+ rules
+# Types allowed inside levels.L1 / L2 / L3 / L4 / L5 rules
 VALID_LEVEL_RULE_TYPES = {"keyword", "phrase", "regex", "pair", "triple"}
-VALID_LEVELS = {"L1", "L2", "L3+"}
+VALID_LEVELS = {"L1", "L2", "L3", "L4", "L5"}
 REQUIRED_TOP_FIELDS = {"version", "intent_gate", "levels", "negative_rules", "uncertainty"}
 
 # Required fields per rule type (all types require 'id')

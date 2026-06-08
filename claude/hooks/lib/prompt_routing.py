@@ -7,7 +7,7 @@ This module is responsible for:
 - Rule loading (workspace override + default fallback)
 - Prompt normalization
 - Intent gate (question vs change request)
-- Level scoring (L1 / L2 / L3+)
+- Level scoring (L1 / L2 / L3 / L4 / L5)
 - Negative rule application
 - Conflict handling and UNCERTAIN determination
 - Confidence calculation
@@ -49,9 +49,9 @@ class RuleHit:
 @dataclass
 class RoutingDecision:
     """Structured result from the routing scorer."""
-    route: str           # L0 | L1 | L2 | L3+ | UNCERTAIN | generic
+    route: str           # L0 | L1 | L2 | L3 | L4 | L5 | UNCERTAIN | generic
     confidence: str      # high | medium | low
-    scores: dict = field(default_factory=dict)   # {"L1": 2, "L2": 5, "L3+": 0}
+    scores: dict = field(default_factory=dict)   # {"L1": 2, "L2": 5, "L3": 0, "L4": 0, "L5": 0}
     reasons: list = field(default_factory=list)   # human-readable hit descriptions
 
 
@@ -60,6 +60,7 @@ class RoutingDecision:
 # ---------------------------------------------------------------------------
 
 _DEFAULT_RULES_PATH = Path(__file__).resolve().parents[2] / "trellis" / "config" / "routing_rules.json"
+ROUTABLE_LEVELS = ("L1", "L2", "L3", "L4", "L5")
 
 
 def _find_default_rules_path() -> Path:
@@ -359,10 +360,16 @@ def _score_levels(np: NormalizedPrompt, levels: dict) -> tuple[dict[str, int], l
     """Score all levels against the normalized prompt.
 
     Returns:
-        scores: {"L1": int, "L2": int, "L3+": int}
+        scores: {"L1": int, "L2": int, "L3": int, "L4": int, "L5": int}
         hits: list of RuleHit
     """
-    scores: dict[str, int] = {"L1": 0, "L2": 0, "L3+": 0}
+    scores: dict[str, int] = {
+        level: 0
+        for level in ROUTABLE_LEVELS
+        if isinstance(levels, dict) and level in levels
+    }
+    if not scores:
+        scores = {level: 0 for level in ROUTABLE_LEVELS}
     hits: list[RuleHit] = []
 
     if not isinstance(levels, dict):
@@ -475,11 +482,13 @@ def _finalize_decision(
 
     gap = top_score - second_score
 
-    # Check for high-risk hits in top level
-    has_high_risk = any(
-        h.risk == "high" and h.level == top_level and h.weight > 0
+    # Check for high-risk hits at any routable level. If scores are close,
+    # prefer the highest-scored high-risk level instead of flattening complex tasks into one bucket.
+    high_risk_levels = {
+        h.level
         for h in hits
-    )
+        if h.risk == "high" and h.level in scores and h.weight > 0
+    }
 
     # --- Decision logic ---
 
@@ -489,10 +498,12 @@ def _finalize_decision(
 
     # Case 2: Top two scores are too close
     if gap < min_gap:
-        # If high risk signal present and prefer escalation, upgrade to L3+
-        if prefer_escalation and has_high_risk and "L3+" in scores:
-            if scores.get("L3+", 0) > 0:
-                return "L3+", "medium"
+        # If high risk signal present and prefer escalation, choose the
+        # strongest high-risk level rather than asking the model to guess.
+        if prefer_escalation and high_risk_levels:
+            best_high_risk = max(high_risk_levels, key=lambda level: scores.get(level, 0))
+            if scores.get(best_high_risk, 0) > 0:
+                return best_high_risk, "medium"
         return "UNCERTAIN", "low"
 
     # Case 3: Clear winner
@@ -527,7 +538,7 @@ def classify_no_task_prompt(
         return RoutingDecision(
             route="generic",
             confidence="low",
-            scores={"L1": 0, "L2": 0, "L3+": 0},
+            scores={level: 0 for level in ROUTABLE_LEVELS},
             reasons=["empty prompt"],
         )
 
@@ -546,7 +557,7 @@ def classify_no_task_prompt(
         return RoutingDecision(
             route="L0",
             confidence="high",
-            scores={"L1": 0, "L2": 0, "L3+": 0},
+            scores={level: 0 for level in ROUTABLE_LEVELS},
             reasons=["intent gate: question/explanation detected"],
         )
 

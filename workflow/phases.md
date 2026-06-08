@@ -10,11 +10,11 @@ Goal: classify the request, get task-creation consent, produce planning artifact
 |------|------|----------|--------|
 | 1.0 | Create task | required · once | `task.json` |
 | 1.1 | Requirement exploration | required · repeatable | `prd.md` |
-| 1.2 | Grill PRD | required L3+ · optional L2 | `research/grill-me.md` |
+| 1.2 | Grill PRD | required L3-L5 · optional L2 | `research/grill-me.md` |
 | 1.3 | Technical design | conditional · once | `design.md` (L3 optional, L4/L5 required) |
-| 1.4 | Execution planning | required · once | minimal `implement.md` for L2; Review Gate Contract for L3+ |
+| 1.4 | Execution planning | required · once | minimal `implement.md` for L2; Review Gate Contract for L3-L5 |
 | 1.5 | Research | optional · repeatable | `research/*.md` |
-| 1.6 | Configure context | required L3+ · optional L2 | `implement.jsonl` + `check.jsonl` |
+| 1.6 | Configure context | required L3-L5 · optional L2 | `implement.jsonl` + `check.jsonl` |
 | 1.7 | Implementation approval | required · once | User explicitly approves |
 | 1.8 | Activate task | required · once | `task.py start` |
 

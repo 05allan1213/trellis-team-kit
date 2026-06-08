@@ -104,7 +104,7 @@ Architecture thinking should produce concrete artifacts:
 
 ## How to Use
 
-1. **Before implementation (L3+)**: Load this guide when the task triggers any architecture checklist item
+1. **Before implementation (L3-L5)**: Load this guide when the task triggers any architecture checklist item
 2. **During implementation**: Re-check if the task scope expands or a new boundary is crossed
 3. **After implementation (L4/L5)**: Use as review lens in `trellis-code-architecture-review`
 

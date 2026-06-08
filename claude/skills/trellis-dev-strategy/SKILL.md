@@ -39,7 +39,7 @@ L4/L5 MUST NOT default to main-session. If the user requests main-session for L4
 | Strategy | When to Use |
 |----------|-------------|
 | Current branch | L0-L2, small changes, no conflict risk |
-| Dedicated worktree | L3+ with cross-package changes, parallel work, or PR-type tasks |
+| Dedicated worktree | L3-L5 with cross-package changes, parallel work, or PR-type tasks |
 
 Worktree policy: required for multiple subagents in parallel, OMC execution, cross-package changes, large refactors, PR-type tasks, and parent/child tasks.
 

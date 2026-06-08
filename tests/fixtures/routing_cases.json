@@ -12,10 +12,16 @@
     "notes": "Utility function — classic L2"
   },
   {
-    "prompt": "把用户列表接口返回字段改一下",
-    "expected_route": "L3+",
+    "prompt": "新增用户管理 CRUD 功能",
+    "expected_route": "L3",
     "expected_confidence": "high",
-    "notes": "API contract change — L3+"
+    "notes": "Normal CRUD feature — L3 standard task"
+  },
+  {
+    "prompt": "把用户列表接口返回字段改一下",
+    "expected_route": "L4",
+    "expected_confidence": "high",
+    "notes": "API contract change — L4 strict cross-layer task"
   },
   {
     "prompt": "补一个颜色转换函数",
@@ -27,7 +33,7 @@
     "prompt": "调整表单字段占位符",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "Form field placeholder — should be L1, not L3+ despite '字段'"
+    "notes": "Form field placeholder — should be L1, not L4 despite '字段'"
   },
   {
     "prompt": "顺手改一下字段展示方式",
@@ -43,9 +49,9 @@
   },
   {
     "prompt": "给订单表新增 status 字段",
-    "expected_route": "L3+",
+    "expected_route": "L4",
     "expected_confidence": "high",
-    "notes": "Database schema change — classic L3+"
+    "notes": "Database schema change — L4 strict cross-layer task"
   },
   {
     "prompt": "把支付页按钮间距调一下",
@@ -67,21 +73,21 @@
   },
   {
     "prompt": "实现用户认证模块",
-    "expected_route": "L3+",
+    "expected_route": "L4",
     "expected_confidence": "high",
-    "notes": "Auth module — L3+ because of structured combination 实现+认证+模块, not because 认证 alone is a strong signal"
+    "notes": "Auth module — L4 because of structured combination 实现+认证+模块, not because 认证 alone is a strong signal"
   },
   {
     "prompt": "改一下表单字段校验提示",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "UI field validation hint — must NOT misroute to L3+ (表单 ≠ database table)"
+    "notes": "UI field validation hint — must NOT misroute to L4 (表单 ≠ database table)"
   },
   {
     "prompt": "修改图表字段颜色",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "UI chart field color — must NOT misroute to L3+ (图表 ≠ database table)"
+    "notes": "UI chart field color — must NOT misroute to L4 (图表 ≠ database table)"
   },
   {
     "prompt": "解释一下 React useEffect 的用法",
@@ -91,9 +97,9 @@
   },
   {
     "prompt": "修改数据库表结构",
-    "expected_route": "L3+",
+    "expected_route": "L4",
     "expected_confidence": "high",
-    "notes": "Database schema — L3+"
+    "notes": "Database schema — L4"
   },
   {
     "prompt": "加个校验函数",
@@ -103,13 +109,13 @@
   },
   {
     "prompt": "把返回字段说明改一下",
-    "expected_route": "NOT L3+",
+    "expected_route": "NOT L4",
     "expected_confidence": null,
     "notes": "No API context — must NOT match api_contract_change (返回字段 alone ≠ API contract)"
   },
   {
     "prompt": "修改接口返回字段",
-    "expected_route": "L3+",
+    "expected_route": "L4",
     "expected_confidence": "high",
     "notes": "接口 + 返回字段 = strong API contract signal"
   },
@@ -117,31 +123,31 @@
     "prompt": "重构按钮样式",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "Local UI refactor — 重构 alone is not L3+, must have cross-layer context"
+    "notes": "Local UI refactor — 重构 alone is not L4, must have cross-layer context"
   },
   {
     "prompt": "给 middleware 加个日志文案",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "Local middleware logging — middleware alone is not L3+, must be config/permission change"
+    "notes": "Local middleware logging — middleware alone is not L4, must be config/permission change"
   },
   {
     "prompt": "改一下 middleware 注释",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "Comment changes to middleware should stay L1, not escalate to L3+"
+    "notes": "Comment changes to middleware should stay L1, not escalate to L4"
   },
   {
     "prompt": "改一下 schema 注释",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "Comment changes to schema should stay L1, not escalate to L3+"
+    "notes": "Comment changes to schema should stay L1, not escalate to L4"
   },
   {
     "prompt": "改一下 migration 注释",
     "expected_route": "L1",
     "expected_confidence": "high",
-    "notes": "Comment changes to migration should stay L1, not escalate to L3+"
+    "notes": "Comment changes to migration should stay L1, not escalate to L4"
   },
   {
     "prompt": "修改 schema",
@@ -151,15 +157,27 @@
   },
   {
     "prompt": "配置 middleware 权限",
-    "expected_route": "L3+",
+    "expected_route": "L4",
     "expected_confidence": "high",
     "notes": "Middleware permission config — cross-layer security change"
   },
   {
-    "prompt": "重构用户认证架构",
-    "expected_route": "L3+",
+    "prompt": "重构整个订单模块，拆成多个子 agent 并行做",
+    "expected_route": "L5",
     "expected_confidence": "high",
-    "notes": "Auth architecture refactor — L3+ because of structured combination 重构+认证+架构, not because 认证 alone is a strong signal"
+    "notes": "Large refactor with multi-agent split — L5 orchestrated"
+  },
+  {
+    "prompt": "用 OMC ultrawork 并行重构整个订单模块",
+    "expected_route": "L5",
+    "expected_confidence": "high",
+    "notes": "OMC is an advanced L5 execution option and still requires explicit approval"
+  },
+  {
+    "prompt": "重构用户认证架构",
+    "expected_route": "L4",
+    "expected_confidence": "high",
+    "notes": "Auth architecture refactor — L4 because of structured combination 重构+认证+架构, not because 认证 alone is a strong signal"
   },
   {
     "prompt": "调整按钮颜色",
@@ -207,12 +225,12 @@
     "prompt": "修改 middleware 权限文档",
     "expected_route": "UNCERTAIN",
     "expected_confidence": "low",
-    "notes": "per design2 §8.3: high-risk context (middleware/权限) + low-risk target (文档) — must NOT escalate to L3+, but also not forced to L1; UNCERTAIN is correct"
+    "notes": "per design2 §8.3: high-risk context (middleware/权限) + low-risk target (文档) — must NOT escalate to L4, but also not forced to L1; UNCERTAIN is correct"
   },
   {
     "prompt": "修改中间件权限说明",
     "expected_route": "UNCERTAIN",
     "expected_confidence": "low",
-    "notes": "per design2 §8.3: high-risk context (中间件/权限) + low-risk target (说明) — must NOT escalate to L3+, but also not forced to L1; UNCERTAIN is correct"
+    "notes": "per design2 §8.3: high-risk context (中间件/权限) + low-risk target (说明) — must NOT escalate to L4, but also not forced to L1; UNCERTAIN is correct"
   }
 ]

@@ -111,6 +111,7 @@ run_case() {
 
   assert_file "$project/.trellis/.team-kit-version"
   assert_file "$project/.trellis/config/config.json"
+  assert_file "$project/.trellis/config/workflow_profiles.json"
   assert_file "$project/.claude/settings.json"
   assert_file "$project/.claude/settings.local.json"
   assert_file "$project/.trellis/workspace/$DEV_NAME/journal-1.md"

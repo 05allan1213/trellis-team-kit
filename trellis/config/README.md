@@ -6,10 +6,11 @@ Trellis 的默认配置文件，安装到目标项目的 `.trellis/` 目录。
 
 - `config.json` — Team-kit 默认 Trellis 配置
 - `routing_rules.json` — Team-kit 默认路由规则配置
+- `workflow_profiles.json` — Team-kit 默认 workflow profile 配置
 
 ## routing_rules.json
 
-路由规则配置文件，用于 prompt 路由判定（L0/L1/L2/L3+/UNCERTAIN）。
+路由规则配置文件，用于 prompt 路由判定（L0/L1/L2/L3/L4/L5/UNCERTAIN）。
 
 ### 作用
 
@@ -24,7 +25,7 @@ Trellis 的默认配置文件，安装到目标项目的 `.trellis/` 目录。
 |------------------|--------|-----------------------------------------------|
 | `version`        | int    | 规则文件版本号                                |
 | `intent_gate`    | object | 意图门控配置（区分问答 vs 变更请求）          |
-| `levels`         | object | 各级别规则（L1/L2/L3+）                       |
+| `levels`         | object | 各级别规则（L1/L2/L3/L4/L5）                 |
 | `negative_rules` | array  | 负向规则（抑制特定等级）                      |
 | `uncertainty`    | object | 不确定态阈值配置                              |
 
@@ -56,3 +57,17 @@ python3 trellis/scripts/validate_routing_rules.py path/to/rules.json
 ```
 
 校验项包括：JSON 合法性、顶层字段完整性、rule type 合法性、rule id 唯一性、必填字段非空、`apply_against` 引用合法等级。
+
+## workflow_profiles.json
+
+Workflow profile 配置文件，用于把任务等级映射到流程摩擦和门禁：
+
+| Profile | Levels | 用途 |
+|---------|--------|------|
+| quick | L1 | 极小、局部、可逆改动 |
+| light | L2 | 轻量实现 |
+| standard | L3 | 普通 feature / bugfix |
+| strict | L4 | API / schema / auth / infra / shared contract 等高风险任务 |
+| orchestrated | L5 | 多 agent、parent-child、大重构或高级并行 |
+
+OMC `ulw/ultrawork` 只属于高级执行选项，需要明确用户批准；默认多 agent 路径仍是 Trellis-native subagent / worktree / parallel。

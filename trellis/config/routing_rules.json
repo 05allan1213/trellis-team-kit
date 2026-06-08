@@ -1,15 +1,42 @@
 {
-  "version": 1,
+  "version": 2,
   "intent_gate": {
     "question_keywords": [
-      "what", "why", "how", "explain", "describe",
-      "介绍", "解释", "是什么", "什么意思", "怎么理解", "为什么", "什么作用",
-      "what does", "how does", "how to use", "what is"
+      "what",
+      "why",
+      "how",
+      "explain",
+      "describe",
+      "介绍",
+      "解释",
+      "是什么",
+      "什么意思",
+      "怎么理解",
+      "为什么",
+      "什么作用",
+      "what does",
+      "how does",
+      "how to use",
+      "what is"
     ],
     "analysis_keywords": [
-      "analyze", "analyse", "review", "evaluate", "assess", "audit", "compare",
-      "分析", "看看", "评估", "审视", "对比", "现状", "有哪些", "有什么",
-      "当前状态", "目前情况"
+      "analyze",
+      "analyse",
+      "review",
+      "evaluate",
+      "assess",
+      "audit",
+      "compare",
+      "分析",
+      "看看",
+      "评估",
+      "审视",
+      "对比",
+      "现状",
+      "有哪些",
+      "有什么",
+      "当前状态",
+      "目前情况"
     ],
     "question_patterns": [
       "\\?\\s*$",
@@ -23,10 +50,35 @@
       "评估一下"
     ],
     "change_keywords": [
-      "fix", "add", "change", "update", "implement", "refactor", "write", "wrap",
-      "modify", "remove", "delete", "create", "build",
-      "改", "修", "加", "新增", "实现", "重构", "删除", "调", "调整", "补", "写",
-      "封装", "添加", "替换", "迁移", "更新"
+      "fix",
+      "add",
+      "change",
+      "update",
+      "implement",
+      "refactor",
+      "write",
+      "wrap",
+      "modify",
+      "remove",
+      "delete",
+      "create",
+      "build",
+      "改",
+      "修",
+      "加",
+      "新增",
+      "实现",
+      "重构",
+      "删除",
+      "调",
+      "调整",
+      "补",
+      "写",
+      "封装",
+      "添加",
+      "替换",
+      "迁移",
+      "更新"
     ]
   },
   "levels": {
@@ -34,17 +86,52 @@
       {
         "id": "ui_copy_tweak",
         "type": "pair",
-        "verbs": ["改", "调", "优化", "替换", "修改"],
-        "objects": ["文案", "提示语", "占位符", "按钮文字", "tooltip", "toast",
-                    "placeholder", "注释", "错别字", "拼写", "校验提示", "提示"],
+        "verbs": [
+          "改",
+          "调",
+          "优化",
+          "替换",
+          "修改"
+        ],
+        "objects": [
+          "文案",
+          "提示语",
+          "占位符",
+          "按钮文字",
+          "tooltip",
+          "toast",
+          "placeholder",
+          "注释",
+          "错别字",
+          "拼写",
+          "校验提示",
+          "提示"
+        ],
         "weight": 3
       },
       {
         "id": "ui_style_tweak",
         "type": "pair",
-        "verbs": ["调", "改", "微调", "优化", "调整", "重构"],
-        "objects": ["间距", "边距", "颜色", "字号", "字重", "对齐", "圆角",
-                    "宽度", "高度", "样式"],
+        "verbs": [
+          "调",
+          "改",
+          "微调",
+          "优化",
+          "调整",
+          "重构"
+        ],
+        "objects": [
+          "间距",
+          "边距",
+          "颜色",
+          "字号",
+          "字重",
+          "对齐",
+          "圆角",
+          "宽度",
+          "高度",
+          "样式"
+        ],
         "weight": 3
       },
       {
@@ -64,10 +151,29 @@
         "id": "l1_keywords",
         "type": "keyword",
         "terms": [
-          "typo", "copy", "wording", "label", "错别字", "拼写",
-          "文案", "样式微调", "样式小改", "样式", "按钮文案", "小修", "直接改",
-          "间距", "边距", "字号", "圆角", "对齐", "占位符", "placeholder",
-          "tooltip", "toast", "日志"
+          "typo",
+          "copy",
+          "wording",
+          "label",
+          "错别字",
+          "拼写",
+          "文案",
+          "样式微调",
+          "样式小改",
+          "样式",
+          "按钮文案",
+          "小修",
+          "直接改",
+          "间距",
+          "边距",
+          "字号",
+          "圆角",
+          "对齐",
+          "占位符",
+          "placeholder",
+          "tooltip",
+          "toast",
+          "日志"
         ],
         "weight": 1
       }
@@ -76,9 +182,27 @@
       {
         "id": "utility_function",
         "type": "pair",
-        "verbs": ["补", "加", "写", "封装", "新增", "添加", "实现"],
-        "objects": ["工具函数", "辅助函数", "格式化函数", "校验函数", "解析函数",
-                    "转换函数", "映射函数", "脱敏函数", "util", "helper"],
+        "verbs": [
+          "补",
+          "加",
+          "写",
+          "封装",
+          "新增",
+          "添加",
+          "实现"
+        ],
+        "objects": [
+          "工具函数",
+          "辅助函数",
+          "格式化函数",
+          "校验函数",
+          "解析函数",
+          "转换函数",
+          "映射函数",
+          "脱敏函数",
+          "util",
+          "helper"
+        ],
         "weight": 3
       },
       {
@@ -93,23 +217,98 @@
         "id": "l2_keywords",
         "type": "keyword",
         "terms": [
-          "util", "helper", "tool function", "utility", "validator", "format",
-          "formatter", "date format", "工具函数", "辅助函数", "格式化函数",
-          "日期格式化", "简单 bug", "small bug", "简单修复", "lightweight",
-          "light bugfix", "脱敏函数", "解析函数", "转换函数", "映射函数",
-          "校验函数", "校验", "解析"
+          "util",
+          "helper",
+          "tool function",
+          "utility",
+          "validator",
+          "format",
+          "formatter",
+          "date format",
+          "工具函数",
+          "辅助函数",
+          "格式化函数",
+          "日期格式化",
+          "简单 bug",
+          "small bug",
+          "简单修复",
+          "lightweight",
+          "light bugfix",
+          "脱敏函数",
+          "解析函数",
+          "转换函数",
+          "映射函数",
+          "校验函数",
+          "校验",
+          "解析"
         ],
         "weight": 1
       }
     ],
-    "L3+": [
+    "L3": [
+      {
+        "id": "normal_feature_or_bugfix",
+        "type": "pair",
+        "verbs": [
+          "新增",
+          "修改",
+          "实现",
+          "修复",
+          "add",
+          "modify",
+          "implement",
+          "fix"
+        ],
+        "objects": [
+          "页面",
+          "组件",
+          "接口",
+          "endpoint",
+          "feature",
+          "bugfix",
+          "CRUD",
+          "crud",
+          "功能"
+        ],
+        "weight": 3
+      },
+      {
+        "id": "standard_crud_feature",
+        "type": "regex",
+        "patterns": [
+          "(新增|实现|开发|添加|add|implement).{0,12}(CRUD|crud|功能|feature)",
+          "(CRUD|crud).{0,12}(功能|feature|页面|接口|endpoint)"
+        ],
+        "weight": 3
+      }
+    ],
+    "L4": [
       {
         "id": "schema_change",
         "type": "triple",
-        "subjects": ["数据表", "表结构", "数据库", "database"],
-        "verbs": ["新增", "删除", "修改", "变更", "迁移", "加", "改"],
-        "objects": ["字段", "索引", "列", "主键", "外键"],
-        "weight": 4,
+        "subjects": [
+          "数据表",
+          "表结构",
+          "数据库",
+          "database"
+        ],
+        "verbs": [
+          "新增",
+          "删除",
+          "修改",
+          "变更",
+          "迁移",
+          "加",
+          "改"
+        ],
+        "objects": [
+          "字段",
+          "索引",
+          "列",
+          "主键",
+          "外键"
+        ],
+        "weight": 5,
         "risk": "high"
       },
       {
@@ -119,7 +318,7 @@
           "(接口|api).{0,8}(字段|参数|返回值|返回字段|响应字段|请求参数)",
           "(字段|参数|返回值|返回字段|响应字段|请求参数).{0,8}(改|调|修改|变更|新增|删除).{0,8}(接口|api)"
         ],
-        "weight": 4,
+        "weight": 5,
         "risk": "high"
       },
       {
@@ -138,8 +337,15 @@
         "id": "l3_cross_layer_strong",
         "type": "keyword",
         "terms": [
-          "cross-layer", "跨层", "前端和后端", "frontend and backend",
-          "多模块", "worktree", "多 agent", "共享类型", "shared type"
+          "cross-layer",
+          "跨层",
+          "前端和后端",
+          "frontend and backend",
+          "多模块",
+          "worktree",
+          "多 agent",
+          "共享类型",
+          "shared type"
         ],
         "weight": 3,
         "comment": "These terms inherently imply cross-layer architectural changes"
@@ -147,8 +353,20 @@
       {
         "id": "l3_refactor_pair",
         "type": "pair",
-        "verbs": ["重构", "refactor", "重组", "restructure"],
-        "objects": ["架构", "模块", "服务", "系统", "接口", "数据库"],
+        "verbs": [
+          "重构",
+          "refactor",
+          "重组",
+          "restructure"
+        ],
+        "objects": [
+          "架构",
+          "模块",
+          "服务",
+          "系统",
+          "接口",
+          "数据库"
+        ],
         "weight": 4,
         "risk": "high"
       },
@@ -166,9 +384,58 @@
       {
         "id": "l3_table_structure_change",
         "type": "pair",
-        "verbs": ["修改", "改", "新增", "删除", "变更", "迁移", "调整"],
-        "objects": ["表结构", "数据表", "数据库表"],
+        "verbs": [
+          "修改",
+          "改",
+          "新增",
+          "删除",
+          "变更",
+          "迁移",
+          "调整"
+        ],
+        "objects": [
+          "表结构",
+          "数据表",
+          "数据库表"
+        ],
         "weight": 4,
+        "risk": "high"
+      }
+    ],
+    "L5": [
+      {
+        "id": "multi_agent_large_refactor",
+        "type": "keyword",
+        "terms": [
+          "多 agent",
+          "multi-agent",
+          "parent-child",
+          "父子任务",
+          "大重构",
+          "large refactor",
+          "跨包",
+          "跨服务",
+          "multi-service",
+          "worktree",
+          "ulw",
+          "ultrawork",
+          "并行 agent",
+          "并行做",
+          "OMC",
+          "omc"
+        ],
+        "weight": 5,
+        "risk": "high"
+      },
+      {
+        "id": "orchestrated_refactor",
+        "type": "regex",
+        "patterns": [
+          "(重构|refactor).{0,16}(整个|全量|大|large).{0,16}(模块|服务|系统|package|repo)",
+          "(拆成|拆分).{0,12}(多个|多).{0,12}(子 agent|agent|workstream|子任务)",
+          "(OMC|omc|ulw|ultrawork).{0,16}(并行|parallel|重构|refactor)"
+        ],
+        "weight": 5,
         "risk": "high"
       }
     ]
@@ -177,39 +444,75 @@
     {
       "id": "form_field_not_schema",
       "type": "phrase",
-      "patterns": ["表单字段", "占位符", "按钮文案", "表单占位符", "输入框占位符"],
-      "apply_against": ["L3+"],
+      "patterns": [
+        "表单字段",
+        "占位符",
+        "按钮文案",
+        "表单占位符",
+        "输入框占位符"
+      ],
+      "apply_against": [
+        "L4"
+      ],
       "weight": -3
     },
     {
       "id": "color_not_always_ui",
       "type": "phrase",
-      "patterns": ["颜色转换", "颜色转换函数", "颜色映射", "颜色解析", "颜色格式化"],
-      "apply_against": ["L1"],
+      "patterns": [
+        "颜色转换",
+        "颜色转换函数",
+        "颜色映射",
+        "颜色解析",
+        "颜色格式化"
+      ],
+      "apply_against": [
+        "L1"
+      ],
       "weight": -2
     },
     {
       "id": "display_field_not_schema",
       "type": "phrase",
-      "patterns": ["字段展示方式", "字段显示", "字段样式", "展示字段"],
-      "apply_against": ["L3+"],
+      "patterns": [
+        "字段展示方式",
+        "字段显示",
+        "字段样式",
+        "展示字段"
+      ],
+      "apply_against": [
+        "L4"
+      ],
       "weight": -3
     },
     {
       "id": "ui_table_not_db_table",
       "type": "phrase",
-      "patterns": ["表单", "图表"],
-      "apply_against": ["L3+"],
+      "patterns": [
+        "表单",
+        "图表"
+      ],
+      "apply_against": [
+        "L4"
+      ],
       "weight": -4
     },
     {
       "id": "ui_field_context_not_schema",
       "type": "phrase",
       "patterns": [
-        "字段校验提示", "字段提示信息", "字段颜色", "字段样式",
-        "字段展示", "字段显示", "字段标签", "字段名显示"
+        "字段校验提示",
+        "字段提示信息",
+        "字段颜色",
+        "字段样式",
+        "字段展示",
+        "字段显示",
+        "字段标签",
+        "字段名显示"
       ],
-      "apply_against": ["L3+"],
+      "apply_against": [
+        "L4"
+      ],
       "weight": -4
     }
   ],

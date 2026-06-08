@@ -9,7 +9,7 @@ description: "Dual-mode skill for architecture guidance and deep review. Guidanc
 
 ### Guidance Mode
 - PRD is complete and grilled.
-- Task is L3+ and one or more trigger conditions apply:
+- Task is L3-L5 and one or more trigger conditions apply:
   - Change crosses 3+ layers
   - New module being added
   - API/schema/persistence change

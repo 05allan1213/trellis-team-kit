@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "profiles": {
+    "quick": {
+      "levels": ["L1"],
+      "task": "optional",
+      "artifacts": [],
+      "execution": "main-session",
+      "required_gates": ["light-check"],
+      "finish_consent": false,
+      "description": "Tiny, local, reversible changes."
+    },
+    "light": {
+      "levels": ["L2"],
+      "task": "recommended",
+      "artifacts": ["prd.md", "minimal implement.md"],
+      "execution": "main-session-or-single-subagent",
+      "required_gates": ["trellis-check"],
+      "finish_consent": true,
+      "description": "Small implementation with light planning."
+    },
+    "standard": {
+      "levels": ["L3"],
+      "task": "required",
+      "artifacts": ["prd.md", "grill-me.md", "implement.md", "implement.jsonl", "check.jsonl"],
+      "execution": "trellis-subagents",
+      "required_gates": ["trellis-check", "trellis-code-review"],
+      "finish_consent": true,
+      "description": "Normal feature or bugfix."
+    },
+    "strict": {
+      "levels": ["L4"],
+      "task": "required",
+      "artifacts": ["prd.md", "grill-me.md", "design.md", "implement.md", "implement.jsonl", "check.jsonl"],
+      "execution": "trellis-subagents-plus-worktree",
+      "required_gates": [
+        "trellis-check",
+        "trellis-spec-review",
+        "trellis-code-review",
+        "trellis-code-architecture-review"
+      ],
+      "finish_consent": true,
+      "description": "Cross-layer, contract, schema, auth, infra, or shared behavior changes."
+    },
+    "orchestrated": {
+      "levels": ["L5"],
+      "task": "required",
+      "artifacts": ["full"],
+      "execution": "trellis-native-parallel-plus-worktree",
+      "omc": "optional-explicit-approval-only",
+      "required_gates": ["all", "trellis-merge-review"],
+      "finish_consent": true,
+      "description": "Multi-agent, parent-child, worktree, large refactor, or advanced OMC."
+    }
+  }
+}

@@ -53,8 +53,8 @@ All tasks are classified by complexity to avoid over-engineering small tasks or 
 | L1 | Tiny change / typo / copy | Optional | Skippable, AI may recommend inline | Main session | Light check |
 | L2 | Light implementation | Recommended | `prd.md` + minimal `implement.md` | Main session or subagent | `trellis-check` |
 | L3 | Normal feature / bugfix | Yes | `prd.md` + `research/grill-me.md` + `implement.md` + JSONLs, optionally `design.md` | subagent | check + code-review |
-| L4 | Complex cross-layer / API / schema / auth / infra | Yes | `prd.md` + `research/grill-me.md` + `design.md` + `implement.md` + JSONLs + research | subagent + worktree (default), OMC `ulw/ultrawork` optional | check + spec-review + code-review + architecture-review |
-| L5 | Multi-agent / parent-child / large refactor / architecture | Yes | Full artifacts | Trellis-native parallel + worktree, or OMC `ulw/ultrawork` + worktree + parent/child | All gates + merge-review |
+| L4 | Complex cross-layer / API / schema / auth / infra | Yes | `prd.md` + `research/grill-me.md` + `design.md` + `implement.md` + JSONLs + research | subagent + worktree by default; OMC only with explicit approval | check + spec-review + code-review + architecture-review |
+| L5 | Multi-agent / parent-child / large refactor / architecture | Yes | Full artifacts | Trellis-native parallel + worktree by default; OMC only with explicit approval | All gates + merge-review |
 
 ### Triage Rules
 
@@ -89,7 +89,7 @@ NO_TASK
   → TRIAGE (classify request)
     → TASK_CREATED (task.py create)
       → PLANNING_PRD (brainstorm)
-        → PLANNING_GRILL (L3+ grill-me, optional for L2)
+        → PLANNING_GRILL (L3-L5 grill-me, optional for L2)
           → PLANNING_DESIGN (design.md for complex tasks)
             → PLANNING_IMPLEMENT (implement.md + review gate contract)
               → WAITING_IMPLEMENTATION_APPROVAL
@@ -145,21 +145,21 @@ NO_TASK
 - **Allowed**: Brainstorm, research, read code evidence, update prd.md
 - **Forbidden**: Edit source, `task.py start`, skip evidence and ask user directly
 - **Exit condition**: prd.md has verifiable Acceptance Criteria
-- **Next state**: PLANNING_GRILL (L3+) or PLANNING_IMPLEMENT (L2)
+- **Next state**: PLANNING_GRILL (L3-L5) or PLANNING_IMPLEMENT (L2)
 - **Triggerable skills**: `trellis-brainstorm`, `trellis-researcher` (subagent)
 
 ### PLANNING_GRILL
-- **Description**: PRD challenge phase (required for L3+, optional for L2)
-- **Entry condition**: L3+ prd.md has basic AC, or L2 needs extra challenge
+- **Description**: PRD challenge phase (required for L3-L5, optional for L2)
+- **Entry condition**: L3-L5 prd.md has basic AC, or L2 needs extra challenge
 - **Required files**: `prd.md`, `research/grill-me.md` when this phase is used
 - **Allowed**: Check AC testability, boundaries, risks, scope creep
 - **Forbidden**: Edit source, `task.py start`
 - **Exit condition**: Grill-me complete, PRD Risks/Open Questions/Out of Scope updated
-- **Next state**: PLANNING_DESIGN (L3+) or PLANNING_IMPLEMENT (L2)
+- **Next state**: PLANNING_DESIGN (L3-L5) or PLANNING_IMPLEMENT (L2)
 - **Triggerable skills**: `trellis-grill-me`
 
 ### PLANNING_DESIGN
-- **Description**: Technical design (L3+)
+- **Description**: Technical design (L3-L5)
 - **Entry condition**: PRD is solid
 - **Required files**: `design.md` (required for L4/L5)
 - **Allowed**: Architecture design, contract definition, data flow, alternatives
@@ -171,10 +171,10 @@ NO_TASK
 ### PLANNING_IMPLEMENT
 - **Description**: Execution planning
 - **Entry condition**: PRD + design (if needed) done
-- **Required files**: `implement.md` (minimal implementation plan + approval section for L2; Development Strategy + Review Gate Contract for L3+)
-- **Allowed**: Decide execution mode, configure review gates (L3+), curate JSONL (L3+)
+- **Required files**: `implement.md` (minimal implementation plan + approval section for L2; Development Strategy + Review Gate Contract for L3-L5)
+- **Allowed**: Decide execution mode, configure review gates (L3-L5), curate JSONL (L3-L5)
 - **Forbidden**: Edit source, `task.py start`
-- **Exit condition**: implement.md done, L3+ review gate contract configured, L3+ JSONL curated
+- **Exit condition**: implement.md done, L3-L5 review gate contract configured, L3-L5 JSONL curated
 - **Next state**: WAITING_IMPLEMENTATION_APPROVAL
 - **Triggerable skills**: `trellis-dev-strategy`
 
@@ -308,7 +308,7 @@ NO_TASK
 
 ## Review Gate Contract
 
-All L3+ tasks must configure a Review Gate Contract in `implement.md`:
+All L3-L5 tasks must configure a Review Gate Contract in `implement.md`:
 
 ```markdown
 ## Review Gate Contract
@@ -388,20 +388,20 @@ No active task. First classify the current turn:
 ### Phase 1: Plan
 - 1.0 Create task `[required · once]` (only after task-creation consent)
 - 1.1 Requirement exploration `[required · repeatable]` (`prd.md`; all task paths need `implement.md` before start)
-- 1.2 Grill PRD `[required L3+ · optional L2]` (check AC testability, risks, scope boundaries)
+- 1.2 Grill PRD `[required L3-L5 · optional L2]` (check AC testability, risks, scope boundaries)
 - 1.3 Technical design `[conditional · once]` (L3 optional, L4/L5 required)
-- 1.4 Execution planning `[required · once]` (minimal `implement.md` for L2; Review Gate Contract for L3+)
+- 1.4 Execution planning `[required · once]` (minimal `implement.md` for L2; Review Gate Contract for L3-L5)
 - 1.5 Research `[optional · repeatable]`
-- 1.6 Configure context `[required L3+ · optional L2]` — curate `implement.jsonl` / `check.jsonl`
+- 1.6 Configure context `[required L3-L5 · optional L2]` — curate `implement.jsonl` / `check.jsonl`
 - 1.7 Implementation approval `[required · once]` (user must explicitly approve)
 - 1.8 Activate task `[required · once]` (`task.py start`; status → in_progress)
 
 [workflow-state:planning]
 Load `trellis-brainstorm`; stay in planning.
 Task creation approval is NOT implementation approval. Do NOT edit source code.
-Lightweight (L2): `prd.md` + minimal `implement.md` can be enough. Complex (L3+): finish `prd.md`, `research/grill-me.md`, `design.md` (L4/L5), `implement.md`, and JSONLs; ask for review before `task.py start`.
+Lightweight (L2): `prd.md` + minimal `implement.md` can be enough. Complex (L3-L5): finish `prd.md`, `research/grill-me.md`, `design.md` (L4/L5), `implement.md`, and JSONLs; ask for review before `task.py start`.
 Multi-deliverable scope: consider a parent task plus independently verifiable child tasks.
-Phase 1.6 (required for L3+, optional for L2): before `task.py start`, curate `implement.jsonl` and `check.jsonl` with relevant spec/research files.
+Phase 1.6 (required for L3-L5, optional for L2): before `task.py start`, curate `implement.jsonl` and `check.jsonl` with relevant spec/research files.
 Use Superpowers reasoning when unclear/complex/architectural/cross-module/high-risk. Do NOT use oh-my-claudecode for implementation before PRD is confirmed.
 If Superpowers or any scenario extension is unavailable, do not block planning; continue with explicit local reasoning and persist the result into task artifacts.
 [/workflow-state:planning]
@@ -572,9 +572,9 @@ The brainstorm skill guides you to:
 
 If the task is unclear, complex, architectural, cross-module, high-risk, or has multiple plausible paths, apply Superpowers reasoning before freezing scope.
 
-#### 1.2 Grill PRD `[required L3+ · optional L2]`
+#### 1.2 Grill PRD `[required L3-L5 · optional L2]`
 
-For L3+ tasks, load the `trellis-grill-me` skill to challenge the PRD. For L2 tasks, use this phase only when the requirement is unclear or riskier than it first looked:
+For L3-L5 tasks, load the `trellis-grill-me` skill to challenge the PRD. For L2 tasks, use this phase only when the requirement is unclear or riskier than it first looked:
 - Are acceptance criteria testable?
 - Is out of scope explicit?
 - Are edge cases covered?
@@ -587,7 +587,7 @@ When used, output to `research/grill-me.md` and update `prd.md`.
 
 #### 1.3 Technical design `[conditional · once]`
 
-For L3+ tasks, produce `design.md`. L4/L5 tasks MUST have `design.md`.
+For L3-L5 tasks, produce `design.md`. L4/L5 tasks MUST have `design.md`.
 
 Load `trellis-improve-codebase-architecture guidance` for architecture guidance on complex tasks.
 
@@ -602,15 +602,15 @@ Load `trellis-dev-strategy` to decide:
 6. Review gates: which to enable
 7. Merge-review needed: yes / no
 
-Write to `implement.md`. L2 tasks need only a minimal implementation plan plus the Implementation Approval section. L3+ tasks must include the Review Gate Contract.
+Write to `implement.md`. L2 tasks need only a minimal implementation plan plus the Implementation Approval section. L3-L5 tasks must include the Review Gate Contract.
 
 #### 1.5 Research `[optional · repeatable]`
 
 Research at any time during planning. Use `trellis-researcher` subagent. Output MUST be persisted to `{TASK_DIR}/research/`.
 
-#### 1.6 Configure context `[required L3+ · optional L2]`
+#### 1.6 Configure context `[required L3-L5 · optional L2]`
 
-For L3+ tasks, curate `implement.jsonl` and `check.jsonl` with relevant spec/research files. L2 tasks may skip JSONL unless extra context materially reduces risk. What to include: spec files, research files. What NOT to include: code files, files about to be modified, or task artifacts already injected by hooks (`prd.md`, `design.md`, `implement.md`, `finish.md`). For task-local research files, use `$TASK_DIR/...` so archive does not break the references.
+For L3-L5 tasks, curate `implement.jsonl` and `check.jsonl` with relevant spec/research files. L2 tasks may skip JSONL unless extra context materially reduces risk. What to include: spec files, research files. What NOT to include: code files, files about to be modified, or task artifacts already injected by hooks (`prd.md`, `design.md`, `implement.md`, `finish.md`). For task-local research files, use `$TASK_DIR/...` so archive does not break the references.
 
 ```bash
 python3 ./.trellis/scripts/task.py add-context "$TASK_DIR" implement "<path>" "<reason>"
@@ -638,14 +638,14 @@ After this command, the breadcrumb switches to `[workflow-state:in_progress]`.
 | Condition | Required |
 |------|:---:|
 | `prd.md` exists with testable AC | ✅ |
-| `grill-me.md` completed | L3+ |
+| `grill-me.md` completed | L3-L5 |
 | User explicitly approves implementation | ✅ |
 | `task.py start` has been run | ✅ |
 | `design.md` exists (L4/L5) | ✅ |
 | `implement.md` exists | ✅ |
-| `implement.md` has Review Gate Contract | L3+ |
+| `implement.md` has Review Gate Contract | L3-L5 |
 | `research/` has artifacts (complex tasks) | recommended |
-| `implement.jsonl` / `check.jsonl` curated | L3+ |
+| `implement.jsonl` / `check.jsonl` curated | L3-L5 |
 
 ---
 
@@ -803,7 +803,7 @@ Finish-work does NOT: write code, fix bugs, bypass failed gates, push.
 
 After archive, reopen the archived task and verify:
 1. `task.json` still has `level`
-2. L3+ or existing `implement.jsonl` / `check.jsonl` still resolve and still contain only spec/research context
+2. L3-L5 or existing `implement.jsonl` / `check.jsonl` still resolve and still contain only spec/research context
 3. workspace journal and index mention the task with real commit information
 4. tracked runtime state files such as `.omc/state/*` are excluded from the commit/dirty set
 

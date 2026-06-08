@@ -6,7 +6,7 @@ Checks:
 - task.json exists and is valid
 - Task level is valid (L0-L5)
 - Required artifacts by level are present
-- L3+ implement.jsonl / check.jsonl must exist and be non-empty
+- L3/L4/L5 implement.jsonl / check.jsonl must exist and be non-empty
 - Approval status
 - Review gate contract is present
 - Validation results
@@ -64,6 +64,13 @@ REQUIRED_DELIVERY_SYNC_ITEMS = (
 )
 
 CHECK_GATE_NAMES = {"trellis-check"}
+EXECUTION_MODE_LABELS = (
+    "main session",
+    "single trellis subagent",
+    "trellis subagents",
+    "trellis-native parallel + worktree",
+    "omc ulw/ultrawork + worktree + parent/child",
+)
 
 
 def _find_repo_root(start: Path) -> Path | None:
@@ -495,6 +502,67 @@ def _check_scope_quality(implement_md: Path, task_id: str, level: str) -> list[s
     return warnings
 
 
+def _checked_labels_in_section(section_text: str) -> set[str]:
+    labels: set[str] = set()
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if not stripped.lower().startswith("- [x]"):
+            continue
+        label = stripped.split("]", 1)[-1].strip().lower()
+        if label:
+            labels.add(label)
+    return labels
+
+
+def _check_execution_mode_decision(implement_md: Path, task_id: str, level: str) -> list[str]:
+    if level not in ("L4", "L5"):
+        return []
+    if not implement_md.is_file():
+        return []
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return [f"Task '{task_id}' ({level}): cannot read implement.md for Execution Mode Decision"]
+
+    section = _extract_markdown_section(content, "Execution Mode Decision")
+    if not section:
+        return [
+            f"Task '{task_id}' ({level}): implement.md missing 'Execution Mode Decision' section"
+        ]
+
+    errors: list[str] = []
+    checked = _checked_labels_in_section(section)
+    selected_modes = [label for label in EXECUTION_MODE_LABELS if label in checked]
+    if len(selected_modes) != 1:
+        errors.append(
+            f"Task '{task_id}' ({level}): Execution Mode Decision must select exactly one recommended mode"
+        )
+
+    omc_selected = "omc ulw/ultrawork + worktree + parent/child" in selected_modes
+    omc_approved = "user explicitly approved omc" in checked
+    omc_not_applicable = "not applicable" in checked
+
+    if omc_selected and not omc_approved:
+        errors.append(
+            f"Task '{task_id}' ({level}): OMC execution requires explicit user approval in Execution Mode Decision"
+        )
+    if not omc_selected and not omc_not_applicable and not omc_approved:
+        errors.append(
+            f"Task '{task_id}' ({level}): Execution Mode Decision must mark OMC approval as not applicable or explicitly approved"
+        )
+
+    if level == "L5":
+        parallel_selected = "trellis-native parallel + worktree" in selected_modes or omc_selected
+        review_section = _extract_markdown_section(content, "Review Gate Contract")
+        review_checked = _checked_labels_in_section(review_section)
+        if parallel_selected and "trellis-merge-review" not in review_checked:
+            errors.append(
+                f"Task '{task_id}' ({level}): parallel or OMC execution requires trellis-merge-review in Review Gate Contract"
+            )
+
+    return errors
+
+
 def _check_jsonl_non_empty(path: Path) -> tuple[bool, str]:
     if not path.is_file():
         return False, "file does not exist"
@@ -685,6 +753,10 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
                 warnings.append(
                     f"Task '{task_id}': implement.md missing Review Gate Contract"
                 )
+
+    errors.extend(
+        _check_execution_mode_decision(task_dir / "implement.md", task_id, level)
+    )
 
     if level in LEVEL_ARTIFACT_REQUIREMENTS and not is_planning:
         scope_warnings = _check_scope_quality(

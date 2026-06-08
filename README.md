@@ -69,7 +69,7 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
       → TASK_CREATED（task.py create）
         → PLANNING_PRD（brainstorm → prd.md）
           → PLANNING_GRILL（grill-me → 挑刺 PRD）
-            → PLANNING_DESIGN（L3+ 出 design.md）
+            → PLANNING_DESIGN（L4/L5 必出 design.md，L3 可选）
               → PLANNING_IMPLEMENT（implement.md + review gate contract）
                 → WAITING_IMPLEMENTATION_APPROVAL
                   → IN_PROGRESS（task.py start）
@@ -118,7 +118,7 @@ Hooks 强制执行这些规则。
 ## Before-dev 门控
 
 进入实现阶段前，AI 必须运行 `trellis-before-dev` skill，读取所有适用 artifacts
-（prd.md、implement.md、design.md 如有、L3+ JSONLs、specs、research），
+（prd.md、implement.md、design.md 如有、L3-L5 JSONLs、specs、research），
 并输出 `before-dev.md` 约束文件。
 
 **没有 before-dev.md 就不能编辑源码。** `protect-dangerous-actions` hook 强制执行。
@@ -143,7 +143,7 @@ Soft block 可通过 `override team-kit guardrail: <reason>` 绕过。
 ```text
 1. trellis-check          （始终必跑）
 2. trellis-spec-review    （L4+）
-3. trellis-code-review    （L3+）
+3. trellis-code-review    （L3-L5）
 4. trellis-code-architecture-review （L4+）
 5. trellis-improve-codebase-architecture deep-review （L5）
 6. trellis-merge-review   （L5 / worktree / 多 agent）
@@ -152,13 +152,13 @@ Soft block 可通过 `override team-kit guardrail: <reason>` 绕过。
 每个 review 输出 PASS/FAIL 及 blocking issues。任何 FAIL → 回到
 IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 
-**L3+ 必须选择对应级别的 review gate，未选够 = FAIL。**
+**L3-L5 必须选择对应级别的 review gate，未选够 = FAIL。**
 
 ## Finish 前自动验证
 
 `stop-guard` hook 在任务完成前自动运行：
 
-1. `validate_task.py` — 检查必需产物是否齐全、L3+ JSONL 是否非空，以及 `finish.md` 里的 `Finish Approval` / `Observable Outcomes` / `Delivery Sync Check` / `Spec Update Decision` 是否完整
+1. `validate_task.py` — 检查必需产物是否齐全、L3-L5 JSONL 是否非空，以及 `finish.md` 里的 `Finish Approval` / `Observable Outcomes` / `Delivery Sync Check` / `Spec Update Decision` 是否完整
 2. `validate_review_gates.py` — 检查 mandatory gates 是否选中、review 文件是否存在且有结论
 3. `validate_delivery_sync.py` — 检查代码里已移除的公开路径是否还残留在 README / docs 中
 
@@ -171,7 +171,7 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 `trellis-finish-work` 在 archive 之后必须重新打开归档任务并再次验证：
 
 - `task.json` 仍有 `level`
-- L3+ 或已存在的 `implement.jsonl` / `check.jsonl` 仍能解析并只包含 spec/research context
+- L3-L5 或已存在的 `implement.jsonl` / `check.jsonl` 仍能解析并只包含 spec/research context
 - workspace journal / index 已写入真实 commit 信息，而不是占位文本
 - `.omc/state/*` 之类运行时状态文件没有污染最终 dirty state
 - `validate_workflow_state.py` 通过，确保 journal / workspace index / runtime state 与归档完成态一致

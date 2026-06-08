@@ -14,9 +14,9 @@
 4. 每个 child：brainstorm → grill-me → design（各为 L4）→ implement plan
 5. Parent task `prd.md` 记录：child 映射、跨 child AC、集成 checklist
 6. 用户批准所有 child 实现
-7. `trellis-dev-strategy` for parent：OMC + worktree + merge-review
-8. 用户确认 OMC 并行模式
-9. Main agent 并行派发 3 个 `trellis-implementer` agent（每个 child 一个，各自独立 worktree）
+7. `trellis-dev-strategy` for parent：Trellis-native parallel + worktree + merge-review；如需 OMC，先获得显式批准
+8. 用户确认并行拆分；如选择 OMC，则必须显式确认 OMC `ulw/ultrawork`
+9. Main agent 通过 Trellis-native parallel 并行派发 3 个 `trellis-implementer` agent（每个 child 一个，各自独立 worktree）
 10. 每个 child：implement → check → code-review
 11. Main agent 集成所有 worktree 分支 → 解决冲突
 12. 派发 `trellis-merge-reviewer` → 检查集成
@@ -28,7 +28,7 @@
 **Parent task：**
 - prd.md（child 映射 + 跨 child AC + 集成 checklist）
 - design.md（总体架构）
-- implement.md（OMC 编排计划）
+- implement.md（Trellis-native parallel 编排计划；如使用 OMC，记录显式批准）
 - review/merge-review.md
 
 **每个 child task：**
@@ -41,6 +41,6 @@
 - 任务级别：L5
 - Parent 负责集成，不负责实现
 - Children 可独立验证
-- OMC 并行执行，需用户明确确认
+- Trellis-native parallel 是默认路径；OMC 并行执行需用户明确确认
 - Merge-review 强制
 - 每个 child 独立归档，parent 最后归档
