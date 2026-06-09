@@ -88,8 +88,6 @@ def _load_scope_contract(task_dir: Path) -> tuple[list[str], list[str], list[str
 
 def _matches_declared(file_path: str, declared_paths: list[str], declared_globs: list[str]) -> bool:
     norm = _normalize(file_path)
-    if norm.startswith(".trellis/") or norm.startswith(".claude/"):
-        return True
     if norm in TASK_LOCAL_PATHS or norm.startswith(TASK_LOCAL_PATH_PREFIXES):
         return True
     for path in declared_paths:
@@ -131,6 +129,25 @@ def _checked_labels_in_section(section_text: str) -> set[str]:
     return labels
 
 
+def _section_field_value(section_text: str, field_name: str) -> str:
+    pattern = re.compile(
+        rf"^\s*-\s*{re.escape(field_name)}\s*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for line in section_text.splitlines():
+        match = pattern.match(line.strip())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _omc_approval_has_audit_details(section_text: str) -> bool:
+    user_message = _section_field_value(section_text, "user message")
+    timestamp = _section_field_value(section_text, "timestamp")
+    placeholders = {"", "tbd", "todo", "n/a", "none", "-"}
+    return user_message.lower() not in placeholders and timestamp.lower() not in placeholders
+
+
 def _omc_approved(task_dir: Path) -> bool:
     implement_md = task_dir / "implement.md"
     if not implement_md.is_file():
@@ -141,7 +158,7 @@ def _omc_approved(task_dir: Path) -> bool:
         return False
     section = _extract_markdown_section(content, "Execution Mode Decision")
     checked = _checked_labels_in_section(section)
-    return "user explicitly approved omc" in checked
+    return "user explicitly approved omc" in checked and _omc_approval_has_audit_details(section)
 
 
 def _merge_review_selected(task_dir: Path) -> bool:
@@ -157,23 +174,23 @@ def _merge_review_selected(task_dir: Path) -> bool:
 
 
 def _execution_needs_agent_results(task_dir: Path) -> bool:
-    if not _merge_review_selected(task_dir):
-        return False
     implement_md = task_dir / "implement.md"
     if not implement_md.is_file():
-        return True
+        return _merge_review_selected(task_dir)
     try:
-        content = implement_md.read_text(encoding="utf-8").lower()
+        content = implement_md.read_text(encoding="utf-8")
     except OSError:
         return True
-    section = _extract_markdown_section(content, "Execution Mode Decision").lower()
-    return any(
-        phrase in section
-        for phrase in (
-            "trellis-native parallel + worktree",
-            "omc ulw/ultrawork",
+    section = _extract_markdown_section(content, "Execution Mode Decision")
+    checked = _checked_labels_in_section(section)
+    return bool(
+        checked
+        & {
+            "single trellis subagent",
             "trellis subagents",
-        )
+            "trellis-native parallel + worktree",
+            "omc ulw/ultrawork + worktree + parent/child",
+        }
     )
 
 

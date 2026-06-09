@@ -121,6 +121,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] `scope-manifest.json` 含 `declared_paths` / `declared_globs`，且至少一个非空
 - [ ] `scope-manifest.json` 含非空 `out_of_scope`
 - [ ] 高风险 declared scope 已被 `high_risk_allowed` path/glob 覆盖
+- [ ] 高风险目录精确声明（如 `api`、`src/api`、`auth`、`src/auth`、`migrations`、`contracts`）缺少 `high_risk_allowed` 时 FAIL
 - [ ] `python3 .trellis/scripts/validate_scope_manifest.py <task-dir>` PASS
 
 **护栏测试**：
@@ -154,6 +155,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] 编辑高风险且未在 scope-manifest.json 声明的路径 → PreToolUse warning
 - [ ] 使用 `override team-kit guardrail: <reason>` 绕过 soft warning → 写入 `runtime/guardrail-overrides.jsonl`
 - [ ] 有 override ledger 但 finish.md 未复核 → `validate_guardrail_overrides.py <task-dir>` FAIL
+- [ ] `finish.md` 的 Guardrail Overrides `Decision:` 仍为模板 HTML 占位、空值或 `N/A` 时 → `validate_guardrail_overrides.py <task-dir>` FAIL
 
 ---
 
@@ -296,8 +298,9 @@ python3 .trellis/scripts/detect_spec_update_candidates.py
 | Review FAIL 时 finish | stop-guard block |
 | Check 未通过时 finish | stop-guard block |
 | 编辑高风险未声明路径 | PreToolUse warning |
+| high-risk declared scope 未写 high_risk_allowed | validate_scope_manifest.py FAIL |
 | soft warning override | allow + 写 runtime/guardrail-overrides.jsonl |
-| override ledger 未复核 | validate_guardrail_overrides.py FAIL |
+| override ledger 未复核或 Decision 仍是模板占位 | validate_guardrail_overrides.py FAIL |
 | agent result 缺失或结构错误 | validate_agent_results.py FAIL |
 | workflow 状态不一致 | trellis_doctor.py workflow FAIL + To fix |
 | TRELLIS_DISABLE_HOOKS=1 | 所有 hooks 静默 skip |

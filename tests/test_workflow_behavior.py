@@ -74,6 +74,22 @@ class InjectWorkflowStateTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             return payload["hookSpecificOutput"]["additionalContext"]
 
+    def run_hook_with_workflow(self, prompt: str, workflow_md: str) -> str:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / ".trellis").mkdir()
+            (root / ".trellis" / "workflow.md").write_text(workflow_md, encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(INJECT_HOOK)],
+                input=json.dumps({"cwd": str(root), "prompt": prompt}),
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            payload = json.loads(result.stdout)
+            return payload["hookSpecificOutput"]["additionalContext"]
+
     def test_l1_prompt_gets_inline_recommendation(self):
         context = self.run_hook("把按钮文案从提交改成保存")
 
@@ -124,6 +140,15 @@ class InjectWorkflowStateTests(unittest.TestCase):
 
         self.assertIn("Suggested route: L4", context)
         self.assertIn("create a Trellis task", context)
+
+    def test_installed_workflow_no_task_uses_scorer(self):
+        workflow_md = (REPO_ROOT / "workflow" / "workflow.md").read_text(encoding="utf-8")
+
+        context = self.run_hook_with_workflow("给订单表加一个 status 字段", workflow_md)
+
+        self.assertIn("Suggested route: L4", context)
+        self.assertIn("Workflow profile: strict", context)
+        self.assertIn("architecture-review", context)
 
     def test_standard_feature_routes_l3(self):
         context = self.run_hook("新增用户管理 CRUD 功能")
@@ -380,6 +405,10 @@ class ValidateTaskTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: settings\n- Files likely touched: src/settings.py\n",
+            encoding="utf-8",
+        )
         (task_dir / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
         (task_dir / "implement.jsonl").write_text(
             json.dumps(
@@ -564,6 +593,20 @@ class ValidateTaskTests(unittest.TestCase):
         )
         (task_dir / "task.json").write_text(
             json.dumps({"id": "T001", "level": "L3", "status": "done"}),
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L3",
+                    "profile": "standard",
+                    "declared_paths": ["src/settings.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["auth flows"],
+                }
+            ),
             encoding="utf-8",
         )
         (task_dir / "implement.jsonl").unlink()
@@ -763,6 +806,24 @@ class ValidateTaskTests(unittest.TestCase):
                 - [x] yes
                 - [ ] no
                 """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: archived demo\n- Files likely touched: src/demo.py\n",
+            encoding="utf-8",
+        )
+        (archived_task / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L2",
+                    "profile": "light",
+                    "declared_paths": ["src/demo.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["auth flows"],
+                }
             ),
             encoding="utf-8",
         )
@@ -983,6 +1044,20 @@ class ValidateTaskTests(unittest.TestCase):
             json.dumps({"id": "T001", "level": "L3", "status": "done"}),
             encoding="utf-8",
         )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L3",
+                    "profile": "standard",
+                    "declared_paths": ["src/settings.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["auth flows"],
+                }
+            ),
+            encoding="utf-8",
+        )
         (task_dir / "implement.md").write_text(
             textwrap.dedent(
                 """\
@@ -1044,6 +1119,20 @@ class ValidateTaskTests(unittest.TestCase):
         (task_dir / "validation").mkdir(parents=True, exist_ok=True)
         (task_dir / "task.json").write_text(
             json.dumps({"id": "T001", "level": "L3", "status": "done"}),
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L3",
+                    "profile": "standard",
+                    "declared_paths": ["src/settings.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["auth flows"],
+                }
+            ),
             encoding="utf-8",
         )
         (task_dir / "implement.md").write_text(
@@ -1114,6 +1203,10 @@ class ValidateTaskTests(unittest.TestCase):
         (task_dir / "design.md").write_text("# Design\n", encoding="utf-8")
         (task_dir / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
         (task_dir / "implement.md").write_text(implement_md, encoding="utf-8")
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: users API\n- Files likely touched: src/api/users.py\n",
+            encoding="utf-8",
+        )
         (task_dir / "implement.jsonl").write_text(
             json.dumps({"file": ".trellis/spec/guides/index.md", "reason": "guidance"}) + "\n",
             encoding="utf-8",
@@ -1124,6 +1217,44 @@ class ValidateTaskTests(unittest.TestCase):
         )
         (task_dir / "validation" / "check-results.md").write_text(
             "## Verdict: PASS\n", encoding="utf-8"
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": ["src/api"],
+                    "declared_globs": [],
+                    "high_risk_allowed": ["src/api"],
+                    "out_of_scope": ["billing"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "agent-results").mkdir()
+        (task_dir / "agent-results" / "trellis-implementer-a.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-implementer",
+                    "status": "PASS",
+                    "changed_files": [
+                        {
+                            "path": "src/api/users.py",
+                            "summary": "updated users API behavior",
+                        }
+                    ],
+                    "validation": [
+                        {"command": "pytest tests/api", "status": "PASS"}
+                    ],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
+            ),
+            encoding="utf-8",
         )
         return task_dir
 
@@ -1161,6 +1292,28 @@ class ValidateTaskTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertTrue(any("Execution Mode Decision" in issue for issue in issues))
+
+    def test_l3_in_progress_requires_before_dev_and_scope_manifest(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L3", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "before-dev.md").unlink(missing_ok=True)
+        (task_dir / "scope-manifest.json").unlink(missing_ok=True)
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("before-dev.md" in issue for issue in issues))
+        self.assertTrue(any("scope-manifest.json" in issue for issue in issues))
 
     def test_l4_accepts_trellis_native_execution_mode_decision(self):
         task_dir = self.make_l4_in_progress_task(
@@ -1216,6 +1369,114 @@ class ValidateTaskTests(unittest.TestCase):
         ok, issues = self.module.validate_task(task_dir)
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_l4_omc_execution_requires_merge_review(self):
+        task_dir = self.make_l4_in_progress_task(
+            textwrap.dedent(
+                """\
+                # Implement: Cross Layer
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [x] OMC ulw/ultrawork + worktree + parent/child
+
+                Reason:
+                - OMC was explicitly requested for parallel execution.
+
+                Why not heavier:
+                - OMC is already the heaviest selected path.
+
+                OMC approval:
+                - [ ] not applicable
+                - [x] user explicitly approved OMC
+                - user message: approved OMC
+                - timestamp: 2026-06-04T10:00:00Z
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                - [ ] trellis-merge-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            )
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("trellis-merge-review" in issue for issue in issues))
+
+    def test_omc_approval_requires_user_message_and_timestamp(self):
+        task_dir = self.make_l4_in_progress_task(
+            textwrap.dedent(
+                """\
+                # Implement: Cross Layer
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [x] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [ ] not applicable
+                - [x] user explicitly approved OMC
+                - user message:
+                - timestamp:
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                - [x] trellis-merge-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            )
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("OMC approval" in issue and "user message" in issue for issue in issues))
 
     def test_l2_in_progress_requires_scope_manifest(self):
         task_dir = self.make_task_dir(
@@ -1429,6 +1690,43 @@ class ValidateTaskTests(unittest.TestCase):
                     "declared_globs": ["api/users/*.py"],
                     "high_risk_allowed": [],
                     "out_of_scope": ["auth policy changes"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("high-risk declared scope" in issue for issue in issues))
+
+    def test_scope_manifest_rejects_narrow_allowlist_for_broad_high_risk_glob(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Finish: Example
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T001", "level": "L4", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").unlink()
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: api\n- Files likely touched: api/users/*.py\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": [],
+                    "declared_globs": ["api/users/*.py"],
+                    "high_risk_allowed": ["api/users/list.py"],
+                    "out_of_scope": ["billing"],
                 }
             ),
             encoding="utf-8",
@@ -2299,6 +2597,24 @@ class StopGuardTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: demo finish verification\n- Files likely touched: README.md\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L3",
+                    "profile": "standard",
+                    "declared_paths": ["README.md"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["unrelated workflow changes"],
+                }
+            ),
+            encoding="utf-8",
+        )
         (task_dir / "validation" / "check-results.md").write_text(
             "## Status\n- [x] pass\n",
             encoding="utf-8",
@@ -2538,6 +2854,24 @@ class ValidateScopeManifestTests(unittest.TestCase):
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
 
+    def test_exact_high_risk_directory_requires_allowlist(self):
+        task_dir = self.make_task_dir(
+            {
+                "version": 1,
+                "level": "L2",
+                "profile": "light",
+                "declared_paths": ["src/api"],
+                "declared_globs": [],
+                "high_risk_allowed": [],
+                "out_of_scope": ["auth flows"],
+            }
+        )
+
+        ok, issues = self.module.validate_scope_manifest(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("high-risk declared scope" in issue for issue in issues))
+
 
 class ValidateGuardrailOverridesTests(unittest.TestCase):
     @classmethod
@@ -2596,6 +2930,70 @@ class ValidateGuardrailOverridesTests(unittest.TestCase):
             )
             + "\n",
             finish_md="# Finish\n",
+        )
+
+        ok, issues = self.module.validate_guardrail_overrides(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("Guardrail Overrides" in issue for issue in issues))
+
+    def test_override_review_requires_meaningful_decision(self):
+        task_dir = self.make_task_dir(
+            ledger=json.dumps(
+                {
+                    "timestamp": "2026-06-08T10:00:00Z",
+                    "kind": "soft_warning",
+                    "decision": "accepted",
+                    "reason": "needed API compatibility shim",
+                    "tool_name": "Edit",
+                    "path": "api/users.py",
+                    "message": "WARNING",
+                }
+            )
+            + "\n",
+            finish_md=textwrap.dedent(
+                """\
+                # Finish
+
+                ## Guardrail Overrides
+
+                - [x] override ledger reviewed
+                - Ledger: runtime/guardrail-overrides.jsonl
+                - Decision:
+                """
+            ),
+        )
+
+        ok, issues = self.module.validate_guardrail_overrides(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("Guardrail Overrides" in issue for issue in issues))
+
+    def test_override_review_rejects_template_decision_placeholder(self):
+        task_dir = self.make_task_dir(
+            ledger=json.dumps(
+                {
+                    "timestamp": "2026-06-08T10:00:00Z",
+                    "kind": "soft_warning",
+                    "decision": "accepted",
+                    "reason": "needed API compatibility shim",
+                    "tool_name": "Edit",
+                    "path": "api/users.py",
+                    "message": "WARNING",
+                }
+            )
+            + "\n",
+            finish_md=textwrap.dedent(
+                """\
+                # Finish
+
+                ## Guardrail Overrides
+
+                - [x] override ledger reviewed
+                - Ledger: runtime/guardrail-overrides.jsonl
+                - Decision: <!-- N/A - no overrides / accepted - reason / rejected - follow-up -->
+                """
+            ),
         )
 
         ok, issues = self.module.validate_guardrail_overrides(task_dir)
@@ -2819,6 +3217,59 @@ class ValidateAgentResultsTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertTrue(any("not declared" in issue for issue in issues))
 
+    def test_undeclared_trellis_runtime_file_fails(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            self.valid_result(changed_files=[".trellis/workflow.md"]),
+        )
+        self.write_result(
+            task_dir,
+            "trellis-checker-b.json",
+            self.valid_result(agent="trellis-checker", changed_files=["tests/orders/test_service.py"]),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("not declared" in issue for issue in issues))
+
+    def test_trellis_subagents_execution_requires_agent_results_without_merge_review(self):
+        task_dir = self.make_task_dir()
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Agents
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [x] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-code-review
+                - [ ] trellis-merge-review
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("required agent-results" in issue for issue in issues))
+
     def test_task_local_result_artifacts_do_not_require_scope_declaration(self):
         task_dir = self.make_task_dir()
         self.write_result(
@@ -2874,6 +3325,51 @@ class ValidateAgentResultsTests(unittest.TestCase):
         payload = self.valid_result()
         payload["execution_mode"] = "omc"
         self.write_result(task_dir, "trellis-implementer-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("explicit OMC approval" in issue for issue in issues))
+
+    def test_omc_agent_result_requires_audited_approval_details(self):
+        task_dir = self.make_task_dir()
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement: Agents
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [x] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [ ] not applicable
+                - [x] user explicitly approved OMC
+                - user message:
+                - timestamp:
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-code-review
+                - [x] trellis-merge-review
+                """
+            ),
+            encoding="utf-8",
+        )
+        implementer = self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"])
+        implementer["execution_mode"] = "omc"
+        self.write_result(task_dir, "trellis-implementer-a.json", implementer)
+        self.write_result(
+            task_dir,
+            "trellis-checker-b.json",
+            self.valid_result(agent="trellis-checker", changed_files=["tests/orders/test_service.py"]),
+        )
 
         ok, issues = self.module.validate_agent_results(task_dir)
 
@@ -3625,6 +4121,52 @@ class FinalizeTaskArchiveTests(unittest.TestCase):
 
                 - [x] trellis-check
                 """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: archived demo task\n- Files likely touched: src/demo.py\n",
+            encoding="utf-8",
+        )
+        (archived_task / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": ["src/demo.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["billing changes"],
+                    "workstreams": [
+                        {"name": "demo-implementation", "owner": "trellis-implementer"}
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "agent-results").mkdir()
+        (archived_task / "agent-results" / "trellis-implementer-20260604T120000Z.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-implementer",
+                    "status": "PASS",
+                    "workstream": "demo-implementation",
+                    "changed_files": [
+                        {
+                            "path": "src/demo.py",
+                            "summary": "Implemented archived demo task behavior",
+                        }
+                    ],
+                    "validation": [
+                        {"command": "python3 .trellis/scripts/validate_task.py", "status": "PASS"}
+                    ],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
             ),
             encoding="utf-8",
         )
@@ -5510,6 +6052,357 @@ class PhaseFiveWorkflowContractTests(unittest.TestCase):
                 content = (REPO_ROOT / rel).read_text(encoding="utf-8")
                 for phrase in banned_phrases:
                     self.assertNotIn(phrase, content)
+
+
+class EndToEndWorkflowAcceptanceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.validate_task = load_module(VALIDATE_TASK, "validate_task_e2e_module")
+        cls.validate_scope = load_module(VALIDATE_SCOPE_MANIFEST, "validate_scope_e2e_module")
+        cls.validate_review = load_module(VALIDATE_REVIEW_GATES, "validate_review_e2e_module")
+        cls.validate_agent = load_module(VALIDATE_AGENT_RESULTS, "validate_agent_e2e_module")
+        cls.validate_overrides = load_module(
+            VALIDATE_GUARDRAIL_OVERRIDES,
+            "validate_overrides_e2e_module",
+        )
+        cls.doctor = load_module(REPO_ROOT / "trellis" / "scripts" / "trellis_doctor.py", "doctor_e2e_module")
+
+    def make_repo(self, task_name: str, *, level: str) -> tuple[Path, Path]:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        task_dir = root / ".trellis" / "tasks" / task_name
+        (task_dir / "research").mkdir(parents=True)
+        (task_dir / "validation").mkdir()
+        (task_dir / "review").mkdir()
+        (task_dir / "agent-results").mkdir()
+        (root / ".trellis" / "spec").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "index.md").write_text("# Spec\n", encoding="utf-8")
+        (root / ".trellis" / "active-task").write_text(
+            f".trellis/tasks/{task_name}",
+            encoding="utf-8",
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": task_name, "level": level, "status": "done"}),
+            encoding="utf-8",
+        )
+        (task_dir / "prd.md").write_text(
+            "# PRD\n\n## Observable Outcomes\n- API response preserves compatibility.\n",
+            encoding="utf-8",
+        )
+        (task_dir / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
+        (task_dir / "design.md").write_text("# Design\n", encoding="utf-8")
+        for name in ("implement.jsonl", "check.jsonl"):
+            (task_dir / name).write_text(
+                json.dumps({"file": ".trellis/spec/index.md", "reason": "workflow acceptance context"})
+                + "\n",
+                encoding="utf-8",
+            )
+        (task_dir / "validation" / "check-results.md").write_text(
+            textwrap.dedent(
+                """\
+                ## Build
+                - [x] pass
+
+                ## Test
+                - [x] pass
+
+                ## Ready for finish-work?
+                - [x] yes
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: declared task files\n- Files likely touched: src/api/users.py\n",
+            encoding="utf-8",
+        )
+        return root, task_dir
+
+    def write_finish(self, task_dir: Path) -> None:
+        (task_dir / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish
+
+                ## Observable Outcomes
+
+                - Outcome: planned API behavior is implemented.
+                - Evidence: validation/check-results.md and review gate reports are PASS.
+
+                ## Guardrail Overrides
+
+                - [x] no guardrail overrides occurred
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: workflow acceptance fixture only
+
+                ## Finish Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 进入 Finish 阶段
+                - timestamp: 2026-06-08T12:00:00Z
+                - summary approved: finish acceptance fixture
+
+                Allowed to proceed with finish?
+                - [x] yes
+                - [ ] no
+
+                ## Delivery Sync Check
+
+                - [x] README / user docs reviewed
+                - [x] Example commands / scripts reviewed
+                - [x] Public API paths / contracts reviewed
+                - [x] Implemented vs planned status reviewed
+
+                Files checked:
+                - docs/verify-workflow.md — acceptance path represented
+                """
+            ),
+            encoding="utf-8",
+        )
+
+    def write_review(self, task_dir: Path, name: str) -> None:
+        (task_dir / "review" / name).write_text("## Verdict\nPASS\n", encoding="utf-8")
+
+    def write_agent_result(
+        self,
+        task_dir: Path,
+        name: str,
+        *,
+        agent: str,
+        changed_files: list[str],
+        workstream: str | None = None,
+        execution_mode: str | None = None,
+    ) -> None:
+        payload = {
+            "version": 1,
+            "agent": agent,
+            "status": "PASS",
+            "changed_files": [
+                {"path": path, "summary": "covered by end-to-end acceptance fixture"}
+                for path in changed_files
+            ],
+            "validation": [
+                {"command": "python3 -m pytest end-to-end acceptance", "status": "PASS"}
+            ],
+            "blocking_issues": [],
+            "non_blocking_issues": [],
+            "risks": [],
+            "scope_expansion": [],
+        }
+        if workstream:
+            payload["workstream"] = workstream
+        if execution_mode:
+            payload["execution_mode"] = execution_mode
+        (task_dir / "agent-results" / name).write_text(json.dumps(payload), encoding="utf-8")
+
+    def assert_workflow_valid(self, root: Path, task_dir: Path) -> None:
+        checks = [
+            ("validate_task", self.validate_task.validate_task(task_dir)),
+            ("validate_scope_manifest", self.validate_scope.validate_scope_manifest(task_dir)),
+            ("validate_review_gates", self.validate_review.validate_review_gates(task_dir)),
+            ("validate_agent_results", self.validate_agent.validate_agent_results(task_dir)),
+            ("validate_guardrail_overrides", self.validate_overrides.validate_guardrail_overrides(task_dir)),
+        ]
+        for label, (ok, issues) in checks:
+            with self.subTest(label=label):
+                self.assertTrue(ok, msg=f"{label} issues: {issues}")
+        ok, report = self.doctor.diagnose_workflow(root, task_dir)
+        self.assertTrue(ok, msg=report)
+
+    def test_l4_task_runs_plan_execute_check_review_finish_acceptance(self):
+        root, task_dir = self.make_repo("T040-l4-e2e", level="L4")
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [x] single Trellis subagent
+                - [ ] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-08T10:00:00Z
+                - summary approved: implement L4 fixture
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L4",
+                    "profile": "strict",
+                    "declared_paths": ["src/api/users.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": ["src/api/users.py"],
+                    "out_of_scope": ["auth", "billing"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        for review in ("spec-review.md", "code-review.md", "architecture-review.md"):
+            self.write_review(task_dir, review)
+        self.write_agent_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            agent="trellis-implementer",
+            changed_files=["src/api/users.py"],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-checker-a.json",
+            agent="trellis-checker",
+            changed_files=[],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-code-reviewer-a.json",
+            agent="trellis-code-reviewer",
+            changed_files=[],
+        )
+        self.write_finish(task_dir)
+
+        self.assert_workflow_valid(root, task_dir)
+
+    def test_l5_parallel_task_proves_native_default_omc_approval_and_merge_review(self):
+        root, task_dir = self.make_repo("T050-l5-e2e", level="L5")
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [x] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                - [x] trellis-improve-codebase-architecture deep-review
+                - [x] trellis-merge-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-08T10:00:00Z
+                - summary approved: implement L5 fixture with Trellis-native parallel
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L5",
+                    "profile": "orchestrated",
+                    "declared_paths": ["src/orders"],
+                    "declared_globs": ["tests/orders/*.py"],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["billing", "auth"],
+                    "workstreams": [
+                        {"name": "orders-api", "owner": "trellis-implementer"},
+                        {"name": "orders-tests", "owner": "trellis-checker"},
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        for review in (
+            "spec-review.md",
+            "code-review.md",
+            "architecture-review.md",
+            "architecture-deep-review.md",
+            "merge-review.md",
+        ):
+            self.write_review(task_dir, review)
+        self.write_agent_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            agent="trellis-implementer",
+            workstream="orders-api",
+            changed_files=["src/orders/service.py"],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-checker-a.json",
+            agent="trellis-checker",
+            workstream="orders-tests",
+            changed_files=["tests/orders/test_service.py"],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-merge-reviewer-a.json",
+            agent="trellis-merge-reviewer",
+            changed_files=["review/merge-review.md"],
+            execution_mode="merge-review",
+        )
+        self.write_finish(task_dir)
+
+        self.assert_workflow_valid(root, task_dir)
 
 
 class TrellisNotifyTests(unittest.TestCase):

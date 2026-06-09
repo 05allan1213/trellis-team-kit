@@ -522,6 +522,25 @@ def _checked_labels_in_section(section_text: str) -> set[str]:
     return labels
 
 
+def _section_field_value(section_text: str, field_name: str) -> str:
+    pattern = re.compile(
+        rf"^\s*-\s*{re.escape(field_name)}\s*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for line in section_text.splitlines():
+        match = pattern.match(line.strip())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _omc_approval_has_audit_details(section_text: str) -> bool:
+    user_message = _section_field_value(section_text, "user message")
+    timestamp = _section_field_value(section_text, "timestamp")
+    placeholders = {"", "tbd", "todo", "n/a", "none", "-"}
+    return user_message.lower() not in placeholders and timestamp.lower() not in placeholders
+
+
 def _check_execution_mode_decision(implement_md: Path, task_id: str, level: str) -> list[str]:
     if level not in ("L4", "L5"):
         return []
@@ -554,19 +573,22 @@ def _check_execution_mode_decision(implement_md: Path, task_id: str, level: str)
         errors.append(
             f"Task '{task_id}' ({level}): OMC execution requires explicit user approval in Execution Mode Decision"
         )
+    if omc_selected and omc_approved and not _omc_approval_has_audit_details(section):
+        errors.append(
+            f"Task '{task_id}' ({level}): OMC approval requires user message and timestamp in Execution Mode Decision"
+        )
     if not omc_selected and not omc_not_applicable and not omc_approved:
         errors.append(
             f"Task '{task_id}' ({level}): Execution Mode Decision must mark OMC approval as not applicable or explicitly approved"
         )
 
-    if level == "L5":
-        parallel_selected = "trellis-native parallel + worktree" in selected_modes or omc_selected
-        review_section = _extract_markdown_section(content, "Review Gate Contract")
-        review_checked = _checked_labels_in_section(review_section)
-        if parallel_selected and "trellis-merge-review" not in review_checked:
-            errors.append(
-                f"Task '{task_id}' ({level}): parallel or OMC execution requires trellis-merge-review in Review Gate Contract"
-            )
+    parallel_or_omc_selected = "trellis-native parallel + worktree" in selected_modes or omc_selected
+    review_section = _extract_markdown_section(content, "Review Gate Contract")
+    review_checked = _checked_labels_in_section(review_section)
+    if parallel_or_omc_selected and "trellis-merge-review" not in review_checked:
+        errors.append(
+            f"Task '{task_id}' ({level}): parallel or OMC execution requires trellis-merge-review in Review Gate Contract"
+        )
 
     return errors
 
@@ -778,12 +800,12 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
         warnings.extend(scope_warnings)
 
     before_dev_md = task_dir / "before-dev.md"
-    require_scope_manifest = (
-        level in ("L2", "L3", "L4", "L5")
-        and not is_planning
-        and before_dev_md.is_file()
-    )
-    if require_scope_manifest:
+    require_scope_contract = level in ("L2", "L3", "L4", "L5") and not is_planning
+    if require_scope_contract and not before_dev_md.is_file():
+        errors.append(
+            f"Task '{task_id}' ({level}): missing required before-dev.md before implementation"
+        )
+    if require_scope_contract:
         scope_ok, scope_issues = validate_scope_manifest(task_dir)
         if not scope_ok:
             errors.extend(scope_issues)

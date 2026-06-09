@@ -28,6 +28,8 @@ guide.
   that scope.
 - Declaring API, auth, schema, migration, shared-types, contract, or proto scope
   without also listing the same path/glob in `high_risk_allowed`.
+- Treating exact high-risk directories such as `api`, `src/api`, `auth`,
+  `src/auth`, `migrations`, or `contracts` as lower risk than their child files.
 - Editing outside the declared scope and failing to record the reason.
 
 ## Override Ledger Mistakes
@@ -35,6 +37,8 @@ guide.
 - Using a soft guardrail override without writing
   `runtime/guardrail-overrides.jsonl`.
 - Recording an override but never reviewing it in `finish.md`.
+- Leaving the `finish.md` Guardrail Overrides `Decision:` as an HTML template
+  placeholder, empty value, or `N/A` while an override ledger exists.
 - Treating override approval as permission to skip scope or review gates.
 
 ## Agent Result Mistakes

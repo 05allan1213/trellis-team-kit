@@ -12,16 +12,16 @@ from typing import Any
 LEVELS_REQUIRING_SCOPE = {"L2", "L3", "L4", "L5"}
 VALID_PROFILES = {"quick", "light", "standard", "strict", "orchestrated"}
 HIGH_RISK_PATTERNS = (
-    r"(^|/)auth/",
-    r"(^|/)authentication/",
-    r"(^|/)migrations?/",
-    r"(^|/)schema\.",
-    r"(^|/)api/",
-    r"(^|/)routes/",
-    r"(^|/)endpoints/",
-    r"(^|/)(shared|common)/types",
-    r"(^|/)contracts?/",
-    r"(^|/)proto/",
+    r"(^|/)auth(/|$)",
+    r"(^|/)authentication(/|$)",
+    r"(^|/)migrations?(/|$)",
+    r"(^|/)schema([./]|$)",
+    r"(^|/)api(/|$)",
+    r"(^|/)routes(/|$)",
+    r"(^|/)endpoints(/|$)",
+    r"(^|/)(shared|common)/types(/|$)",
+    r"(^|/)contracts?(/|$)",
+    r"(^|/)proto(/|$)",
 )
 
 
@@ -69,8 +69,6 @@ def _scope_entry_allowed(entry: str, allowlist: list[str]) -> bool:
         if normalized.startswith(allowed_norm.rstrip("/") + "/"):
             return True
         if fnmatch.fnmatchcase(normalized, allowed_norm):
-            return True
-        if fnmatch.fnmatchcase(allowed_norm, normalized):
             return True
     return False
 

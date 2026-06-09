@@ -144,6 +144,39 @@ class WorkflowDoctorTests(unittest.TestCase):
         self.assertIn("OMC execution requires explicit user approval", report)
         self.assertIn("parallel or OMC execution requires trellis-merge-review", report)
 
+    def test_workflow_doctor_reports_omc_approval_without_audit_details(self):
+        root, task_dir = self.make_repo()
+        self.write_base_task(task_dir, level="L5", status="in_progress")
+        self.write_implement(
+            task_dir,
+            mode_line="- [x] OMC ulw/ultrawork + worktree + parent/child",
+            approval_line="- [x] user explicitly approved OMC",
+            merge_review=True,
+        )
+        (task_dir / "before-dev.md").write_text(
+            "# Before Dev\n- Scope: orders\n- Files likely touched: src/orders\n",
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L5",
+                    "profile": "orchestrated",
+                    "declared_paths": ["src/orders"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["billing"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, report = self.module.diagnose_workflow(root, task_dir)
+
+        self.assertFalse(ok)
+        self.assertIn("OMC approval requires user message and timestamp", report)
+
     def test_workflow_doctor_reports_explicit_phase_status_mismatch(self):
         root, task_dir = self.make_repo()
         self.write_base_task(task_dir, level="L4", status="PLANNING_PRD")

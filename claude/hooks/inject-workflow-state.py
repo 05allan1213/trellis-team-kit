@@ -462,7 +462,7 @@ def main() -> int:
 
     if task is None:
         # No active task — use scorer-based router
-        body = templates.get("no_task") or _build_no_task_body(data, root=root)
+        body = _build_no_task_body(data, root=root)
         breadcrumb = f"<workflow-state>\nStatus: no_task\n{body}\n</workflow-state>"
     else:
         task_path, status, source = task

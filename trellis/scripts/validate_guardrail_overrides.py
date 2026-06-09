@@ -77,7 +77,16 @@ def _finish_review_complete(task_dir: Path) -> bool:
     lowered = section.lower()
     has_review = bool(re.search(r"-\s*\[x\]\s*override ledger reviewed", lowered))
     has_ledger = "runtime/guardrail-overrides.jsonl" in lowered
-    has_decision = "decision:" in lowered
+    decision_match = re.search(r"^\s*-\s*decision\s*:\s*(.+)$", section, re.IGNORECASE | re.MULTILINE)
+    decision = decision_match.group(1).strip() if decision_match else ""
+    decision_lower = decision.lower()
+    placeholder_decisions = {"", "tbd", "todo", "n/a", "none", "-"}
+    has_decision = (
+        decision_lower not in placeholder_decisions
+        and not decision_lower.startswith("n/a")
+        and "<!--" not in decision
+        and "-->" not in decision
+    )
     return has_review and has_ledger and has_decision
 
 

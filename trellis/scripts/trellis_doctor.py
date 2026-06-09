@@ -116,6 +116,25 @@ def _checked_labels(section: str) -> set[str]:
     return labels
 
 
+def _section_field_value(section: str, field_name: str) -> str:
+    pattern = re.compile(
+        rf"^\s*-\s*{re.escape(field_name)}\s*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for line in section.splitlines():
+        match = pattern.match(line.strip())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _omc_approval_has_audit_details(section: str) -> bool:
+    user_message = _section_field_value(section, "user message")
+    timestamp = _section_field_value(section, "timestamp")
+    placeholders = {"", "tbd", "todo", "n/a", "none", "-"}
+    return user_message.lower() not in placeholders and timestamp.lower() not in placeholders
+
+
 def _infer_phase(task_dir: Path, status: str) -> str:
     if status == "planning" or status in PLANNING_PHASE_STATUSES:
         if (task_dir / "implement.md").is_file():
@@ -213,11 +232,15 @@ def _execution_mode_issues(task_dir: Path, level: str) -> tuple[str, list[str]]:
         if label in checked:
             execution_mode = label
             break
-    if "omc ulw/ultrawork + worktree + parent/child" in checked and "user explicitly approved omc" not in checked:
+    omc_selected = "omc ulw/ultrawork + worktree + parent/child" in checked
+    omc_approved = "user explicitly approved omc" in checked
+    if omc_selected and not omc_approved:
         issues.append("OMC execution requires explicit user approval")
+    if omc_selected and omc_approved and not _omc_approval_has_audit_details(section):
+        issues.append("OMC approval requires user message and timestamp")
     if (
         "trellis-native parallel + worktree" in checked
-        or "omc ulw/ultrawork + worktree + parent/child" in checked
+        or omc_selected
     ):
         review = _extract_markdown_section(content, "Review Gate Contract")
         if "trellis-merge-review" not in _checked_labels(review):
