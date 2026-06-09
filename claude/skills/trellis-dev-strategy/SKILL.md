@@ -28,11 +28,12 @@ The development strategy must match the task's complexity level. L4/L5 tasks MUS
 | Mode | When to Use | Notes |
 |------|-------------|-------|
 | Main session | L0-L1 only, or explicit user override | Must not be default for L2+ |
-| Subagent | L2-L3, or L4 with tightly coupled work | Standard Trellis path |
-| Subagent + worktree | L4, cross-package changes | Isolated branch |
-| OMC parallel | L5, confirmed PRD, clear AC, independent workstreams | Requires explicit user confirmation |
+| Single Trellis subagent | L2-L3, or L4 with tightly coupled work | Standard Trellis path |
+| Trellis subagents | L3-L4 when checker/reviewer separation is useful | Native Trellis path |
+| Trellis-native parallel + worktree | L5, parent/child, multi-agent, large refactor, or independent workstreams | Default orchestrated path |
+| OMC ulw/ultrawork + worktree + parent/child | L5 advanced path, confirmed PRD, clear AC, independent workstreams, native Trellis is not enough | Requires explicit user confirmation |
 
-L4/L5 MUST NOT default to main-session. If the user requests main-session for L4/L5, warn about risks and record the decision.
+L4/L5 MUST NOT default to main-session. L5 defaults to Trellis-native parallel + worktree when parallelism is justified. OMC is optional and advanced; never select it unless the user explicitly approved OMC. If the user requests main-session for L4/L5, warn about risks and record the decision.
 
 #### Branch Strategy
 
@@ -95,12 +96,33 @@ Required for: worktree, multi-subagent, OMC parallel, PR merge, conflict resolut
 
 ## Development Strategy
 
-- **Execution mode**: [main-session / subagent / subagent+worktree / OMC]
+- **Mode**: [main-session / single Trellis subagent / Trellis subagents / Trellis-native parallel + worktree / OMC ulw/ultrawork + worktree + parent/child]
 - **Branch strategy**: [current / dedicated worktree at .trellis/worktrees/<slug>/]
 - **TDD**: [yes / no]
 - **Parent/child**: [yes — describe split / no]
 - **Architecture guidance**: [yes — load trellis-improve-codebase-architecture guidance / no]
 - **Merge review needed**: [yes / no]
+
+## Execution Mode Decision
+
+Recommended mode:
+- [ ] main session
+- [ ] single Trellis subagent
+- [ ] Trellis subagents
+- [ ] Trellis-native parallel + worktree
+- [ ] OMC ulw/ultrawork + worktree + parent/child
+
+Reason:
+- [why this mode fits the task level and risk]
+
+Why not heavier:
+- [why not OMC / parent-child / parallel if not selected]
+
+OMC approval:
+- [ ] not applicable
+- [ ] user explicitly approved OMC
+- user message:
+- timestamp:
 
 ## Review Gate Contract
 

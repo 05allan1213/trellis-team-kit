@@ -28,6 +28,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 # 5. 发布分支远程安装对比（push 后验证本地安装与 GitHub main raw 远程安装目录一致）
 bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --developer-name test
 # 如需验证其它已发布分支/URL，可设置 TTK_TRUE_REMOTE_INIT_URL。
+# 刚 push 后 GitHub raw 可能短暂返回旧缓存；若第一次失败且 raw 内容已刷新，重跑同一命令。
 ```
 
 ---

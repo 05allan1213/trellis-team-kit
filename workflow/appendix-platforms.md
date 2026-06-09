@@ -53,5 +53,5 @@ Codex 使用 `.codex/agents/` 和 `.codex/hooks/`。
 - 原生支持 hooks（SessionStart、UserPromptSubmit、PreToolUse、PostToolUse、SubagentStop、Stop、PreCompact）
 - 原生 subagent 系统，支持上下文注入
 - 基于 settings 的 skill 和权限管理
-- 与 OMC 和 Superpowers 深度集成
+- 可配合 Superpowers、OMC 等扩展，但主路径不依赖它们
 - 团队一致性：单一平台降低认知负担

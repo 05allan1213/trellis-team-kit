@@ -45,7 +45,7 @@ Trellis 掌管任务真相。       → task 状态、PRD、验收标准
 Claude Code 掌管运行时。     → 会话、hooks、subagents、skills
 Superpowers 掌管深度推理。   → 需求不清、架构权衡
 Trellis 原生并行掌管默认并发。 → subagent、reviewer background agents、worktree
-OMC `ulw` 掌管高级并行执行。 → 多 agent 编排（可选扩展）
+OMC `ulw/ultrawork` 掌管高级并行执行。 → 显式批准后的可选扩展
 Specs 掌管团队知识。        → 可复用标准、指南、约定
 Hooks 掌管状态注入。        → 工作流面包屑、护栏、上下文
 Skills 掌管可重复阶段。     → brainstorm、grill、design、implement、check
@@ -285,15 +285,21 @@ bash ~/trellis-team-kit/bootstrap/personalize-local.sh 你的名字
 bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 ```
 
-它会验证：
+默认会验证：
 
 - 本地安装路径
 - 模拟远程安装路径
 - 安装后 runtime hardening
-- push 后，本地安装与远程 GitHub main raw 安装目录一致性：
-  `bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --developer-name test`
-  可用 `TTK_TRUE_REMOTE_INIT_URL` 指向其它已发布分支或 raw URL。
 - 可选本地个性化脚本
+
+push 后再验证本地安装与远程 GitHub main raw 安装目录一致性：
+
+```bash
+bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --developer-name test
+```
+
+可用 `TTK_TRUE_REMOTE_INIT_URL` 指向其它已发布分支或 raw URL。刚 push 后
+GitHub raw 可能有短缓存；若第一次拿到旧内容，等缓存刷新后重跑同一命令。
 
 
 ## 安全守卫

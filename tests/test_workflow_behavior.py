@@ -6556,6 +6556,38 @@ class PhaseFiveWorkflowContractTests(unittest.TestCase):
                 for phrase in banned_phrases:
                     self.assertNotIn(phrase, content)
 
+    def test_dev_strategy_skill_outputs_execution_mode_decision_contract(self):
+        content = (
+            REPO_ROOT / "claude" / "skills" / "trellis-dev-strategy" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+
+        for phrase in (
+            "## Execution Mode Decision",
+            "Trellis-native parallel + worktree",
+            "OMC ulw/ultrawork + worktree + parent/child",
+            "user explicitly approved OMC",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_skill_routing_spec_documents_execution_mode_decision(self):
+        content = (
+            REPO_ROOT
+            / "trellis"
+            / "spec-templates"
+            / "guides"
+            / "ai-behavior"
+            / "skill-routing.md"
+        ).read_text(encoding="utf-8")
+
+        for phrase in (
+            "## Execution Mode Decision",
+            "trellis-dev-strategy",
+            "Trellis-native parallel + worktree",
+            "OMC ulw/ultrawork + worktree + parent/child",
+            "explicit OMC approval",
+        ):
+            self.assertIn(phrase, content)
+
 
 class EndToEndWorkflowAcceptanceTests(unittest.TestCase):
     @classmethod

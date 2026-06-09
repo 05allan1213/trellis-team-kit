@@ -41,6 +41,30 @@ artifacts, and review gates.
 
 ---
 
+## Execution Mode Decision
+
+`trellis-dev-strategy` writes the execution decision into `implement.md`. For
+L4/L5 tasks this decision is required before implementation starts.
+
+Valid modes are:
+
+- main session
+- single Trellis subagent
+- Trellis subagents
+- Trellis-native parallel + worktree
+- OMC ulw/ultrawork + worktree + parent/child
+
+The decision must include:
+
+- why the selected mode fits the task level and risk
+- why a heavier path was not selected, when applicable
+- explicit OMC approval details when OMC is selected
+
+L5 defaults to Trellis-native parallel + worktree when parallelism is justified.
+OMC is an advanced path and must not be selected without explicit user approval.
+
+---
+
 ## Skill Loading
 
 Load only the smallest relevant set of instructions:
