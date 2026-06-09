@@ -569,6 +569,10 @@ def _check_execution_mode_decision(implement_md: Path, task_id: str, level: str)
     omc_approved = "user explicitly approved omc" in checked
     omc_not_applicable = "not applicable" in checked
 
+    if level == "L5" and "main session" in selected_modes:
+        errors.append(
+            f"Task '{task_id}' ({level}): L5 orchestrated execution cannot use main session"
+        )
     if omc_selected and not omc_approved:
         errors.append(
             f"Task '{task_id}' ({level}): OMC execution requires explicit user approval in Execution Mode Decision"

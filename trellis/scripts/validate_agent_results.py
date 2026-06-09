@@ -22,7 +22,6 @@ VALID_AGENTS = {
 }
 WORKSTREAM_REQUIRED_AGENTS = {"trellis-implementer", "trellis-checker"}
 VALID_STATUS = {"PASS", "FAIL", "REDESIGN-REQUIRED", "BLOCKED"}
-OMC_MODE_VALUES = {"omc", "OMC", "omc ulw/ultrawork", "OMC ulw/ultrawork"}
 TASK_LOCAL_PATH_PREFIXES = (
     "agent-results/",
     "review/",
@@ -172,6 +171,15 @@ def _omc_approved(task_dir: Path) -> bool:
     return "user explicitly approved omc" in checked and _omc_approval_has_audit_details(section)
 
 
+def _execution_mode_uses_omc(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = " ".join(value.strip().lower().split())
+    if not normalized:
+        return False
+    return bool(re.search(r"\bomc\b|\bulw\b|\bultrawork\b", normalized))
+
+
 def _merge_review_selected(task_dir: Path) -> bool:
     implement_md = task_dir / "implement.md"
     if not implement_md.is_file():
@@ -311,7 +319,7 @@ def _validate_result_payload(
             errors.append(f"{path.name}: {optional_list} must be a list")
 
     execution_mode = payload.get("execution_mode")
-    if isinstance(execution_mode, str) and execution_mode in OMC_MODE_VALUES and not omc_approved:
+    if _execution_mode_uses_omc(execution_mode) and not omc_approved:
         errors.append(f"{path.name}: OMC result requires explicit OMC approval in implement.md")
 
     return errors, changed_files, workstream

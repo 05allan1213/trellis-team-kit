@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -1491,6 +1492,73 @@ class ValidateTaskTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertTrue(any("OMC approval" in issue and "user message" in issue for issue in issues))
 
+    def test_l5_orchestrated_cannot_select_main_session_execution(self):
+        task_dir = self.make_l4_in_progress_task(
+            textwrap.dedent(
+                """\
+                # Implement: Cross Layer
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [x] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                - [x] trellis-merge-review
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 开始实现
+                - timestamp: 2026-06-04T10:00:00Z
+                - summary approved: start implementation
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            )
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T004", "level": "L5", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L5",
+                    "profile": "orchestrated",
+                    "declared_paths": ["src/api"],
+                    "declared_globs": [],
+                    "high_risk_allowed": ["src/api"],
+                    "out_of_scope": ["billing"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ok, issues = self.module.validate_task(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("L5 orchestrated execution cannot use main session" in issue for issue in issues))
+
     def test_l2_in_progress_requires_scope_manifest(self):
         task_dir = self.make_task_dir(
             textwrap.dedent(
@@ -2213,6 +2281,144 @@ class ProtectDangerousActionsTests(unittest.TestCase):
             "WARNING: Editing high-risk undeclared path",
             response["hookSpecificOutput"]["permissionDecisionReason"],
         )
+
+    def test_non_high_risk_undeclared_source_path_is_soft_warning(self):
+        implement_md = self.approval_block(
+            approved=True,
+            start_allowed=True,
+            user_message="开始实现",
+            timestamp="2026-06-04T10:00:00Z",
+            summary_approved="start implementation",
+        )
+        root, task_dir = self.make_repo(
+            status="in_progress",
+            implement_md=implement_md,
+            before_dev_md="# Before Dev\n- Scope: settings\n- Files likely touched: src/settings.py\n",
+        )
+        (task_dir / "scope-manifest.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "level": "L3",
+                    "profile": "standard",
+                    "declared_paths": ["src/settings.py"],
+                    "declared_globs": [],
+                    "high_risk_allowed": [],
+                    "out_of_scope": ["src/other.py"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "src/other.py"},
+            "prompt": "继续实现",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "allow",
+        )
+        self.assertIn(
+            "WARNING: Editing undeclared source path",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
+        )
+
+    def test_omc_bash_requires_explicit_approval(self):
+        root, _ = self.make_repo(
+            status="planning",
+            implement_md=textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
+                """
+            ),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Bash",
+            "tool_input": {"command": "ulw run --parallel orders"},
+            "prompt": "继续规划",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+        self.assertIn(
+            "OMC execution requires explicit user approval",
+            response["hookSpecificOutput"]["permissionDecisionReason"],
+        )
+
+    def test_omc_bash_requires_approval_for_path_and_option_forms(self):
+        root, _ = self.make_repo(
+            status="planning",
+            implement_md=textwrap.dedent(
+                """\
+                # Implement: Example
+
+                ## Execution Mode Decision
+
+                Recommended mode:
+                - [ ] main session
+                - [ ] single Trellis subagent
+                - [ ] Trellis subagents
+                - [ ] Trellis-native parallel + worktree
+                - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+                OMC approval:
+                - [x] not applicable
+                - [ ] user explicitly approved OMC
+                - user message:
+                - timestamp:
+                """
+            ),
+        )
+
+        for command in (
+            "./ulw run --parallel orders",
+            "/usr/local/bin/ultrawork run --parallel orders",
+            "ulw --cwd . run orders",
+        ):
+            with self.subTest(command=command):
+                payload = {
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": command},
+                    "prompt": "继续规划",
+                }
+                response = self.run_hook(root, payload)
+
+                self.assertIsNotNone(response)
+                self.assertEqual(
+                    response["hookSpecificOutput"]["permissionDecision"],
+                    "deny",
+                )
+                self.assertIn(
+                    "OMC execution requires explicit user approval",
+                    response["hookSpecificOutput"]["permissionDecisionReason"],
+                )
 
     def test_scope_manifest_glob_allows_declared_high_risk_path(self):
         implement_md = self.approval_block(
@@ -3362,6 +3568,34 @@ class ValidateAgentResultsTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertTrue(any("explicit OMC approval" in issue for issue in issues))
 
+    def test_canonical_omc_agent_result_requires_explicit_approval(self):
+        task_dir = self.make_task_dir()
+        payload = self.valid_result()
+        payload["execution_mode"] = "OMC ulw/ultrawork + worktree + parent/child"
+        self.write_result(task_dir, "trellis-implementer-a.json", payload)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("explicit OMC approval" in issue for issue in issues))
+
+    def test_omc_agent_result_detection_is_case_and_whitespace_tolerant(self):
+        for mode in (
+            "OMC ulw/ultrawork + worktree + parent/child ",
+            "omc ULW/ULTRAWORK + worktree + parent/child",
+            "OMC parallel",
+        ):
+            with self.subTest(mode=mode):
+                task_dir = self.make_task_dir()
+                payload = self.valid_result()
+                payload["execution_mode"] = mode
+                self.write_result(task_dir, "trellis-implementer-a.json", payload)
+
+                ok, issues = self.module.validate_agent_results(task_dir)
+
+                self.assertFalse(ok)
+                self.assertTrue(any("explicit OMC approval" in issue for issue in issues))
+
     def test_omc_agent_result_requires_audited_approval_details(self):
         task_dir = self.make_task_dir()
         (task_dir / "implement.md").write_text(
@@ -4437,14 +4671,42 @@ class SmokeInstallScriptTests(unittest.TestCase):
         self.assertIn("true-remote", result.stdout)
         self.assertIn("raw.githubusercontent.com", result.stdout)
 
+    def test_smoke_script_help_does_not_require_true_remote_raw_base(self):
+        env = os.environ.copy()
+        env["TTK_TRUE_REMOTE_INIT_URL"] = "https://example.com/custom-init.sh"
+        env.pop("TTK_TRUE_REMOTE_RAW_BASE", None)
+        env.pop("TTK_INIT_RAW_BASE", None)
+
+        result = subprocess.run(
+            ["bash", str(SMOKE_INSTALL), "--help"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        self.assertIn("--mode local|remote|true-remote|all", result.stdout)
+
     def test_smoke_script_true_remote_mode_compares_local_and_published_remote(self):
         content = SMOKE_INSTALL.read_text(encoding="utf-8")
 
         self.assertIn("TTK_TRUE_REMOTE_INIT_URL", content)
+        self.assertIn("TTK_TRUE_REMOTE_RAW_BASE", content)
+        self.assertIn("infer_true_remote_raw_base", content)
+        self.assertIn('TTK_INIT_RAW_BASE="$TRUE_REMOTE_RAW_BASE"', content)
         self.assertIn('run_case "true-remote"', content)
         self.assertIn('run_case "local"', content)
         self.assertIn('assert_install_inventories_match "$LOCAL_PROJECT" "$TRUE_REMOTE_PROJECT"', content)
+        self.assertIn('assert_install_contents_match "$LOCAL_PROJECT" "$TRUE_REMOTE_PROJECT"', content)
         self.assertIn("--retry-all-errors", content)
+
+    def test_smoke_script_compares_stable_installed_file_contents(self):
+        content = SMOKE_INSTALL.read_text(encoding="utf-8")
+
+        self.assertIn("assert_install_contents_match()", content)
+        self.assertIn("cmp -s", content)
+        self.assertIn(".trellis/.team-kit-version", content)
+        self.assertIn("local and remote install file contents match", content)
 
 
 class FinalizeTaskArchiveTests(unittest.TestCase):
@@ -6367,7 +6629,7 @@ class RuntimeHardeningValidatorTests(unittest.TestCase):
         self.assertIn("[PASS] validate_spec_index.py", result.stdout)
         self.assertIn("[PASS] validate_trellis_config.py", result.stdout)
 
-    def test_runtime_hardening_runs_phase_two_static_validators(self):
+    def test_runtime_hardening_marks_task_validators_as_availability_only(self):
         result = subprocess.run(
             [sys.executable, str(VALIDATE_RUNTIME_HARDENING)],
             cwd=REPO_ROOT,
@@ -6376,9 +6638,10 @@ class RuntimeHardeningValidatorTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
-        self.assertIn("[PASS] validate_scope_manifest.py", result.stdout)
-        self.assertIn("[PASS] validate_guardrail_overrides.py", result.stdout)
-        self.assertIn("[PASS] validate_agent_results.py", result.stdout)
+        self.assertIn("[INFO] validate_scope_manifest.py", result.stdout)
+        self.assertIn("[INFO] validate_guardrail_overrides.py", result.stdout)
+        self.assertIn("[INFO] validate_agent_results.py", result.stdout)
+        self.assertIn("availability check only; pass a task directory for task-runtime validation", result.stdout)
 
     def test_runtime_hardening_runs_spec_update_target_validation(self):
         result = subprocess.run(
@@ -6585,6 +6848,76 @@ class PhaseFiveWorkflowContractTests(unittest.TestCase):
             "Trellis-native parallel + worktree",
             "OMC ulw/ultrawork + worktree + parent/child",
             "explicit OMC approval",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_workflow_docs_use_current_execution_mode_contract(self):
+        content = (REPO_ROOT / "workflow" / "workflow.md").read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            "Execution mode: main-session / subagent / subagent + worktree / OMC",
+            content,
+        )
+        for phrase in (
+            "main session / single Trellis subagent / Trellis subagents",
+            "Trellis-native parallel + worktree",
+            "OMC ulw/ultrawork + worktree + parent/child",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_implement_template_uses_current_execution_mode_contract(self):
+        content = (REPO_ROOT / "trellis" / "task-templates" / "implement.md.tmpl").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertNotIn("main-session / subagent / subagent + worktree / OMC parallel", content)
+        for phrase in (
+            "main session",
+            "single Trellis subagent",
+            "Trellis-native parallel + worktree",
+            "OMC ulw/ultrawork + worktree + parent/child",
+            "L5/orchestrated tasks must not select main session",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_merge_review_entry_condition_includes_l5(self):
+        content = (REPO_ROOT / "workflow" / "workflow.md").read_text(encoding="utf-8")
+        match = re.search(
+            r"### MERGE_REVIEWING\n(?P<section>.*?)(?:\n### |\Z)",
+            content,
+            re.DOTALL,
+        )
+
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertIn("Entry condition", match.group("section"))
+        self.assertIn("L5", match.group("section"))
+
+    def test_merge_review_docs_distinguish_serial_and_parallel_subagents(self):
+        docs = [
+            REPO_ROOT / "README.md",
+            REPO_ROOT / "workflow" / "workflow.md",
+            REPO_ROOT / "claude" / "skills" / "trellis-dev-strategy" / "SKILL.md",
+            REPO_ROOT / "claude" / "skills" / "trellis-merge-review" / "SKILL.md",
+        ]
+
+        for path in docs:
+            with self.subTest(path=path.relative_to(REPO_ROOT)):
+                content = path.read_text(encoding="utf-8")
+                self.assertIn("agent-results", content)
+                self.assertIn("merge-review", content)
+                self.assertRegex(content, r"(parallel|并行).*(subagent|agent)")
+
+        workflow = (REPO_ROOT / "workflow" / "workflow.md").read_text(encoding="utf-8")
+        self.assertIn("do not by themselves trigger merge-review", workflow)
+
+    def test_readme_documents_ai_behavior_spec_mirror_maintenance(self):
+        content = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+        for phrase in (
+            "marketplace/specs/web-app/guides/ai-behavior/",
+            "trellis/spec-templates/guides/ai-behavior/",
+            "trellis/spec-manifest.txt",
         ):
             self.assertIn(phrase, content)
 

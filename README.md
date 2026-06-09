@@ -79,7 +79,7 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
                           → REVIEWING（spec → code → architecture → deep）
                             → UPDATING_SPEC
                               → COMMITTING
-                                → MERGE_REVIEWING（L4/L5）
+                                → MERGE_REVIEWING（L5 / worktree / 并行多 agent / OMC）
                                   → VALIDATING（build/test）
                                     → FINISHING（归档 + 日志）
                                       → DONE
@@ -137,6 +137,7 @@ scope-manifest.json 必须填写：
 
 实现阶段中，hooks 优先检查编辑的文件是否在 `scope-manifest.json` 声明的范围内：
 
+- **非高风险未声明源码路径** → PreToolUse warning，可 override
 - **高风险未声明路径**（auth、migration、schema、API、shared types）→ PreToolUse warning，可 override
 - **过宽声明**（`*`、`src/*`）→ warning，建议用更具体的路径
 
@@ -154,7 +155,7 @@ Soft block 可通过 `override team-kit guardrail: <reason>` 绕过。所有 ove
 3. trellis-code-review    （L3-L5）
 4. trellis-code-architecture-review （L4+）
 5. trellis-improve-codebase-architecture deep-review （L5）
-6. trellis-merge-review   （L5 / worktree / 多 agent）
+6. trellis-merge-review   （L5 / worktree / 并行多 agent / OMC / PR merge / conflict / parent-child）
 ```
 
 每个 review 输出 PASS/FAIL 及 blocking issues。任何 FAIL → 回到
@@ -162,7 +163,7 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 
 **L3-L5 必须选择对应级别的 review gate，未选够 = FAIL。**
 
-多 agent / worktree / OMC 任务还必须保留机器可读交接记录：
+所有 Trellis subagent 都必须保留机器可读交接记录：
 
 ```text
 .trellis/tasks/<task>/agent-results/<agent-name>-<timestamp>.json
@@ -172,10 +173,17 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 merge-reviewer、spec-updater）在输出 markdown 汇报时同步写入 JSON，记录
 `workstream`（适用于声明了 workstream 的 implementer/checker）、对象化 `changed_files`
 （每项含 `path` / `summary`）、`validation`、`blocking_issues`、`risks` 和
-`scope_expansion`。`trellis-merge-review` 会聚合
+`scope_expansion`。普通串行 implementer/checker/reviewer subagent 不会单独触发
+merge-review；并行/workstream 多 agent、worktree、OMC、PR merge、conflict 或
+parent-child 任务会触发 `trellis-merge-review`。merge-review 会聚合
 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl` 和
 `scope-manifest.json`，检查重复编辑、未声明路径、失败验证、未解决 blocker
 以及 OMC 是否有显式批准。
+
+L5/orchestrated 任务不能选择 `main session` 作为执行模式；默认使用
+Trellis-native parallel + worktree，或重新降级到更窄任务级别。启动 OMC
+`ulw/ultrawork` 前必须在 `implement.md` 记录 explicit OMC approval、user
+message 和 timestamp，缺失时 runtime hook 会 deny。
 
 ## Finish 前自动验证
 
@@ -298,8 +306,10 @@ push 后再验证本地安装与远程 GitHub main raw 安装目录一致性：
 bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --developer-name test
 ```
 
-可用 `TTK_TRUE_REMOTE_INIT_URL` 指向其它已发布分支或 raw URL。刚 push 后
-GitHub raw 可能有短缓存；若第一次拿到旧内容，等缓存刷新后重跑同一命令。
+它会比较安装后的文件目录和稳定文件内容。可用 `TTK_TRUE_REMOTE_INIT_URL`
+指向其它已发布分支或 raw URL；如果 URL 不是以 `/bootstrap/init.sh` 结尾，
+同时设置 `TTK_TRUE_REMOTE_RAW_BASE` 指向同一分支/提交的 raw asset base。
+刚 push 后 GitHub raw 可能有短缓存；若第一次拿到旧内容，等缓存刷新后重跑同一命令。
 
 
 ## 安全守卫
@@ -365,6 +375,8 @@ python3 .trellis/scripts/validate_runtime_hardening.py
 ```
 
 该检查同时覆盖 Claude settings、hooks、routing rules，以及 `.trellis/spec/` 根索引和链接完整性。
+其中 task-specific validators 无 task-dir 时只显示 INFO availability
+check；它不代表某个具体 task 已经通过 task-runtime validation。
 
 验证单个任务：
 
@@ -389,6 +401,7 @@ python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
 | 改什么 | 改哪里 |
 |-------|--------|
 | 团队 AI 工作流规范 | `marketplace/specs/web-app/` |
+| AI behavior spec 镜像 | `marketplace/specs/web-app/guides/ai-behavior/` + `trellis/spec-templates/guides/ai-behavior/` + `trellis/spec-manifest.txt` |
 | 团队入口文件 | `entry/` |
 | 团队工作流 | `workflow/` |
 | 日常提示词模板 | `prompt.md` |

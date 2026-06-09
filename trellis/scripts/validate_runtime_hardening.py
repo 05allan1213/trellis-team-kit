@@ -107,37 +107,47 @@ def main() -> int:
         "detect_spec_update_candidates.py",
         "trellis_doctor.py",
     ]
+    availability_only_validators = {
+        "validate_scope_manifest.py",
+        "validate_guardrail_overrides.py",
+        "validate_agent_results.py",
+    }
 
-    results: list[tuple[str, bool, str]] = []
+    results: list[tuple[str, str, bool, str]] = []
     for vname in validators:
         vpath = scripts_dir / vname
         if not vpath.is_file():
-            results.append((vname, False, "Script not found"))
+            results.append((vname, "FAIL", False, "Script not found"))
             continue
         args = None
         if vname == "validate_spec_index.py":
             if spec_dir is None:
-                results.append((vname, False, "Spec directory not found"))
+                results.append((vname, "FAIL", False, "Spec directory not found"))
                 continue
             args = [str(spec_dir)]
         elif vname == "replay_workflow_cases.py":
             if replay_dir is None:
-                results.append((vname, False, "Replay fixture directory not found"))
+                results.append((vname, "FAIL", False, "Replay fixture directory not found"))
                 continue
             args = [str(replay_dir)]
         name, passed, output = run_validator(vpath, args)
-        results.append((name, passed, output))
+        if vname in availability_only_validators and args is None:
+            note = "availability check only; pass a task directory for task-runtime validation"
+            output = f"{output}\n{note}" if output else note
+            results.append((name, "INFO" if passed else "FAIL", passed, output))
+        else:
+            status_label = "PASS" if passed else "FAIL"
+            results.append((name, status_label, passed, output))
 
     # Print results
     all_pass = True
-    for name, passed, output in results:
-        status = "PASS" if passed else "FAIL"
+    for name, status, passed, output in results:
         print(f"[{status}] {name}")
         if output:
             for line in output.splitlines():
                 print(f"       {line}")
         print()
-        if not passed:
+        if status == "FAIL" or not passed:
             all_pass = False
 
     print("=" * 50)

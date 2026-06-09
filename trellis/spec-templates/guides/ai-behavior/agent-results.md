@@ -36,7 +36,7 @@ Recommended fields:
 - `risks`: residual uncertainty.
 - `scope_expansion`: changed paths or behavior outside the expected task scope.
 - `execution_mode`: `single-agent`, `trellis-native parallel + worktree`, or
-  `omc`.
+  `OMC ulw/ultrawork + worktree + parent/child`.
 - `git.committed`: normally `false`; Trellis subagents must not commit.
 
 ---
@@ -64,8 +64,9 @@ blocks final PASS.
 If the agent is blocked, it still writes JSON with `status: BLOCKED` and records
 the blocker in `blocking_issues`.
 
-If OMC appears in `execution_mode`, `implement.md` must include explicit OMC
-approval with an auditable user message and timestamp.
+If OMC appears in `execution_mode`, including the canonical
+`OMC ulw/ultrawork + worktree + parent/child` value, `implement.md` must include
+explicit OMC approval with an auditable user message and timestamp.
 
 ---
 

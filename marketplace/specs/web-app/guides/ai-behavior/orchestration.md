@@ -34,8 +34,13 @@ start OMC.
 - Trellis-native parallel + worktree
 - OMC ulw/ultrawork + worktree + parent/child
 
+L5/orchestrated tasks must not select `main session`; use Trellis-native
+parallel plus worktree by default, or a narrower level if the work is actually
+serial.
+
 When OMC is selected, `implement.md` must also include the user approval
-message and timestamp. Missing audit details invalidate the OMC path.
+message and timestamp. Missing audit details invalidate the OMC path, and
+runtime hooks must block `ulw/ultrawork` startup until the record is complete.
 
 ---
 

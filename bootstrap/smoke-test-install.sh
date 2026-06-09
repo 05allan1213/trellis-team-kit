@@ -6,7 +6,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEV_NAME="${TTK_SMOKE_DEV_NAME:-smoke}"
 MODE="all"
-TRUE_REMOTE_INIT_URL="${TTK_TRUE_REMOTE_INIT_URL:-https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh}"
+DEFAULT_TRUE_REMOTE_INIT_URL="https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh"
+TRUE_REMOTE_INIT_URL="${TTK_TRUE_REMOTE_INIT_URL:-$DEFAULT_TRUE_REMOTE_INIT_URL}"
+TRUE_REMOTE_RAW_BASE=""
+
+infer_true_remote_raw_base() {
+  local init_url="$1"
+  if [[ "$init_url" == */bootstrap/init.sh ]]; then
+    printf '%s\n' "${init_url%/bootstrap/init.sh}"
+  else
+    return 1
+  fi
+}
 
 usage() {
   cat <<'EOF'
@@ -15,12 +26,13 @@ Usage: smoke-test-install.sh [--mode local|remote|true-remote|all] [--developer-
 Runs a real install smoke test against:
   local       - bash bootstrap/init.sh <name>
   remote      - simulated-remote path via TTK_INIT_RAW_BASE=file://... and bash <(cat bootstrap/init.sh) <name>
-  true-remote - local install plus published GitHub main raw install, then compare inventories
+  true-remote - local install plus published GitHub main raw install, then compare inventories and stable file contents
   all         - local + simulated-remote modes (default, no network dependency beyond local file://)
 
 True remote URL:
   https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh
   Override with TTK_TRUE_REMOTE_INIT_URL to test another published branch or raw URL.
+  If the init URL does not end in /bootstrap/init.sh, also set TTK_TRUE_REMOTE_RAW_BASE.
 EOF
 }
 
@@ -54,6 +66,17 @@ case "$MODE" in
     exit 1
     ;;
 esac
+
+if [ "$MODE" = "true-remote" ]; then
+  TRUE_REMOTE_RAW_BASE="${TTK_TRUE_REMOTE_RAW_BASE:-${TTK_INIT_RAW_BASE:-}}"
+  if [ -z "$TRUE_REMOTE_RAW_BASE" ]; then
+    if ! TRUE_REMOTE_RAW_BASE="$(infer_true_remote_raw_base "$TRUE_REMOTE_INIT_URL")"; then
+      echo "[smoke] ERROR: could not infer raw base from TTK_TRUE_REMOTE_INIT_URL." >&2
+      echo "[smoke]        Set TTK_TRUE_REMOTE_RAW_BASE to the matching raw asset base URL." >&2
+      exit 1
+    fi
+  fi
+fi
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -140,7 +163,7 @@ run_case() {
   else
     (
       cd "$project"
-      bash <(curl --retry 5 --retry-delay 1 --retry-all-errors -fsSL "$TRUE_REMOTE_INIT_URL") "$DEV_NAME" < /dev/null
+      TTK_INIT_RAW_BASE="$TRUE_REMOTE_RAW_BASE" bash <(curl --retry 5 --retry-delay 1 --retry-all-errors -fsSL "$TRUE_REMOTE_INIT_URL") "$DEV_NAME" < /dev/null
     )
   fi
 
@@ -222,12 +245,45 @@ assert_install_inventories_match() {
   echo "[smoke] PASS: local and remote install inventories match"
 }
 
+should_skip_content_compare() {
+  local rel="$1"
+  case "$rel" in
+    ./.trellis/.team-kit-version)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+assert_install_contents_match() {
+  local local_project="$1" remote_project="$2" rel
+
+  while IFS= read -r rel || [ -n "$rel" ]; do
+    [ -n "$rel" ] || continue
+    should_skip_content_compare "$rel" && continue
+
+    if ! cmp -s "$local_project/$rel" "$remote_project/$rel"; then
+      echo "[smoke] ERROR: local and remote install file contents differ: $rel" >&2
+      diff -u "$local_project/$rel" "$remote_project/$rel" >&2 || true
+      exit 1
+    fi
+  done < <(
+    cd "$local_project"
+    find . -path './.git' -prune -o -type f -print | sort
+  )
+
+  echo "[smoke] PASS: local and remote install file contents match"
+}
+
 if [ "$MODE" = "all" ]; then
   SMOKE_TMP_ROOT="$(mktemp -d)"
   trap 'rm -rf "$SMOKE_TMP_ROOT"' EXIT
   run_case "local"
   run_case "remote"
   assert_install_inventories_match "$LOCAL_PROJECT" "$REMOTE_PROJECT"
+  assert_install_contents_match "$LOCAL_PROJECT" "$REMOTE_PROJECT"
   rm -rf "$SMOKE_TMP_ROOT"
   trap - EXIT
 elif [ "$MODE" = "local" ]; then
@@ -240,6 +296,7 @@ elif [ "$MODE" = "true-remote" ]; then
   run_case "local"
   run_case "true-remote"
   assert_install_inventories_match "$LOCAL_PROJECT" "$TRUE_REMOTE_PROJECT"
+  assert_install_contents_match "$LOCAL_PROJECT" "$TRUE_REMOTE_PROJECT"
   rm -rf "$SMOKE_TMP_ROOT"
   trap - EXIT
 fi

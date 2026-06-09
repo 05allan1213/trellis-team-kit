@@ -61,6 +61,7 @@ The decision must include:
 - explicit OMC approval details when OMC is selected
 
 L5 defaults to Trellis-native parallel + worktree when parallelism is justified.
+An L5/orchestrated task must not select `main session` as its execution mode.
 OMC is an advanced path and must not be selected without explicit user approval.
 
 ---
@@ -86,6 +87,9 @@ OMC is not selected by routing alone. A prompt may mention OMC and still only
 route to L5 until the user explicitly approves OMC. The Trellis task lifecycle,
 scope manifest, agent-results, check, review, merge-review, and finish gates
 still apply.
+
+Starting `ulw` or `ultrawork` before the approval record is complete is a hard
+runtime guardrail violation, not just a review finding.
 
 ---
 

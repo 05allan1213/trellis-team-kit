@@ -167,6 +167,15 @@ TASK_START_PATTERN = re.compile(r"task\.py\s+start\b")
 TASK_ARCHIVE_PATTERN = re.compile(r"task\.py\s+archive\b")
 GIT_COMMIT_PATTERN = re.compile(r"\bgit\s+commit\b")
 FINALIZE_ARCHIVE_PATTERN = re.compile(r"finalize_task_archive\.py\b")
+OMC_EXECUTABLE_PATTERN = re.compile(
+    r"(?:^|[\s;|&()\"'`])(?P<exe>(?:[^\s;|&()\"'`]+/)?(?:ulw|ultrawork))(?=$|[\s;|&()\"'`])",
+    re.IGNORECASE,
+)
+OMC_ACTION_PATTERN = re.compile(
+    r"(?:\b(?:run|start|spawn|launch|work|exec)\b|\B--parallel\b)",
+    re.IGNORECASE,
+)
+COMMAND_SEPARATOR_PATTERN = re.compile(r"[;&|\n]")
 
 # Override pattern
 OVERRIDE_PATTERN = re.compile(r"override\s+team-kit\s+guardrail\s*:\s*(.+)", re.IGNORECASE)
@@ -293,6 +302,81 @@ def _is_high_risk_path(file_path: str) -> bool:
         norm = norm[2:]
     for pattern in HIGH_RISK_PATTERNS:
         if re.search(pattern, norm):
+            return True
+    return False
+
+
+def _extract_markdown_section(content: str, heading: str) -> str:
+    target = heading.strip().lower()
+    collected: list[str] = []
+    in_section = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            current = stripped[3:].strip().lower()
+            if in_section:
+                break
+            if current == target:
+                in_section = True
+                continue
+        if in_section:
+            collected.append(line)
+    return "\n".join(collected).strip()
+
+
+def _checked_labels_in_section(section_text: str) -> set[str]:
+    labels: set[str] = set()
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if not stripped.lower().startswith("- [x]"):
+            continue
+        label = stripped.split("]", 1)[-1].strip().lower()
+        if label:
+            labels.add(label)
+    return labels
+
+
+def _section_field_value(section_text: str, field_name: str) -> str:
+    pattern = re.compile(
+        rf"^\s*-\s*{re.escape(field_name)}\s*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for line in section_text.splitlines():
+        match = pattern.match(line.strip())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _omc_approval_complete(task_dir: Optional[Path]) -> bool:
+    if task_dir is None:
+        return False
+    implement_md = task_dir / "implement.md"
+    if not implement_md.is_file():
+        return False
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return False
+
+    section = _extract_markdown_section(content, "Execution Mode Decision")
+    checked = _checked_labels_in_section(section)
+    if "user explicitly approved omc" not in checked:
+        return False
+
+    placeholders = {"", "tbd", "todo", "n/a", "none", "-"}
+    user_message = _section_field_value(section, "user message").lower()
+    timestamp = _section_field_value(section, "timestamp").lower()
+    return user_message not in placeholders and timestamp not in placeholders
+
+
+def _omc_start_requested(command: str) -> bool:
+    for match in OMC_EXECUTABLE_PATTERN.finditer(command):
+        segment = command[match.end("exe"):]
+        separator = COMMAND_SEPARATOR_PATTERN.search(segment)
+        if separator:
+            segment = segment[:separator.start()]
+        if OMC_ACTION_PATTERN.search(segment):
             return True
     return False
 
@@ -472,6 +556,16 @@ def _check_bash_command(command: str, root: Path) -> tuple[Optional[str], bool]:
         if re.search(pattern, command):
             return message, True
 
+    if _omc_start_requested(command) and not _omc_approval_complete(_get_task_dir(root)):
+        return (
+            "BLOCKED: OMC execution requires explicit user approval.\n"
+            "  Blocked action: ulw/ultrawork command\n"
+            "  Reason: OMC parallel execution must be approved and recorded in "
+            "implement.md before runtime startup.\n"
+            "  Correct next step: Record 'user explicitly approved OMC', user message, "
+            "and timestamp in the Execution Mode Decision, then retry."
+        ), True
+
     if TASK_START_PATTERN.search(command):
         status = _get_task_status(root)
         task_dir = _get_task_dir(root)
@@ -623,6 +717,16 @@ def _check_file_operation(
                             f"  Correct next step: Either add this path to implement.md, "
                             f"or use 'override team-kit guardrail: <reason>' if intentional."
                         ), False
+                    return (
+                        f"WARNING: Editing undeclared source path: {norm_path}\n"
+                        f"  Current state: IN_PROGRESS\n"
+                        f"  Warned action: Write/Edit to source file\n"
+                        f"  Reason: This source file is NOT declared in {scope_source}.\n"
+                        f"  Declared scope: {format_declared_scope(declared_paths, declared_globs)}\n"
+                        f"  Correct next step: Either add this path to implement.md or "
+                        f"scope-manifest.json, or use "
+                        f"'override team-kit guardrail: <reason>' if intentional."
+                    ), False
                 if (
                     (declared_paths or declared_globs)
                     and is_path_declared(norm_path, declared_paths, declared_globs)

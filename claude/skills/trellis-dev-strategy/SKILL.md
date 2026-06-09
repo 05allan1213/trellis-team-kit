@@ -12,7 +12,7 @@ description: "Decide execution mode, branch strategy, TDD approach, review gates
 
 ## Core Rules
 
-The development strategy must match the task's complexity level. L4/L5 tasks MUST NOT default to main-session execution.
+The development strategy must match the task's complexity level. L4/L5 tasks MUST NOT default to main-session execution, and L5/orchestrated tasks MUST NOT select main-session execution.
 
 ## Workflow
 
@@ -27,13 +27,13 @@ The development strategy must match the task's complexity level. L4/L5 tasks MUS
 
 | Mode | When to Use | Notes |
 |------|-------------|-------|
-| Main session | L0-L1 only, or explicit user override | Must not be default for L2+ |
+| Main session | L0-L1 only, or explicit user override for non-L5 work | Must not be default for L2+; invalid for L5/orchestrated |
 | Single Trellis subagent | L2-L3, or L4 with tightly coupled work | Standard Trellis path |
 | Trellis subagents | L3-L4 when checker/reviewer separation is useful | Native Trellis path |
 | Trellis-native parallel + worktree | L5, parent/child, multi-agent, large refactor, or independent workstreams | Default orchestrated path |
 | OMC ulw/ultrawork + worktree + parent/child | L5 advanced path, confirmed PRD, clear AC, independent workstreams, native Trellis is not enough | Requires explicit user confirmation |
 
-L4/L5 MUST NOT default to main-session. L5 defaults to Trellis-native parallel + worktree when parallelism is justified. OMC is optional and advanced; never select it unless the user explicitly approved OMC. If the user requests main-session for L4/L5, warn about risks and record the decision.
+L4/L5 MUST NOT default to main-session. L5 defaults to Trellis-native parallel + worktree when parallelism is justified. OMC is optional and advanced; never select it unless the user explicitly approved OMC. If the user requests main-session for L4, warn about risks and record the decision. If the user requests main-session for L5, re-scope to a narrower level or keep the orchestrated path; do not write L5 main-session into `implement.md`.
 
 #### Branch Strategy
 
@@ -85,7 +85,10 @@ Customize based on task specifics, but do not remove required gates.
 
 #### Merge Review
 
-Required for: worktree, multi-subagent, OMC parallel, PR merge, conflict resolution, parent/child task.
+Required for: worktree, parallel or workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, parent/child task.
+
+Ordinary serial Trellis implementer/checker/reviewer subagents require
+`agent-results/*.json`, but they do not by themselves require merge-review.
 
 ## Output Format
 
@@ -162,7 +165,7 @@ Failure rule:
 
 ## Quality Bar
 
-- Execution mode matches task complexity (L4/L5 never defaults to main-session).
+- Execution mode matches task complexity (L4/L5 never defaults to main-session, and L5 never selects main-session).
 - Review Gate Contract is complete with rationale.
 - All dimensions are decided (no "TBD" on strategy items).
 - Validation commands are concrete, runnable, and include at least one way to prove observable outcomes.

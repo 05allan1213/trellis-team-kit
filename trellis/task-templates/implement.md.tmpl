@@ -24,7 +24,7 @@ Required artifacts checklist:
 
 ## Development Strategy
 
-- **Mode**: <!-- main-session / subagent / subagent + worktree / OMC parallel -->
+- **Mode**: <!-- main session / single Trellis subagent / Trellis subagents / Trellis-native parallel + worktree / OMC ulw/ultrawork + worktree + parent/child -->
 - **Branch**: <!-- feature/task-name | fix/task-name -->
 - **Worktree needed?**: <!-- yes / no -->
 - **Parent/child task?**: <!-- yes / no -->
@@ -41,6 +41,9 @@ Recommended mode:
 - [ ] Trellis subagents
 - [ ] Trellis-native parallel + worktree
 - [ ] OMC ulw/ultrawork + worktree + parent/child
+
+L5/orchestrated tasks must not select main session; re-scope to a narrower
+level or use Trellis-native parallel + worktree.
 
 Reason:
 - <!-- why this mode fits this task level and risk -->

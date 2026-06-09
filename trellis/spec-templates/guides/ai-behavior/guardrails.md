@@ -27,15 +27,20 @@ exist. Starting implementation without them is a workflow failure.
 
 ---
 
-## High-Risk Paths
+## Undeclared Source Paths
 
-High-risk paths require explicit scope. Exact directories such as `api`,
-`src/api`, `auth`, `src/auth`, `migrations`, and `contracts` are high-risk even
-before choosing a child file.
+Any source or test edit outside `declared_paths` / `declared_globs` must produce
+a scope warning. Non-high-risk undeclared edits still need an auditable scope
+update or accepted guardrail override before they can be treated as intentional.
 
-If a high-risk edit is not declared, the hook should warn or block depending on
-the risk. The agent must either stop and update the task scope through the
-normal workflow or record an allowed override when the guardrail permits it.
+High-risk paths require the same declared scope plus extra scrutiny. Exact
+directories such as `api`, `src/api`, `auth`, `src/auth`, `migrations`, and
+`contracts` are high-risk even before choosing a child file.
+
+If a high-risk edit is not declared, or is declared but missing from
+`high_risk_allowed`, the hook should warn. The agent must either stop and update
+the task scope through the normal workflow or record an allowed override when
+the guardrail permits it.
 
 ---
 
@@ -63,7 +68,8 @@ Some states are not overrideable:
 - source edits during planning phases
 - missing required task artifacts
 - finishing without required approval or review evidence
-- OMC execution without explicit user approval
+- starting OMC `ulw/ultrawork` without explicit user approval, user message,
+  and timestamp recorded in `implement.md`
 - hard workflow phase mismatches
 
 When a hard block fires, repair the task state or return to the correct phase.

@@ -21,6 +21,8 @@ bash ~/trellis-team-kit/bootstrap/personalize-local.sh 你的名字
 # 3. 验证安装
 python3 .trellis/scripts/validate_runtime_hardening.py
 # 预期：OVERALL: PASS
+# 注意：validate_scope_manifest / validate_guardrail_overrides / validate_agent_results
+# 在无 task 参数时只显示 INFO availability check；task-runtime validation 必须传入 task-dir。
 
 # 4. 真实安装 smoke test（验证本地 + 模拟远程路径）
 bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
@@ -28,6 +30,8 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 # 5. 发布分支远程安装对比（push 后验证本地安装与 GitHub main raw 远程安装目录一致）
 bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --developer-name test
 # 如需验证其它已发布分支/URL，可设置 TTK_TRUE_REMOTE_INIT_URL。
+# 如果 init URL 不是以 /bootstrap/init.sh 结尾，同时设置 TTK_TRUE_REMOTE_RAW_BASE。
+# true-remote 会比较安装后的目录清单和稳定文件内容。
 # 刚 push 后 GitHub raw 可能短暂返回旧缓存；若第一次失败且 raw 内容已刷新，重跑同一命令。
 ```
 
@@ -158,6 +162,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 **范围守卫测试**：
 - [ ] 编辑 `scope-manifest.json` declared_globs 覆盖的文件 → allow
+- [ ] 编辑非高风险但未在 scope-manifest.json 声明的源码路径 → PreToolUse warning
 - [ ] 编辑高风险且未在 scope-manifest.json 声明的路径 → PreToolUse warning
 - [ ] 使用 `override team-kit guardrail: <reason>` 绕过 soft warning → 写入 `runtime/guardrail-overrides.jsonl`
 - [ ] 有 override ledger 但 finish.md 未复核 → `validate_guardrail_overrides.py <task-dir>` FAIL
@@ -192,8 +197,10 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 **L5 / parallel / OMC 显式批准测试**：
 - [ ] L5 parallel 默认选择 Trellis-native parallel + worktree，不启动 OMC
-- [ ] 使用 OMC `ulw/ultrawork` 前必须记录 explicit OMC approval
-- [ ] OMC execution result 缺少 explicit OMC approval → `validate_agent_results.py` 或 merge-review FAIL
+- [ ] L5/orchestrated 选择 `main session` → `validate_task.py` FAIL
+- [ ] 使用 OMC `ulw/ultrawork` 前必须记录 explicit OMC approval、user message、timestamp
+- [ ] 未批准时启动 `ulw/ultrawork` → PreToolUse deny
+- [ ] OMC execution result（含 canonical `OMC ulw/ultrawork + worktree + parent/child`）缺少 explicit OMC approval → `validate_agent_results.py` 或 merge-review FAIL
 - [ ] OMC 或多 agent 并行任务缺少 merge-review → validator / doctor workflow FAIL
 - [ ] merge-review 聚合 `agent-results/*.json`、scope、override ledger、OMC approval 记录后 PASS
 
@@ -254,6 +261,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 # 全部静态验证
 python3 .trellis/scripts/validate_runtime_hardening.py
 # 预期：OVERALL: PASS
+# task-specific validators 无 task-dir 时显示 INFO availability check，不代表具体 task 已通过。
 
 # Task 验证
 python3 .trellis/scripts/validate_task.py .trellis/tasks/<task-dir>
