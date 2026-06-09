@@ -179,7 +179,7 @@ get_file() {
   if [ "$MODE" = "local" ]; then
     cp "$KIT_ROOT/$src" "$dst"
   else
-    curl -fsSL "$RAW_BASE/$src" -o "$dst"
+    curl --retry 5 --retry-delay 1 --retry-all-errors -fsSL "$RAW_BASE/$src" -o "$dst"
   fi
 }
 
