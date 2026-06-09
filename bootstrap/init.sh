@@ -156,7 +156,6 @@ ensure_local_scaffold() {
 append_local_state_gitignore() {
   local gitignore="$1"
   local begin="# BEGIN trellis-team-kit local state"
-  local end="# END trellis-team-kit local state"
   if [ -f "$gitignore" ] && grep -qF "$begin" "$gitignore"; then
     return 0
   fi
