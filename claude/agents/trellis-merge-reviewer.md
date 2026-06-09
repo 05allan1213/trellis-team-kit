@@ -236,9 +236,12 @@ schema:
 }
 ```
 
-Use `status: "FAIL"` when the merge review verdict is FAIL. `changed_files`
-must include the review artifacts you wrote as objects with `path` and
-`summary`. `validation` must include the read-only inspection commands you ran.
+Use `status: "FAIL"` when the merge review verdict is FAIL. Use
+`status: "REDESIGN-REQUIRED"` when integration reveals a design-level mismatch
+that cannot be fixed by ordinary merge cleanup. Use `status: "BLOCKED"` when
+required merge sources or task artifacts are unavailable. `changed_files` must
+include the review artifacts you wrote as objects with `path` and `summary`.
+`validation` must include the read-only inspection commands you ran.
 
 ### Step 9: Report Verdict
 

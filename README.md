@@ -290,6 +290,9 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - 本地安装路径
 - 模拟远程安装路径
 - 安装后 runtime hardening
+- push 后，本地安装与远程 GitHub main raw 安装目录一致性：
+  `bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --developer-name test`
+  可用 `TTK_TRUE_REMOTE_INIT_URL` 指向其它已发布分支或 raw URL。
 - 可选本地个性化脚本
 
 

@@ -11,6 +11,13 @@ from typing import Any
 
 LEVELS_REQUIRING_SCOPE = {"L2", "L3", "L4", "L5"}
 VALID_PROFILES = {"quick", "light", "standard", "strict", "orchestrated"}
+LEVEL_PROFILE_MAP = {
+    "L1": "quick",
+    "L2": "light",
+    "L3": "standard",
+    "L4": "strict",
+    "L5": "orchestrated",
+}
 HIGH_RISK_PATTERNS = (
     r"(^|/)auth(/|$)",
     r"(^|/)authentication(/|$)",
@@ -98,6 +105,13 @@ def _validate_manifest_payload(
         errors.append(
             f"Task '{task_id}': scope-manifest.json profile must be one of {', '.join(sorted(VALID_PROFILES))}"
         )
+    else:
+        expected_profile = LEVEL_PROFILE_MAP.get(task_level)
+        if expected_profile and profile != expected_profile:
+            errors.append(
+                f"Task '{task_id}': scope-manifest.json profile '{profile}' does not match level '{task_level}' "
+                f"(expected '{expected_profile}')"
+            )
 
     declared_paths = manifest.get("declared_paths")
     declared_globs = manifest.get("declared_globs")

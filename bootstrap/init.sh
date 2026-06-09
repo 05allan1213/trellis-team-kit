@@ -480,6 +480,7 @@ TEMPLATE_COUNT=0
 mkdir -p "$TARGET_ROOT/.trellis/templates"
 for tmpl in \
   prd.md.tmpl design.md.tmpl implement.md.tmpl finish.md.tmpl pr-template.md \
+  scope-manifest.json.tmpl \
   before-dev.md \
   research/evidence.md.tmpl research/brainstorm.md.tmpl research/grill-me.md.tmpl \
   research/external-docs.md.tmpl research/architecture-options.md.tmpl \

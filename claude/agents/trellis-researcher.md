@@ -246,7 +246,7 @@ Rules:
 
 - `version` must be exactly `1`.
 - `agent` must be `trellis-researcher`.
-- `status` must be one of `PASS`, `FAIL`, or `BLOCKED`.
+- `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `changed_files` must list only files written under `research/`, with `path`
   and `summary`.
 - `validation` must contain every source inspection, search, or verification
@@ -257,5 +257,5 @@ Rules:
 - `risks` must list uncertainty that may affect decisions.
 - `scope_expansion` must list any attempted output outside `research/`, or `[]`
   if none.
-- If status is `FAIL` or `BLOCKED`, still write the JSON and explain the reason
-  in `blocking_issues` or `risks`.
+- If status is `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`, still write the JSON
+  and explain the reason in `blocking_issues` or `risks`.

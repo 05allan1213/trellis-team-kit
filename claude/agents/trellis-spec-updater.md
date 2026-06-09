@@ -218,7 +218,7 @@ Rules:
 
 - `version` must be exactly `1`.
 - `agent` must be `trellis-spec-updater`.
-- `status` must be one of `PASS`, `FAIL`, or `BLOCKED`.
+- `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `changed_files` must list spec files changed under `.trellis/spec/`, with
   `path` and `summary`. Use an empty list when no update was needed.
 - `validation` must contain every consistency check or inspection you ran. Each
@@ -229,5 +229,5 @@ Rules:
 - `risks` must list any uncertainty about spec consistency.
 - `scope_expansion` must list any attempted output outside `.trellis/spec/`, or
   `[]` if none.
-- If status is `FAIL` or `BLOCKED`, still write the JSON and explain the reason
-  in `blocking_issues` or `risks`.
+- If status is `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`, still write the JSON
+  and explain the reason in `blocking_issues` or `risks`.

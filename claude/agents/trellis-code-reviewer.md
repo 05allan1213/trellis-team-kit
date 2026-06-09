@@ -212,7 +212,7 @@ Rules:
 
 - `version` must be exactly `1`.
 - `agent` must be `trellis-code-reviewer`.
-- `status` must be one of `PASS`, `FAIL`, or `BLOCKED`.
+- `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `changed_files` must be `[]` because this is a read-only reviewer.
 - `validation` must contain every inspection command you ran, or at least one
   relevant `file-review: <path>` entry for files reviewed without running an
@@ -227,5 +227,5 @@ Rules:
   task scope, or `[]` if none.
 - `execution_mode` must record the mode used, such as `single-agent`,
   `trellis-native parallel + worktree`, or `omc`.
-- If status is `FAIL` or `BLOCKED`, still write the JSON and explain the reason
-  in `blocking_issues` or `risks`.
+- If status is `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`, still write the JSON
+  and explain the reason in `blocking_issues` or `risks`.

@@ -558,6 +558,7 @@ def diagnose_setup(repo_root: Path) -> tuple[bool, str]:
         "implement.md.tmpl",
         "finish.md.tmpl",
         "pr-template.md",
+        "scope-manifest.json.tmpl",
         "before-dev.md",
         "research/evidence.md.tmpl",
         "research/brainstorm.md.tmpl",

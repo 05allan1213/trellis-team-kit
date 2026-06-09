@@ -6,15 +6,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEV_NAME="${TTK_SMOKE_DEV_NAME:-smoke}"
 MODE="all"
+TRUE_REMOTE_INIT_URL="${TTK_TRUE_REMOTE_INIT_URL:-https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh}"
 
 usage() {
   cat <<'EOF'
-Usage: smoke-test-install.sh [--mode local|remote|all] [--developer-name <name>]
+Usage: smoke-test-install.sh [--mode local|remote|true-remote|all] [--developer-name <name>]
 
 Runs a real install smoke test against:
-  local  - bash bootstrap/init.sh <name>
-  remote - simulated-remote path via TTK_INIT_RAW_BASE=file://... and bash <(cat bootstrap/init.sh) <name>
-  all    - both modes (default)
+  local       - bash bootstrap/init.sh <name>
+  remote      - simulated-remote path via TTK_INIT_RAW_BASE=file://... and bash <(cat bootstrap/init.sh) <name>
+  true-remote - local install plus published GitHub main raw install, then compare inventories
+  all         - local + simulated-remote modes (default, no network dependency beyond local file://)
+
+True remote URL:
+  https://raw.githubusercontent.com/05allan1213/trellis-team-kit/main/bootstrap/init.sh
+  Override with TTK_TRUE_REMOTE_INIT_URL to test another published branch or raw URL.
 EOF
 }
 
@@ -41,7 +47,7 @@ while [ $# -gt 0 ]; do
 done
 
 case "$MODE" in
-  local|remote|all) ;;
+  local|remote|true-remote|all) ;;
   *)
     echo "Invalid mode: $MODE" >&2
     usage >&2
@@ -66,6 +72,7 @@ run_python_no_bytecode() { PYTHONDONTWRITEBYTECODE=1 python3 -B "$@"; }
 SMOKE_TMP_ROOT=""
 LOCAL_PROJECT=""
 REMOTE_PROJECT=""
+TRUE_REMOTE_PROJECT=""
 
 assert_file() {
   local path="$1"
@@ -125,10 +132,15 @@ run_case() {
       cd "$project"
       bash "$REPO_ROOT/bootstrap/init.sh" "$DEV_NAME" < /dev/null
     )
-  else
+  elif [ "$case_mode" = "remote" ]; then
     (
       cd "$project"
       TTK_INIT_RAW_BASE="$RAW_BASE_URI" bash <(cat "$REPO_ROOT/bootstrap/init.sh") "$DEV_NAME" < /dev/null
+    )
+  else
+    (
+      cd "$project"
+      bash <(curl --retry 5 --retry-delay 1 --retry-all-errors -fsSL "$TRUE_REMOTE_INIT_URL") "$DEV_NAME" < /dev/null
     )
   fi
 
@@ -147,6 +159,7 @@ run_case() {
   assert_file "$project/.trellis/scripts/replay_workflow_cases.py"
   assert_file "$project/.trellis/scripts/detect_spec_update_candidates.py"
   assert_file "$project/.trellis/scripts/trellis_doctor.py"
+  assert_file "$project/.trellis/templates/scope-manifest.json.tmpl"
   assert_file "$project/.trellis/replay/routing/standard-feature-routes-l3.json"
   assert_file "$project/.trellis/replay/routing/l4-api-contract-change.json"
   assert_file "$project/.trellis/replay/guardrails/contains-and-not-contains.json"
@@ -175,6 +188,8 @@ run_case() {
     LOCAL_PROJECT="$project"
   elif [ "$case_mode" = "remote" ]; then
     REMOTE_PROJECT="$project"
+  elif [ "$case_mode" = "true-remote" ]; then
+    TRUE_REMOTE_PROJECT="$project"
   fi
   if [ -z "$SMOKE_TMP_ROOT" ]; then
     rm -rf "$tmpdir"
@@ -219,6 +234,14 @@ elif [ "$MODE" = "local" ]; then
   run_case "local"
 elif [ "$MODE" = "remote" ]; then
   run_case "remote"
+elif [ "$MODE" = "true-remote" ]; then
+  SMOKE_TMP_ROOT="$(mktemp -d)"
+  trap 'rm -rf "$SMOKE_TMP_ROOT"' EXIT
+  run_case "local"
+  run_case "true-remote"
+  assert_install_inventories_match "$LOCAL_PROJECT" "$TRUE_REMOTE_PROJECT"
+  rm -rf "$SMOKE_TMP_ROOT"
+  trap - EXIT
 fi
 
 echo "[smoke] All requested smoke tests passed."

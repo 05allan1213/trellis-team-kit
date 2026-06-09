@@ -2867,6 +2867,24 @@ class ValidateScopeManifestTests(unittest.TestCase):
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
 
+    def test_manifest_profile_must_match_task_level(self):
+        task_dir = self.make_task_dir(
+            {
+                "version": 1,
+                "level": "L2",
+                "profile": "strict",
+                "declared_paths": ["src/settings.py"],
+                "declared_globs": [],
+                "high_risk_allowed": [],
+                "out_of_scope": ["auth flows"],
+            }
+        )
+
+        ok, issues = self.module.validate_scope_manifest(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("profile 'strict' does not match level 'L2'" in issue for issue in issues))
+
     def test_exact_high_risk_directory_requires_allowlist(self):
         task_dir = self.make_task_dir(
             {
@@ -4414,8 +4432,19 @@ class SmokeInstallScriptTests(unittest.TestCase):
             text=True,
         )
 
-        self.assertIn("--mode local|remote|all", result.stdout)
+        self.assertIn("--mode local|remote|true-remote|all", result.stdout)
         self.assertIn("simulated-remote", result.stdout)
+        self.assertIn("true-remote", result.stdout)
+        self.assertIn("raw.githubusercontent.com", result.stdout)
+
+    def test_smoke_script_true_remote_mode_compares_local_and_published_remote(self):
+        content = SMOKE_INSTALL.read_text(encoding="utf-8")
+
+        self.assertIn("TTK_TRUE_REMOTE_INIT_URL", content)
+        self.assertIn('run_case "true-remote"', content)
+        self.assertIn('run_case "local"', content)
+        self.assertIn('assert_install_inventories_match "$LOCAL_PROJECT" "$TRUE_REMOTE_PROJECT"', content)
+        self.assertIn("--retry-all-errors", content)
 
 
 class FinalizeTaskArchiveTests(unittest.TestCase):
@@ -6386,6 +6415,24 @@ class PhaseTwoTemplateTests(unittest.TestCase):
         self.assertIn("declared_paths", content)
         self.assertIn("declared_globs", content)
 
+    def test_scope_manifest_json_template_exists(self):
+        content = (
+            REPO_ROOT / "trellis" / "task-templates" / "scope-manifest.json.tmpl"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('"version": 1', content)
+        self.assertIn('"declared_paths"', content)
+        self.assertIn('"declared_globs"', content)
+        self.assertIn('"high_risk_allowed"', content)
+        self.assertIn('"out_of_scope"', content)
+
+    def test_setup_doctor_tracks_scope_manifest_template(self):
+        content = (REPO_ROOT / "trellis" / "scripts" / "trellis_doctor.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('"scope-manifest.json.tmpl"', content)
+
     def test_finish_template_includes_guardrail_override_review(self):
         content = (REPO_ROOT / "trellis" / "task-templates" / "finish.md.tmpl").read_text(
             encoding="utf-8"
@@ -6431,6 +6478,7 @@ class PhaseFiveWorkflowContractTests(unittest.TestCase):
                     content,
                 )
                 self.assertIn(f'"agent": "{agent_name}"', content)
+                self.assertIn("REDESIGN-REQUIRED", content)
 
     def test_verify_workflow_covers_phase_five_acceptance_scenarios(self):
         content = (REPO_ROOT / "docs" / "verify-workflow.md").read_text(encoding="utf-8")
