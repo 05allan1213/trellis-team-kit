@@ -206,4 +206,7 @@ Use with `.trellis/workflow.md`, `ai-tooling.md`, `testing.md`, `debugging.md`, 
 
 ## Definition of Done
 
-OMC parallel execution is done only when workers have reported back, the main agent has integrated outputs, conflicts are resolved, the result matches the PRD, Trellis Check has run, and remaining risks are reported.
+OMC parallel execution is done only when workers have reported back, the main
+agent has integrated outputs, conflicts are resolved, the result matches the
+PRD, Trellis Check has run, required review gates and merge-review have passed,
+final validation is recorded, and remaining risks are reported.

@@ -7,8 +7,9 @@ description: "Decide execution mode, branch strategy, TDD approach, review gates
 
 ## Preconditions
 
-- `prd.md` is complete and grilled (Phase 1.1 + 1.2 done).
-- `design.md` exists for L4/L5 tasks (Phase 1.3 done for complex tasks).
+- `prd.md` is complete.
+- `research/grill-me.md` exists for L3-L5 tasks; for L2 it is optional unless requirements are unclear or risk increased.
+- `design.md` exists for L4/L5 tasks; for L3 it is optional when the change has architectural impact.
 
 ## Core Rules
 
@@ -85,7 +86,7 @@ Customize based on task specifics, but do not remove required gates.
 
 #### Merge Review
 
-Required for: worktree, parallel or workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, parent/child task.
+Required for: L5, worktree, parallel or workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, parent/child task.
 
 Ordinary serial Trellis implementer/checker/reviewer subagents require
 `agent-results/*.json`, but they do not by themselves require merge-review.

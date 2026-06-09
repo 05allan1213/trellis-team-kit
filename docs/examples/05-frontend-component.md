@@ -17,8 +17,9 @@
 10. 派发 `trellis-implementer` → 创建组件 + 测试 + stories
 11. 派发 `trellis-checker` → 验证
 12. 派发 `trellis-code-reviewer` → PASS
-13. `trellis-update-spec` → 将表格组件模式沉淀到 .trellis/spec/frontend/
-14. Commit → `/trellis:finish-work`
+13. 所有 review gates PASS 后，AI 停下来等待用户明确说"进入 Finish 阶段"
+14. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 将表格组件模式沉淀到 .trellis/spec/frontend/
+15. Commit → `/trellis:finish-work`
 
 ## 预期产物
 - prd.md、implement.md、可选 design.md

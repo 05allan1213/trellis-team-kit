@@ -1,6 +1,6 @@
 ---
 name: trellis-merge-review
-description: "Review integration after worktree, parallel/workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, or parent/child integration. Checks conflict resolution logic, duplicate implementations, missing files, and interface inconsistencies between agents. Outputs to review/merge-review.md with PASS/FAIL."
+description: "Review integration for L5, worktree, parallel/workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, or parent/child integration. Checks conflict resolution logic, duplicate implementations, missing files, and interface inconsistencies between agents. Outputs to review/merge-review.md with PASS/FAIL."
 ---
 
 # Trellis Merge Review
@@ -8,6 +8,7 @@ description: "Review integration after worktree, parallel/workstream multi-subag
 ## Preconditions
 
 One or more trigger conditions are met:
+- L5 task
 - Worktree used (changes need to merge back to main branch)
 - Parallel/workstream multi-subagent execution (multiple agents produced code independently)
 - OMC parallel execution (parallel agents worked on different parts)
@@ -19,7 +20,7 @@ One or more trigger conditions are met:
 
 Merge review is about integration quality - whether the combined output of multiple sources is coherent and complete. It is not about individual code quality (that is `trellis-code-review`).
 
-For L4/L5 tasks, merge review is required when the task used worktree, parallel/workstream multi-subagent execution, OMC, PR merge, conflict resolution, or parent/child structure.
+Merge review is required for L5 tasks, and for any task that used worktree, parallel/workstream multi-subagent execution, OMC, PR merge, conflict resolution, or parent/child structure.
 
 Ordinary serial Trellis implementer/checker/reviewer subagents require
 `agent-results/*.json`, but they do not by themselves require merge-review.

@@ -29,7 +29,7 @@ Ask the user:
 
 ### Step 3: Create the task
 
-Once classified, execute:
+Once classified and task creation consent is explicit, execute:
 
 ```bash
 python3 .trellis/scripts/task.py create "<user's description>" --slug <slug>
@@ -52,11 +52,11 @@ with open(task_file, 'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
 
 Based on the level, tell the user exactly what to expect:
 
-**L2**: "I'll write a brief prd.md, curate context files, then ask you to approve implementation. Light process — no design doc needed."
+**L2**: "I'll write a brief prd.md plus minimal implement.md, then ask you to approve implementation. Light process — no design doc needed."
 
-**L3**: "I'll write prd.md + implement.md with a Review Gate Contract (trellis-check + code-review), curate context, then ask you to approve. Optional design.md if the change has architectural impact."
+**L3**: "I'll write prd.md + grill-me + implement.md with a Review Gate Contract (trellis-check + code-review), curate JSONL context, then ask you to approve. Optional design.md if the change has architectural impact."
 
-**L4**: "I'll write prd.md + design.md + implement.md with full review gates (check + spec-review + code-review + architecture-review), curate context, then ask you to approve. This is a complex change — careful planning first."
+**L4**: "I'll write prd.md + grill-me + design.md + implement.md with full review gates (check + spec-review + code-review + architecture-review), curate JSONL context, then ask you to approve. This is a complex change — careful planning first."
 
 **L5**: "I'll write full planning artifacts, set up all review gates including merge-review, and use Trellis-native parallel + worktree by default when the work can be safely split. OMC `ulw/ultrawork` remains an optional advanced path only after explicit approval. This needs thorough planning — multiple agents may work in parallel."
 
@@ -64,4 +64,4 @@ Based on the level, tell the user exactly what to expect:
 
 Load the `trellis-brainstorm` skill and begin Phase 1 (planning).
 
-**Important:** Task creation approval is NOT implementation approval. After planning, you must wait for explicit user approval before `task.py start`.
+**Important:** Task creation approval is NOT implementation approval, and neither is Finish approval. After planning, you must wait for explicit user approval before `task.py start`; after all check/review gates pass, stop again for explicit Finish consent before `finish.md`, spec update, commit, archive, or finish-work.

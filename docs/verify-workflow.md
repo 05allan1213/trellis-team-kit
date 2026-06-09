@@ -1,6 +1,6 @@
 # Trellis Team Kit 工作流验证任务
 
-> 从零开始，逐步验证完整的 21 步工作流。每一步可独立检查。
+> 从零开始，分阶段验证完整的 19 状态工作流。每一步可独立检查。
 
 ---
 
@@ -19,8 +19,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit
 bash ~/trellis-team-kit/bootstrap/personalize-local.sh 你的名字
 
 # 3. 验证安装
+python3 .trellis/scripts/trellis_doctor.py setup
 python3 .trellis/scripts/validate_runtime_hardening.py
-# 预期：OVERALL: PASS
+# 预期：setup doctor PASS，runtime hardening OVERALL: PASS
 # 注意：validate_scope_manifest / validate_guardrail_overrides / validate_agent_results
 # 在无 task 参数时只显示 INFO availability check；task-runtime validation 必须传入 task-dir。
 
@@ -34,6 +35,11 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 # true-remote 会比较安装后的目录清单和稳定文件内容。
 # 刚 push 后 GitHub raw 可能短暂返回旧缓存；若第一次失败且 raw 内容已刷新，重跑同一命令。
 ```
+
+**Claude Code 真实测试前置**：
+- [ ] 安装后从测试项目根目录启动或重启 Claude Code，让 `.claude/settings.json` hooks 生效
+- [ ] Claude plugins 是可选 WARN；只有测试 Superpowers / OMC 路径时才需要先 `claude plugin list` 并 install/enable
+- [ ] 真实需求测试时记录是否启用了 Superpowers、OMC，以及是否选择了 Trellis-native fallback
 
 ---
 
@@ -194,6 +200,8 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 - [ ] merge-review 聚合 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl`、`scope-manifest.json`
 - [ ] 两个 agent 声明修改同一文件时 merge-review / `validate_agent_results.py` FAIL
 - [ ] OMC execution result 缺少 explicit OMC approval 时 FAIL
+- [ ] 所有 selected review gates PASS 后，Claude 先停下来等待明确 Finish 确认
+- [ ] 未收到 Finish 确认前，不写 `finish.md`、不运行 spec update、不 commit、不 archive
 
 **L5 / parallel / OMC 显式批准测试**：
 - [ ] L5 parallel 默认选择 Trellis-native parallel + worktree，不启动 OMC
@@ -214,8 +222,13 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ## 阶段 11：UPDATING_SPEC
 
+**操作**：回复 "进入 Finish 阶段"。
+
 **检查点**：
+- [ ] `finish.md` 的 `Finish Approval` 已记录用户原话、timestamp、summary 和 allowed=yes
 - [ ] 在 finish.md 中记录 Spec Update Decision
+- [ ] 在 finish.md 中记录 Observable Outcomes 和 Delivery Sync Check
+- [ ] `python3 .trellis/scripts/validate_delivery_sync.py <task-dir>` PASS
 - [ ] 若使用 trellis-spec-updater，则写入 `agent-results/trellis-spec-updater-<timestamp>.json`
 - [ ] spec-updater 的 `changed_files` 只包含 `.trellis/spec/...` 或为空（no update needed）
 
@@ -223,15 +236,33 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ## 阶段 12：COMMITTING
 
-**操作**：`git add` + `git commit`
+**操作**：清理本地状态、确认提交计划，然后 `git add` + `git commit`
 
 **检查点**：
+- [ ] `python3 ./.trellis/scripts/prepare_finish_workspace.py` 已运行
+- [ ] `git status --short` 已检查
+- [ ] Claude 先给出提交计划，明确哪些文件会提交、哪些未知/无关 dirty 文件不会提交
+- [ ] 未经用户确认，不把未知 dirty 文件或无关文件加入 commit
 - [ ] 代码已提交
 - [ ] task.json 中 branch 字段已设置
 
 ---
 
-## 阶段 13：VALIDATING
+## 阶段 13：MERGE_REVIEWING
+
+**操作**：条件触发时运行 trellis-merge-review
+
+**触发条件**：L5 / worktree / parallel 或 workstream multi-subagent / OMC / PR merge / conflict resolution / parent-child。
+
+**检查点**：
+- [ ] 不触发条件时，记录跳过原因并进入 VALIDATING
+- [ ] 触发条件时生成 `review/merge-review.md`
+- [ ] merge-review 聚合 `agent-results/*.json`、scope、override ledger、OMC approval、冲突/重复实现风险
+- [ ] `review/merge-review.md` 含 `- [x] PASS` 后才能进入 VALIDATING
+
+---
+
+## 阶段 14：VALIDATING
 
 **操作**：运行 build 和 test
 
@@ -241,7 +272,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 14：FINISHING → DONE
+## 阶段 15：FINISHING → DONE
 
 **操作**：Claude 运行 trellis-finish-work
 
@@ -258,9 +289,10 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 ## 最终验证
 
 ```bash
-# 全部静态验证
+# 安装后项目内验证
+python3 .trellis/scripts/trellis_doctor.py setup
 python3 .trellis/scripts/validate_runtime_hardening.py
-# 预期：OVERALL: PASS
+# 预期：setup doctor PASS，runtime hardening OVERALL: PASS
 # task-specific validators 无 task-dir 时显示 INFO availability check，不代表具体 task 已通过。
 
 # Task 验证
@@ -269,6 +301,13 @@ python3 .trellis/scripts/validate_task.py .trellis/tasks/<task-dir>
 
 # Review gate 验证
 python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/<task-dir>
+# 预期：PASS
+
+# Scope / guardrail / delivery / workflow 验证
+python3 .trellis/scripts/validate_scope_manifest.py .trellis/tasks/<task-dir>
+python3 .trellis/scripts/validate_guardrail_overrides.py .trellis/tasks/<task-dir>
+python3 .trellis/scripts/validate_delivery_sync.py .trellis/tasks/<task-dir>
+python3 .trellis/scripts/validate_workflow_state.py .trellis/tasks/<task-dir>
 # 预期：PASS
 
 # Agent result 验证
@@ -281,11 +320,23 @@ python3 .trellis/scripts/trellis_doctor.py workflow .trellis/tasks/<task-dir>
 
 # Replay Lab
 python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
-# 预期：Replay cases 全部 PASS
+# 预期：22/22 passed
 
 # Spec update candidate detector
 python3 .trellis/scripts/detect_spec_update_candidates.py
 # 预期：输出 JSON，列出需要同步的 spec/workflow/docs 候选项
+
+# Spec update target validator
+python3 .trellis/scripts/validate_spec_update_targets.py
+# 预期：PASS
+```
+
+维护者在 team-kit 仓库根目录还要跑：
+
+```bash
+shellcheck bootstrap/*.sh claude/hooks/trellis-notify.sh
+python3 trellis/scripts/replay_workflow_cases.py tests/fixtures/replay
+# 预期：22/22 passed
 ```
 
 **Replay Lab 场景覆盖**：

@@ -5,7 +5,7 @@ These instructions are for AI coding agents working in this project.
 
 This project is managed by Trellis with team-kit extensions. The working knowledge you need lives under `.trellis/`:
 
-- `.trellis/workflow.md` — full state machine, L0-L5 routing, dual-consent gates, skill routing
+- `.trellis/workflow.md` — full state machine, L0-L5 routing, consent gates, skill routing
 - `.trellis/spec/` — layered coding guidelines (frontend/backend/shared/infra/guides)
 - `.trellis/workspace/` — per-developer journals and session traces
 - `.trellis/tasks/` — active and archived tasks (PRDs, design, implement, research, review, validation)
@@ -52,9 +52,9 @@ You own decisions, communication, dispatch, and integration. Do NOT write code d
 |-------|------|-------------|-------------------|-------|
 | L0 | Pure Q&A | No | None | None |
 | L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Light check |
-| L2 | Light implementation | Recommended | prd.md | check |
-| L3 | Normal feature/bugfix | Yes | prd.md + implement.md | check + code-review |
-| L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | check + spec-review + code-review + architecture-review |
+| L2 | Light implementation | Recommended | prd.md + minimal implement.md | check |
+| L3 | Normal feature/bugfix | Yes | prd.md + grill-me + implement.md + JSONLs | check + code-review |
+| L4 | Complex cross-layer | Yes | prd.md + grill-me + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review |
 | L5 | Large refactor/multi-agent | Yes | Full artifacts | All + merge-review |
 
 - **L0**: Answer directly
@@ -65,10 +65,11 @@ You own decisions, communication, dispatch, and integration. Do NOT write code d
 
 **The AI may recommend L1 inline when the scope is obviously tiny. If the scope expands, escalate to a task immediately.**
 
-## Dual Consent Gates
+## Three Consent Gates
 
 1. Task creation consent → enter planning only. No source editing.
 2. Implementation consent → then `task.py start` and write code.
+3. Finish consent → then write `finish.md`, run spec update, commit, validate, and finish-work.
 
 ## Complete Workflow
 
@@ -77,7 +78,8 @@ Request → classify → task creation consent → task.py create
   → brainstorm → grill-me → design → implement plan
   → implementation consent → task.py start
   → before-dev → implement → check → review gates
-  → update-spec + observable outcomes → commit → merge-review → validate → finish-work
+  → stop for Finish consent
+  → finish.md + update-spec + observable outcomes → commit → merge-review (if required) → validate → finish-work
 ```
 
 ## Review Gate Contract
@@ -94,6 +96,7 @@ Failed gate → return to IMPLEMENTING → cannot skip → cannot mark done.
 6. Don't push (unless user explicitly asks)
 7. Don't expand PRD scope
 8. Don't write code in main session (unless inline or L1)
+9. Don't write finish.md, commit, archive, or finish-work before Finish consent
 
 ## Extension Rules
 

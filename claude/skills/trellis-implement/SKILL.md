@@ -9,7 +9,7 @@ description: "Implementation rules: only implement what is in PRD/design/impleme
 
 - Before-dev gate has been passed (all artifacts and specs read).
 - Task status is `in_progress`.
-- Implementation consent has been obtained (dual-consent gate 2).
+- Implementation consent has been obtained.
 
 ## Core Rules
 

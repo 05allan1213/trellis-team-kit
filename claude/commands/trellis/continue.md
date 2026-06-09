@@ -24,9 +24,13 @@ Resume working on the active Trellis task with full context recovery. Detect the
    - `planning` + implement.md → WAITING_IMPLEMENTATION_APPROVAL
    - `in_progress` + no before-dev.md → BEFORE_DEV
    - `in_progress` + before-dev.md + no validation/ → IMPLEMENTING
-   - `in_progress` + validation/check-results.md → CHECKING
-   - `in_progress` + review/ dir with files → REVIEWING
-   - `in_progress` + finish.md → FINISHING
+   - `in_progress` + validation/check-results.md but pending/missing review gates → CHECKING / REVIEWING
+   - `in_progress` + review/ dir with selected gates not all PASS → REVIEWING
+   - `in_progress` + all selected review gates PASS but no finish.md → WAITING_FINISH_APPROVAL
+   - `in_progress` + finish.md but no commit evidence → UPDATING_SPEC / COMMITTING
+   - `in_progress` + merge-review required and missing/failing → MERGE_REVIEWING
+   - `in_progress` + commit evidence but no validation/test-results.md → VALIDATING
+   - `in_progress` + finish.md + commit evidence + validation/test-results.md → FINISHING
 
 4. **Find the last failure** — Check for any FAIL verdicts:
    - Read `validation/check-results.md` for check FAIL
@@ -35,10 +39,10 @@ Resume working on the active Trellis task with full context recovery. Detect the
    - If a FAIL exists, summarize: which gate, what the blocking issue was
 
 5. **Check missing artifacts** for the current level:
-   - L2: prd.md
-   - L3: prd.md, implement.md
-   - L4: prd.md, design.md, implement.md
-   - L5: all of above
+   - L2: prd.md, implement.md
+   - L3: prd.md, research/grill-me.md, implement.md, implement.jsonl, check.jsonl
+   - L4: prd.md, research/grill-me.md, design.md, implement.md, implement.jsonl, check.jsonl
+   - L5: all of above, plus review/merge-review.md when required
 
 6. **Check scope/override audit**:
    - L2+ with `before-dev.md` must have valid `scope-manifest.json`.
@@ -80,6 +84,10 @@ Next step: <one clear actionable sentence>
    - IMPLEMENTING → trellis-implement
    - CHECKING → trellis-check
    - REVIEWING → run pending review gates
+   - WAITING_FINISH_APPROVAL → summarize passed gates and ask the user to explicitly enter Finish
+   - UPDATING_SPEC / COMMITTING → complete finish.md evidence, run prepare_finish_workspace.py, present commit plan
+   - MERGE_REVIEWING → run trellis-merge-review
+   - VALIDATING → run build/test and record validation/test-results.md
    - FINISHING → trellis-finish-work
 
 **Important**: Do NOT skip steps or assume previous work was completed. Verify each artifact exists before advancing.

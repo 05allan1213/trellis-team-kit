@@ -5,7 +5,7 @@ These instructions are for AI coding agents working in this project.
 
 This project is managed by Trellis with team-kit extensions. The working knowledge you need lives under `.trellis/`:
 
-- `.trellis/workflow.md` — full state machine, L0-L5 routing, dual-consent gates, skill routing
+- `.trellis/workflow.md` — full state machine, L0-L5 routing, consent gates, skill routing
 - `.trellis/spec/` — layered coding guidelines (frontend/backend/shared/infra/guides)
 - `.trellis/workspace/` — per-developer journals and session traces
 - `.trellis/tasks/` — active and archived tasks (PRDs, design, implement, research, review, validation)
@@ -61,9 +61,9 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 |-------|------|-------------|-------------------|-----------|-------|
 | L0 | Pure Q&A | No | None | Main session | None |
 | L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Main session | Light check |
-| L2 | Light implementation | Recommended | prd.md | Main/subagent | check |
-| L3 | Normal feature/bugfix | Yes | prd.md + implement.md | subagent | check + code-review |
-| L4 | Complex cross-layer | Yes | prd.md + design.md + implement.md | subagent + worktree by default; OMC `ulw` only with explicit approval | check + spec-review + code-review + architecture-review |
+| L2 | Light implementation | Recommended | prd.md + minimal implement.md | Main/subagent | check |
+| L3 | Normal feature/bugfix | Yes | prd.md + grill-me + implement.md + JSONLs | subagent | check + code-review |
+| L4 | Complex cross-layer | Yes | prd.md + grill-me + design.md + implement.md + JSONLs | subagent + worktree by default; OMC `ulw` only with explicit approval | check + spec-review + code-review + architecture-review |
 | L5 | Large refactor/multi-agent | Yes | Full artifacts | Trellis-native parallel + worktree by default; OMC `ulw` only with explicit approval | All + merge-review |
 
 ### Triage Rules
@@ -74,17 +74,24 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 
 **The AI may recommend L1 inline when the scope is obviously tiny. If the scope expands, escalate to a task immediately.**
 
-## Dual Consent Gates
+## Three Consent Gates
 
-**Task creation approval is not implementation approval.**
+**Task creation approval is not implementation approval, and neither is Finish approval.**
 
 1. User agrees to create a task → enter planning only. Do NOT edit source code.
 2. User explicitly approves implementation → then `task.py start` and write code.
+3. User explicitly enters Finish → then write `finish.md`, run spec update, commit, validate, and finish-work.
 
 Without implementation consent:
 - No source editing
 - No implementer spawn
 - No `task.py start`
+
+Without Finish consent:
+- No `finish.md`
+- No spec update
+- No commit
+- No archive / finish-work
 
 ## Complete Workflow
 
@@ -93,7 +100,8 @@ Request → classify L0-L5 → task creation consent → task.py create
   → brainstorm (prd.md) → grill-me → design (L4/L5 required, L3 optional) → implement plan
   → implementation consent → task.py start
   → before-dev → implement → check → review gates (per contract)
-  → update-spec + observable outcomes → commit → merge-review (L4/L5) → validate → finish-work
+  → stop for Finish consent
+  → finish.md + update-spec + observable outcomes → commit → merge-review (if required) → validate → finish-work
 ```
 
 ## Review Gate Contract
@@ -123,6 +131,7 @@ All L3-L5 tasks must configure. Defaults:
 8. Don't include unrelated dirty files in commit plan
 9. Don't expand PRD scope
 10. Don't write code directly in main session (unless user explicitly says inline or L1)
+11. Don't write finish.md, commit, archive, or finish-work before Finish consent
 
 ## Superpowers and OMC Rules
 
@@ -140,10 +149,7 @@ All L3-L5 tasks must configure. Defaults:
 - Skills: `.claude/skills/`
 - Agents: `.claude/agents/`
 - Hooks: `.claude/hooks/`
-- Naming map: `docs/naming-map.md`
-- Smoke test: `docs/smoke-test.md`
-- First task guide: `docs/first-task.md`
-- Team rollout: `docs/team-rollout.md`
+- Workflow verification: `docs/verify-workflow.md`
 - Platform appendix: `workflow/appendix-platforms.md`
 - Examples: `docs/examples/` and `examples/`
 <!-- TEAM-KIT:END -->

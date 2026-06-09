@@ -109,4 +109,4 @@ If the PRD is already solid after review, explicitly write "no blocking question
 - If the PRD is solid, explicitly state "no blocking questions" — honesty matters.
 - If issues are found, they are specific and actionable (not "needs improvement").
 - `prd.md` is updated with all findings before moving to the next phase.
-- Grill-me is required once per task (Phase 1.2). Do not skip it.
+- Grill-me is required once for L3-L5 tasks and optional for L2 tasks when requirements are unclear or risk increases. Do not skip it when the Review Gate Contract requires it.

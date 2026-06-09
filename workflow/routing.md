@@ -89,7 +89,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 ## L3 — Normal Feature / Bugfix
 
 - **Create task**: Yes
-- **Artifacts**: `prd.md` + `implement.md` + `design.md` (optional)
+- **Artifacts**: `prd.md` + `research/grill-me.md` + `implement.md` + JSONLs + `design.md` (optional)
 - **Execution**: subagent
 - **Gates**: check + code-review
 
@@ -101,7 +101,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 ## L4 — Complex Cross-Layer Task
 
 - **Create task**: Yes
-- **Artifacts**: `prd.md` + `design.md` + `implement.md` + research
+- **Artifacts**: `prd.md` + `research/grill-me.md` + `design.md` + `implement.md` + JSONLs + research
 - **Execution**: subagent + worktree by default; OMC only with explicit approval
 - **Gates**: check + spec-review + code-review + architecture-review
 

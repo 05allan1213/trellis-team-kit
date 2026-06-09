@@ -534,6 +534,45 @@ def _section_field_value(section_text: str, field_name: str) -> str:
     return ""
 
 
+def _markdown_field_value(content: str, field_name: str) -> str:
+    pattern = re.compile(
+        rf"^\s*-\s*(?:\*\*)?{re.escape(field_name)}(?:\*\*)?\s*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for line in content.splitlines():
+        match = pattern.match(line.strip())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _merge_review_required(content: str, level: str) -> bool:
+    execution_section = _extract_markdown_section(content, "Execution Mode Decision")
+    checked = _checked_labels_in_section(execution_section)
+    if level == "L5":
+        return True
+    if (
+        "trellis-native parallel + worktree" in checked
+        or "omc ulw/ultrawork + worktree + parent/child" in checked
+    ):
+        return True
+
+    branch_strategy = _markdown_field_value(content, "Branch strategy").lower()
+    parent_child = _markdown_field_value(content, "Parent/child").lower()
+    merge_review_needed = _markdown_field_value(content, "Merge review needed").lower()
+    if "worktree" in branch_strategy:
+        return True
+    if parent_child.startswith("yes"):
+        return True
+    if merge_review_needed.startswith("yes"):
+        return True
+
+    lowered = content.lower()
+    return bool(
+        re.search(r"\bpr[- ]type\b|\bpr merge\b|\bconflict resolution\b", lowered)
+    )
+
+
 def _omc_approval_has_audit_details(section_text: str) -> bool:
     user_message = _section_field_value(section_text, "user message")
     timestamp = _section_field_value(section_text, "timestamp")
@@ -586,14 +625,38 @@ def _check_execution_mode_decision(implement_md: Path, task_id: str, level: str)
             f"Task '{task_id}' ({level}): Execution Mode Decision must mark OMC approval as not applicable or explicitly approved"
         )
 
-    parallel_or_omc_selected = "trellis-native parallel + worktree" in selected_modes or omc_selected
     review_section = _extract_markdown_section(content, "Review Gate Contract")
     review_checked = _checked_labels_in_section(review_section)
-    if parallel_or_omc_selected and "trellis-merge-review" not in review_checked:
+    if _merge_review_required(content, level) and "trellis-merge-review" not in review_checked:
         errors.append(
-            f"Task '{task_id}' ({level}): parallel or OMC execution requires trellis-merge-review in Review Gate Contract"
+            f"Task '{task_id}' ({level}): worktree, parallel/OMC, PR merge, conflict resolution, or parent/child execution requires trellis-merge-review in Review Gate Contract"
         )
 
+    return errors
+
+
+def _check_final_validation_results(task_dir: Path, task_id: str, status: str, level: str) -> list[str]:
+    errors: list[str] = []
+    if level not in ("L2", "L3", "L4", "L5"):
+        return errors
+    if status.lower() not in ("completed", "done"):
+        return errors
+
+    test_results = task_dir / "validation" / "test-results.md"
+    if not test_results.is_file():
+        return [
+            f"Task '{task_id}': final validation requires validation/test-results.md; validation/test-results.md is missing"
+        ]
+
+    try:
+        content = test_results.read_text(encoding="utf-8").lower()
+    except OSError:
+        return [f"Task '{task_id}': cannot read validation/test-results.md"]
+
+    if _extract_gate_verdict(content) != "pass" and "skipped with valid reason" not in content:
+        errors.append(
+            f"Task '{task_id}': validation/test-results.md exists but no PASS verdict or skipped-with-reason evidence found"
+        )
     return errors
 
 
@@ -832,6 +895,8 @@ def validate_task(task_dir: Path) -> tuple[bool, list[str]]:
         override_ok, override_issues = validate_guardrail_overrides(task_dir)
         if not override_ok:
             errors.extend(override_issues)
+
+    errors.extend(_check_final_validation_results(task_dir, task_id, status, level))
 
     if status.lower() == "in_progress" and before_dev_md.is_file():
         try:

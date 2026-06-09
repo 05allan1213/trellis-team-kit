@@ -37,7 +37,7 @@ When OMC is active, the main agent additionally:
 ### Finish Phase
 
 1. **Drive spec update decision** — ensure trellis-update-spec judgment is recorded
-2. **Run merge-review** if applicable (L4/L5/multi-agent/worktree)
+2. **Run merge-review** if applicable (L5 / worktree / parallel or workstream multi-subagent / OMC / PR merge / conflict / parent-child)
 3. **Validate** — run build/test, record results
 4. **Run trellis-finish-work** — archive task, update journal, mark done
 

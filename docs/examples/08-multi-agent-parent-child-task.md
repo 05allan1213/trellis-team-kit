@@ -20,8 +20,9 @@
 10. 每个 child：implement → check → code-review
 11. Main agent 集成所有 worktree 分支 → 解决冲突
 12. 派发 `trellis-merge-reviewer` → 检查集成
-13. Parent：`trellis-update-spec` → 将通知模式加入 backend + frontend specs
-14. 全部 Commit → validate（集成测试）→ `/trellis:finish-work` 依次完成所有 children，最后 parent
+13. 全部 review/merge-review PASS 后，AI 停下来等待用户明确说"进入 Finish 阶段"
+14. 用户确认 Finish → 每个 child 和 parent 写 `finish.md` 的 Finish Approval；Parent 运行 `trellis-update-spec` → 将通知模式加入 backend + frontend specs
+15. 全部 Commit → validate（集成测试）→ `/trellis:finish-work` 依次完成所有 children，最后 parent
 
 ## 预期产物
 

@@ -16,8 +16,9 @@ ALL of the following must be satisfied:
 5. Spec update decision is recorded in `finish.md`.
 6. Observable outcomes are recorded in `finish.md` with verification evidence.
 7. Delivery Sync Check is recorded in `finish.md`.
-8. Code is committed, or PR is created, or explicitly no commit needed.
-9. Build/test PASS, or reason for inability is recorded.
+8. Merge review has PASS when required.
+9. Code is committed, or PR is created, or explicitly no commit needed.
+10. Build/test PASS, or reason for inability is recorded.
 
 Any missing precondition — finish-work refuses to execute.
 
@@ -45,7 +46,7 @@ Any missing precondition — finish-work refuses to execute.
 
 ## Workflow
 
-1. **Verify preconditions** — check each of the six items listed above.
+1. **Verify preconditions** — check each of the ten preconditions listed above.
 2. **If any precondition fails** — reject with a clear message stating what is missing.
 3. **If all preconditions pass** — proceed with the following steps.
 
@@ -59,6 +60,7 @@ Finish Approval recorded? [YES/NO]
 Spec update decision recorded? [YES/NO]
 Observable outcomes recorded? [YES/NO]
 Delivery Sync Check recorded? [YES/NO]
+Merge review PASS when required? [YES/NO / N/A]
 Code committed? [YES/NO / N/A with reason]
 Build/test PASS? [YES/NO / N/A with reason]
 ```
@@ -134,8 +136,10 @@ The task is now DONE. No further changes should be made to this task.
 - Implementation complete: YES
 - trellis-check PASS: YES
 - Review gates PASS: YES
+- Finish Approval recorded: YES
 - Spec update decision recorded: YES
 - Observable outcomes recorded: YES
+- Delivery Sync Check recorded: YES
 - Code committed: YES / N/A: [reason]
 - Build/test PASS: YES / N/A: [reason]
 

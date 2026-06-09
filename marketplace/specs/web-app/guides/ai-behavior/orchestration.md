@@ -65,9 +65,10 @@ Every subagent writes `agent-results/*.json`. The main session integrates the
 results and remains responsible for final behavior. Subagents do not approve
 their own output.
 
-L5, worktree, and OMC paths require merge-review. Merge-review must inspect
-agent results, scope, override ledger entries, validation failures, blocking
-issues, and OMC approval evidence.
+Merge-review is required for L5, worktree, parallel or workstream
+multi-subagent execution, OMC, PR merge, conflict resolution, and parent/child
+tasks. Merge-review must inspect agent results, scope, override ledger entries,
+validation failures, blocking issues, and OMC approval evidence.
 
 ---
 

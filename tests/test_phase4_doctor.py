@@ -142,7 +142,7 @@ class WorkflowDoctorTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertIn("OMC execution requires explicit user approval", report)
-        self.assertIn("parallel or OMC execution requires trellis-merge-review", report)
+        self.assertIn("requires trellis-merge-review", report)
 
     def test_workflow_doctor_reports_omc_approval_without_audit_details(self):
         root, task_dir = self.make_repo()
@@ -225,7 +225,7 @@ class WorkflowDoctorTests(unittest.TestCase):
         ok, report = self.module.diagnose_workflow(root, task_dir)
 
         self.assertFalse(ok)
-        self.assertIn("parallel or OMC execution requires trellis-merge-review", report)
+        self.assertIn("requires trellis-merge-review", report)
 
     def test_cli_distinguishes_setup_and_workflow_modes(self):
         root, task_dir = self.make_repo()

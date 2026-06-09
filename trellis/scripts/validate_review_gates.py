@@ -157,6 +157,82 @@ def parse_selected_gates(implement_md: Path) -> list[str]:
     return gates
 
 
+def _extract_markdown_section(content: str, heading: str) -> str:
+    lines = content.splitlines()
+    target = heading.strip().lower()
+    collected: list[str] = []
+    in_section = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            current = stripped[3:].strip().lower()
+            if in_section:
+                break
+            if current == target:
+                in_section = True
+                continue
+        if in_section:
+            collected.append(line)
+    return "\n".join(collected).strip()
+
+
+def _checked_labels(section_text: str) -> set[str]:
+    labels: set[str] = set()
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if not stripped.lower().startswith("- [x]"):
+            continue
+        label = stripped.split("]", 1)[-1].strip().lower()
+        if label:
+            labels.add(label)
+    return labels
+
+
+def _markdown_field_value(content: str, field_name: str) -> str:
+    pattern = re.compile(
+        rf"^\s*-\s*(?:\*\*)?{re.escape(field_name)}(?:\*\*)?\s*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for line in content.splitlines():
+        match = pattern.match(line.strip())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _merge_review_required(level: str, implement_md: Path) -> bool:
+    if level == "L5":
+        return True
+    if not implement_md.is_file():
+        return False
+    try:
+        content = implement_md.read_text(encoding="utf-8")
+    except OSError:
+        return False
+
+    checked = _checked_labels(_extract_markdown_section(content, "Execution Mode Decision"))
+    if (
+        "trellis-native parallel + worktree" in checked
+        or "omc ulw/ultrawork + worktree + parent/child" in checked
+    ):
+        return True
+
+    branch_strategy = _markdown_field_value(content, "Branch strategy").lower()
+    parent_child = _markdown_field_value(content, "Parent/child").lower()
+    merge_review_needed = _markdown_field_value(content, "Merge review needed").lower()
+    if "worktree" in branch_strategy:
+        return True
+    if parent_child.startswith("yes"):
+        return True
+    if merge_review_needed.startswith("yes"):
+        return True
+
+    lowered = content.lower()
+    return bool(
+        re.search(r"\bpr[- ]type\b|\bpr merge\b|\bconflict resolution\b", lowered)
+    )
+
+
 def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
     errors: list[str] = []
 
@@ -172,6 +248,8 @@ def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
     selected = parse_selected_gates(implement_md)
 
     mandatory = MANDATORY_GATES.get(level, [])
+    if _merge_review_required(level, implement_md) and "trellis-merge-review" not in mandatory:
+        mandatory = [*mandatory, "trellis-merge-review"]
     if mandatory:
         for gate in mandatory:
             if gate not in selected:

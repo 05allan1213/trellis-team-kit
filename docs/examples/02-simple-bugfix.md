@@ -16,9 +16,10 @@
 9. AI 运行 `task.py start`
 10. AI 派发 `trellis-implementer` subagent → 修复 bug
 11. AI 派发 `trellis-checker` subagent → 验证修复
-12. AI 运行 `trellis-update-spec` → 无需更新（简单 bug）
-13. AI 草拟 commit plan → 用户确认 → commit
-14. AI 运行 `/trellis:finish-work`
+12. Check PASS 后，AI 停下来等待用户明确说"进入 Finish 阶段"
+13. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 无需更新（简单 bug）
+14. AI 草拟 commit plan → 用户确认 → commit
+15. AI 运行 `/trellis:finish-work`
 
 ## 预期产物
 - `.trellis/tasks/MM-DD-fix-login-validation/task.json`

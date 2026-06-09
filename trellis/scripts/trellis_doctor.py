@@ -128,6 +128,41 @@ def _section_field_value(section: str, field_name: str) -> str:
     return ""
 
 
+def _markdown_field_value(content: str, field_name: str) -> str:
+    pattern = re.compile(
+        rf"^\s*-\s*(?:\*\*)?{re.escape(field_name)}(?:\*\*)?\s*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for line in content.splitlines():
+        match = pattern.match(line.strip())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def _merge_review_required(content: str, level: str, checked: set[str]) -> bool:
+    if level == "L5":
+        return True
+    if (
+        "trellis-native parallel + worktree" in checked
+        or "omc ulw/ultrawork + worktree + parent/child" in checked
+    ):
+        return True
+    branch_strategy = _markdown_field_value(content, "Branch strategy").lower()
+    parent_child = _markdown_field_value(content, "Parent/child").lower()
+    merge_review_needed = _markdown_field_value(content, "Merge review needed").lower()
+    if "worktree" in branch_strategy:
+        return True
+    if parent_child.startswith("yes"):
+        return True
+    if merge_review_needed.startswith("yes"):
+        return True
+    lowered = content.lower()
+    return bool(
+        re.search(r"\bpr[- ]type\b|\bpr merge\b|\bconflict resolution\b", lowered)
+    )
+
+
 def _omc_approval_has_audit_details(section: str) -> bool:
     user_message = _section_field_value(section, "user message")
     timestamp = _section_field_value(section, "timestamp")
@@ -238,13 +273,10 @@ def _execution_mode_issues(task_dir: Path, level: str) -> tuple[str, list[str]]:
         issues.append("OMC execution requires explicit user approval")
     if omc_selected and omc_approved and not _omc_approval_has_audit_details(section):
         issues.append("OMC approval requires user message and timestamp")
-    if (
-        "trellis-native parallel + worktree" in checked
-        or omc_selected
-    ):
+    if _merge_review_required(content, level, checked):
         review = _extract_markdown_section(content, "Review Gate Contract")
         if "trellis-merge-review" not in _checked_labels(review):
-            issues.append("parallel or OMC execution requires trellis-merge-review")
+            issues.append("worktree, parallel/OMC, PR merge, conflict resolution, or parent/child execution requires trellis-merge-review")
     return execution_mode, issues
 
 

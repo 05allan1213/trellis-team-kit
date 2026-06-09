@@ -20,7 +20,7 @@ Workflow profiles translate task levels into execution friction. Levels answer
   infra, shared types, or cross-layer behavior can break contracts.
 - L5 uses parent/child planning and merge review. Prefer Trellis-native
   parallel + worktree first.
-- OMC `ulw/ultrawork` is only an advanced L5 execution option. It requires
+- OMC `ulw/ultrawork` is an advanced L4/L5 execution option. It requires
   explicit user approval and never replaces PRD, check, review, merge-review,
   or finish.
 

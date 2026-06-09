@@ -20,8 +20,9 @@
 13. 派发 `trellis-spec-reviewer`
 14. 派发 `trellis-code-reviewer`
 15. 派发 `trellis-architecture-reviewer`
-16. 全部 PASS → `trellis-update-spec` → 添加审计日志模式
-17. Commit → merge-review → validate（运行 migration 测试）→ `/trellis:finish-work`
+16. 全部 PASS → AI 停下来等待用户明确说"进入 Finish 阶段"
+17. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 添加审计日志模式
+18. Commit → merge-review → validate（运行 migration 测试）→ `/trellis:finish-work`
 
 ## 预期产物
 - 完整产物：prd.md、design.md、implement.md

@@ -17,8 +17,9 @@
 10. AI 派发 `trellis-implementer` → 实现复选框 + cookie 逻辑
 11. AI 派发 `trellis-checker` → 验证
 12. AI 派发 `trellis-code-reviewer` → 审查代码质量 → PASS
-13. AI 运行 `trellis-update-spec` → 记录决策
-14. Commit → `/trellis:finish-work`
+13. 所有 review gates PASS 后，AI 停下来等待用户明确说"进入 Finish 阶段"
+14. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 记录决策
+15. Commit → `/trellis:finish-work`
 
 ## 预期产物
 - `.trellis/tasks/MM-DD-remember-me/task.json`

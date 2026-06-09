@@ -7,9 +7,9 @@ Claude Code 优先的 Trellis 团队 AI 编程工作流套件。
 trellis-team-kit 是一个**工作流套件**，架设在官方
 [Trellis](https://github.com/mindfoldhq/trellis) 任务管理系统之上，强化 AI 编程体验：
 
-- 明确的 **21 状态工作流状态机**，Claude Code 严格遵循
+- 明确的 **19 状态工作流状态机**，Claude Code 严格遵循
 - **L0-L5 任务分级路由**，按复杂度匹配流程严格度
-- **双同意门禁**，把"创建任务"和"开始实现"彻底分开
+- **三段确认门禁**，把"创建任务"、"开始实现"和"进入 Finish"彻底分开
 - **Finish 显式确认边界**，Review 全部通过后先停下来，等待用户明确进入 Finish
 - **Finish 本地状态清理**，commit 前必须清理 `.omc/` 等本地运行时状态
 - **Archive wrapper**，禁止直接 `task.py archive`，统一走 team-kit finalize wrapper
@@ -60,7 +60,7 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
 - **缺失扩展时必须降级**：如果某个扩展没安装、当前环境不支持或执行失败，AI 必须说明限制，并回退到可用的 Trellis 原生路径，而不是阻塞任务。
 - **这里的 OMC 并行特指 `ulw/ultrawork`**：它不是所有“多 agent”现象的统称；Trellis 自己的 reviewer background agents 和 worktree 并行是另一层能力。
 
-## 完整工作流（21 步）
+## 完整工作流（19 状态）
 
 ```text
 用户需求
@@ -77,9 +77,10 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
                       → IMPLEMENTING
                         → CHECKING
                           → REVIEWING（spec → code → architecture → deep）
-                            → UPDATING_SPEC
+                            → 等待 Finish 确认
+                              → UPDATING_SPEC
                               → COMMITTING
-                                → MERGE_REVIEWING（L5 / worktree / 并行多 agent / OMC）
+                                → MERGE_REVIEWING（L5 / worktree / parallel 或 workstream multi-subagent / OMC / PR merge / conflict / parent-child）
                                   → VALIDATING（build/test）
                                     → FINISHING（归档 + 日志）
                                       → DONE
@@ -102,9 +103,9 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
 
 **如果请求边界模糊，路由器不会强行猜级别，而是返回 `UNCERTAIN`：先由 AI 给出建议等级和一句理由，再由用户确认、改级或补充上下文；在用户确认前，不开始实现。**
 
-## 双同意门禁
+## 三段确认门禁
 
-**创建 task 的同意 ≠ 开始实现的同意。** 两个独立门禁：
+**创建 task 的同意 ≠ 开始实现的同意 ≠ 进入 Finish 的同意。** 三个独立门禁：
 
 1. **Task 创建同意** — 用户同意创建 task → 仅进入规划阶段
 2. **实现同意** — 用户明确批准 → `task.py start` 然后写代码
@@ -155,7 +156,7 @@ Soft block 可通过 `override team-kit guardrail: <reason>` 绕过。所有 ove
 3. trellis-code-review    （L3-L5）
 4. trellis-code-architecture-review （L4+）
 5. trellis-improve-codebase-architecture deep-review （L5）
-6. trellis-merge-review   （L5 / worktree / 并行多 agent / OMC / PR merge / conflict / parent-child）
+6. trellis-merge-review   （L5 / worktree / parallel 或 workstream multi-subagent / OMC / PR merge / conflict / parent-child）
 ```
 
 每个 review 输出 PASS/FAIL 及 blocking issues。任何 FAIL → 回到
@@ -192,7 +193,7 @@ message 和 timestamp，缺失时 runtime hook 会 deny。
 1. `validate_task.py` — 检查必需产物是否齐全、L3-L5 JSONL 是否非空，以及 `finish.md` 里的 `Finish Approval` / `Observable Outcomes` / `Delivery Sync Check` / `Spec Update Decision` 是否完整
 2. `validate_review_gates.py` — 检查 mandatory gates 是否选中、review 文件是否存在且有结论
 3. `validate_delivery_sync.py` — 检查代码里已移除的公开路径是否还残留在 README / docs 中
-4. `validate_agent_results.py` — 对需要 merge-review 的并行 / OMC / 多 agent 任务检查 `agent-results/*.json`
+4. `validate_agent_results.py` — 对需要 merge-review 的 parallel/workstream multi-subagent、OMC、worktree、parent-child 等任务检查 `agent-results/*.json`
 
 `prepare_finish_workspace.py` 不是 `stop-guard` 自动执行的 validator；它由 commit/archive 前的 guard 强制要求先运行，用来补齐 `.gitignore` 本地状态规则，并把 `.omc/` / `settings.local.json` 等本地状态从 git index 中移除。
 
@@ -224,7 +225,7 @@ CLAUDE.md                  ← Claude Code 入口
   settings.json            ← 团队 Claude Code 配置（hooks、skills、权限）
   skills/                  ← 14 个 Trellis 阶段 skills
   agents/                  ← 9 个专用 subagents
-  hooks/                   ← 9 个工作流守护 hooks + 6 个 hook libs
+  hooks/                   ← 9 个工作流守护 hooks + 7 个 hook libs
   commands/trellis/        ← 7 个 Slash 命令
 .trellis/
   workflow.md              ← 完整状态机
@@ -242,7 +243,10 @@ CLAUDE.md                  ← Claude Code 入口
 - Node.js 18+
 - Python 3.9+
 - git
+- bash
+- curl（远程安装和 true-remote smoke test 需要）
 - 官方 Trellis：`npm install -g @mindfoldhq/trellis`
+- 维护者建议安装 ShellCheck，用于检查 `bootstrap/*.sh` 和 `claude/hooks/trellis-notify.sh`
 
 ### 新项目初始化
 
@@ -311,6 +315,14 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 同时设置 `TTK_TRUE_REMOTE_RAW_BASE` 指向同一分支/提交的 raw asset base。
 刚 push 后 GitHub raw 可能有短缓存；若第一次拿到旧内容，等缓存刷新后重跑同一命令。
 
+### Claude Code 真实测试前置
+
+安装后在目标项目根目录启动或重启 Claude Code，让新安装的
+`.claude/settings.json` hooks 生效。`init.sh` 会审计可选 Claude Code
+plugins；Superpowers / OMC 显示 WARN 不代表安装失败。若真实测试要覆盖这些扩展路径，
+先用 `claude plugin list` 确认它们已安装并启用；否则记录为跳过扩展路径，继续验证
+Trellis 原生流程。
+
 
 ## 安全守卫
 
@@ -337,14 +349,19 @@ hooks 保护工作流：
 
 ## 示例
 
-见 `examples/` 目录：
+编号场景见 `docs/examples/`：
 
-- `01-typo-tiny-edit.md` — L1：极小改动，推荐 inline
-- `02-simple-bugfix.md` — L2：轻量 bugfix
-- `03-normal-feature.md` — L3：标准功能，含 design 和 review
-- `04-cross-layer-api-change.md` — L4：跨层 API 变更
-- `07-refactor.md` — L4：架构重构
-- `08-multi-agent-parent-child-task.md` — L5：多 agent parent/child
+- `docs/examples/01-typo-tiny-edit.md` — L1：极小改动，推荐 inline
+- `docs/examples/02-simple-bugfix.md` — L2：轻量 bugfix
+- `docs/examples/03-normal-feature.md` — L3：标准功能，含 design 和 review
+- `docs/examples/04-cross-layer-api-change.md` — L4：跨层 API 变更
+- `docs/examples/05-frontend-component.md` — L3：前端组件
+- `docs/examples/06-backend-persistence-change.md` — L4：后端持久化变更
+- `docs/examples/07-refactor.md` — L4：架构重构
+- `docs/examples/08-multi-agent-parent-child-task.md` — L5：多 agent parent/child
+
+完整产物示例见 `examples/`：
+
 - `examples/bugfix/` — L3 bugfix 完整产物示例
 - `examples/feature/` — L3 feature 完整产物示例
 - `examples/refactor/` — L4 重构完整产物示例
@@ -372,6 +389,7 @@ A: 实现阶段前的约束文件。AI 必须先运行 trellis-before-dev skill 
 
 ```bash
 python3 .trellis/scripts/validate_runtime_hardening.py
+python3 .trellis/scripts/trellis_doctor.py setup
 ```
 
 该检查同时覆盖 Claude settings、hooks、routing rules，以及 `.trellis/spec/` 根索引和链接完整性。
@@ -382,6 +400,8 @@ check；它不代表某个具体 task 已经通过 task-runtime validation。
 
 ```bash
 python3 .trellis/scripts/validate_task.py .trellis/tasks/T001-xxx
+python3 .trellis/scripts/validate_scope_manifest.py .trellis/tasks/T001-xxx
+python3 .trellis/scripts/validate_guardrail_overrides.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_review_gates.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_agent_results.py .trellis/tasks/T001-xxx
 python3 .trellis/scripts/validate_delivery_sync.py .trellis/tasks/T001-xxx
@@ -394,9 +414,17 @@ python3 .trellis/scripts/detect_spec_update_candidates.py
 
 ```bash
 python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
+python3 .trellis/scripts/validate_spec_update_targets.py
 ```
 
 ## 维护者参考
+
+维护者在 team-kit 仓库根目录还应运行：
+
+```bash
+shellcheck bootstrap/*.sh claude/hooks/trellis-notify.sh
+python3 trellis/scripts/replay_workflow_cases.py tests/fixtures/replay
+```
 
 | 改什么 | 改哪里 |
 |-------|--------|
@@ -407,10 +435,14 @@ python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
 | 日常提示词模板 | `prompt.md` |
 | Skills | `claude/skills/` |
 | Agents | `claude/agents/` |
-| Hooks | `claude/hooks/` |
+| Slash Commands | `claude/commands/trellis/` |
+| Hooks / hook libs | `claude/hooks/` + `claude/hooks/lib/` |
+| Task templates | `trellis/task-templates/` |
+| Replay fixtures | `tests/fixtures/replay/` |
+| Runtime config | `trellis/config/` |
 | 安装脚本 | `bootstrap/` |
 | OMC 策略 | `omc/` |
-| 验证器 | `validators/` |
+| 验证器与运行时脚本 | `trellis/scripts/` |
 
 ## 版本
 

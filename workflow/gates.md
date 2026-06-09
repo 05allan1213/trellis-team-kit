@@ -35,22 +35,37 @@
 - **Output**: Each reviewer outputs PASS/FAIL
 - **Blocks**: Any FAIL → return to IMPLEMENTING
 
-### 7. Spec Update Decision Gate
+### 7. Finish Consent Gate
 - **Trigger**: After all check/review PASS
+- **Rule**: AI must stop and wait for the user to explicitly enter Finish
+- **Blocks**: Writing `finish.md`, running spec update, committing, archiving, or finish-work
+
+### 8. Spec Update Decision Gate
+- **Trigger**: After explicit Finish consent
 - **Rule**: Must record whether spec update is needed, with reason
 - **Blocks**: Missing decision → no finish
 
-### 8. Observable Outcomes Gate
-- **Trigger**: After all check/review PASS, before finish
+### 9. Observable Outcomes Gate
+- **Trigger**: After explicit Finish consent
 - **Rule**: `finish.md` must record concrete user- or operator-visible outcomes with verification evidence
 - **Blocks**: Missing or placeholder-only outcomes → no finish
 
-### 9. Build/Test Gate
+### 10. Delivery Sync Gate
+- **Trigger**: After explicit Finish consent
+- **Rule**: `finish.md` must record README/docs/example-command/API-contract/implemented-vs-planned review
+- **Blocks**: Missing or placeholder delivery sync evidence → no finish
+
+### 11. Merge Review Gate
+- **Trigger**: L5, worktree, parallel or workstream multi-subagent execution, OMC, PR merge, conflict resolution, or parent/child integration
+- **Rule**: `trellis-merge-review` must PASS before final validation/finish-work
+- **Blocks**: Missing or failing merge review → no finish
+
+### 12. Build/Test Gate
 - **Trigger**: After commit
 - **Rule**: Run build/test, or explicitly record why not executable
 - **Blocks**: Missing without explanation → no finish
 
-### 10. Finish Gate
+### 13. Finish Gate
 - **Trigger**: All preconditions met
 - **Rule**: archive task + update journal + mark done
 - **Blocks**: Any precondition missing → refuse execution

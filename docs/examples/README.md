@@ -18,7 +18,7 @@
 
 **级别**: L2
 **场景**: 修复原因明确的 bug
-**工作流**: 创建 task → prd.md → implement → check → finish
+**工作流**: 创建 task → prd.md → implement → check → Finish 确认 → finish
 **产物**: `prd.md`
 **门禁**: `trellis-check`
 
@@ -28,7 +28,7 @@
 
 **级别**: L3
 **场景**: 在现有模块中添加一个范围明确的功能
-**工作流**: 创建 task → prd.md → grill-me → implement.md → implement → check → code-review → update-spec → commit → validate → finish
+**工作流**: 创建 task → prd.md → grill-me → implement.md → implement → check → code-review → Finish 确认 → update-spec → commit → validate → finish
 **产物**: `prd.md`、`implement.md`，可选 `design.md`
 **门禁**: `trellis-check`、`trellis-code-review`
 
@@ -38,7 +38,7 @@
 
 **级别**: L4
 **场景**: 修改涉及前端、后端和共享类型的 API
-**工作流**: 创建 task → prd.md → grill-me → design.md → implement.md（含 Review Gate Contract）→ before-dev → implement → check → spec-review + code-review + architecture-review → update-spec → commit → merge-review → validate → finish
+**工作流**: 创建 task → prd.md → grill-me → design.md → implement.md（含 Review Gate Contract）→ before-dev → implement → check → spec-review + code-review + architecture-review → Finish 确认 → update-spec → commit → merge-review → validate → finish
 **产物**: `prd.md`、`design.md`、`implement.md`、`research/`
 **门禁**: `trellis-check`、`trellis-spec-review`、`trellis-code-review`、`trellis-code-architecture-review`
 **执行方式**: Subagent + worktree
@@ -49,7 +49,7 @@
 
 **级别**: L3
 **场景**: 新增或修改 UI 组件
-**工作流**: 创建 task → prd.md → grill-me → implement.md → before-dev（加载组件规范）→ implement → check → code-review → update-spec → commit → validate → finish
+**工作流**: 创建 task → prd.md → grill-me → implement.md → before-dev（加载组件规范）→ implement → check → code-review → Finish 确认 → update-spec → commit → validate → finish
 **产物**: `prd.md`、`implement.md`
 **门禁**: `trellis-check`、`trellis-code-review`
 **关注 spec**: 前端组件规范、类型安全
@@ -60,7 +60,7 @@
 
 **级别**: L4
 **场景**: 修改数据库 schema、新增模型、修改数据访问模式
-**工作流**: 创建 task → prd.md → grill-me → design.md → implement.md → before-dev（加载数据库规范）→ implement → check → spec-review + code-review + architecture-review → update-spec → commit → merge-review → validate → finish
+**工作流**: 创建 task → prd.md → grill-me → design.md → implement.md → before-dev（加载数据库规范）→ implement → check → spec-review + code-review + architecture-review → Finish 确认 → update-spec → commit → merge-review → validate → finish
 **产物**: `prd.md`、`design.md`、`implement.md`、`research/`
 **门禁**: `trellis-check`、`trellis-spec-review`、`trellis-code-review`、`trellis-code-architecture-review`
 **关注 spec**: 数据库规范、错误处理、后端目录结构
@@ -71,7 +71,7 @@
 
 **级别**: L4 或 L5
 **场景**: 重组代码结构、提取模块、跨代码库重命名
-**工作流**: 创建 task → prd.md → grill-me → design.md → implement.md → before-dev → implement（worktree）→ check → spec-review + code-review + architecture-review → update-spec → commit → merge-review → validate → finish
+**工作流**: 创建 task → prd.md → grill-me → design.md → implement.md → before-dev → implement（worktree）→ check → spec-review + code-review + architecture-review → Finish 确认 → update-spec → commit → merge-review → validate → finish
 **产物**: `prd.md`、`design.md`、`implement.md`
 **门禁**: 所有适用门禁 + merge-review
 **执行方式**: Subagent + worktree（L4），Trellis-native parallel + worktree（L5 默认），OMC 仅在显式批准后使用
@@ -82,7 +82,7 @@
 
 **级别**: L5
 **场景**: 包含多个可独立验证交付物的大型功能
-**工作流**: 创建 parent task → prd.md（含子任务映射）→ grill-me → design.md → implement.md → 创建 child tasks → 并行实现各 child → 各自 check → 各自 review → parent merge-review → validate → finish
+**工作流**: 创建 parent task → prd.md（含子任务映射）→ grill-me → design.md → implement.md → 创建 child tasks → 并行实现各 child → 各自 check → 各自 review → parent merge-review → Finish 确认 → validate → finish
 **产物**: Parent：`prd.md`、`design.md`、`implement.md`、child 映射。Children：各自的 `prd.md`、`implement.md`
 **门禁**: 全部门禁 + merge-review（强制）
 **执行方式**: Trellis-native parallel + worktree + parent/child 默认；OMC 仅在显式批准后使用

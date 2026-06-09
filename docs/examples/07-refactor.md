@@ -19,8 +19,9 @@
 12. 派发 `trellis-spec-reviewer`
 13. 派发 `trellis-code-reviewer`
 14. 派发 `trellis-architecture-reviewer`
-15. 全部 PASS → `trellis-update-spec` → 将共享工具模式沉淀到 .trellis/spec/
-16. Commit → merge-review → validate（运行全部测试）→ `/trellis:finish-work`
+15. 全部 PASS → AI 停下来等待用户明确说"进入 Finish 阶段"
+16. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 将共享工具模式沉淀到 .trellis/spec/
+17. Commit → merge-review → validate（运行全部测试）→ `/trellis:finish-work`
 
 ## 预期产物
 - 完整产物，design.md 映射所有调用点

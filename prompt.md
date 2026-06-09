@@ -101,8 +101,8 @@ Plan 阶段已确认。
 10. `finish.md` 必须填写 `Delivery Sync Check`，明确检查 README / 示例命令 / API 文档 / implemented-vs-planned 状态。
 11. Phase 3.2 commit 之前，先运行 `python3 ./.trellis/scripts/prepare_finish_workspace.py`，清理 `.omc/` 等本地运行时状态。
 12. 不要直接执行 `task.py archive`；归档必须走 `python3 ./.trellis/scripts/finalize_task_archive.py <task-dir>`。
-11. 不要 main session 直接改代码，除非我明确说 "do it inline" / "no sub-agent" / "你直接改"。
-12. 不要扩大范围，不要实现 PRD 之外的内容。
+13. 不要 main session 直接改代码，除非我明确说 "do it inline" / "no sub-agent" / "你直接改"。
+14. 不要扩大范围，不要实现 PRD 之外的内容。
 
 工具策略：
 1. 默认执行路径是标准 Trellis sub-agent；如果只是 reviewer 并行或 worktree 隔离，不需要把它称为 OMC。
@@ -171,7 +171,9 @@ Plan 阶段已确认。
    - 给出 proposed commit plan。
    - 未经确认，不要提交未知脏文件。
    - 不要 push。
-6. commit 处理完成后，执行 /trellis:finish-work 收尾（内部使用 `finalize_task_archive.py`）。
+6. commit 处理完成后，如任务触发 merge-review 条件，先运行 trellis-merge-review。
+7. 运行最终 validation，记录 build/test 结果。
+8. 执行 /trellis:finish-work 收尾（内部使用 `finalize_task_archive.py`）。
 
 最后总结：
 1. 本次完成了什么
@@ -277,19 +279,20 @@ Merge-Review 计划:
 
 AI 会自动：
 1. 判断任务等级（L1-L5）
-2. 如果明显是 L1，则建议 inline；如果边界模糊，则先给建议等级并等我确认/改级；否则创建 Trellis task
+2. 如果明显是 L1，则建议 inline；如果边界模糊，则先给建议等级并等我确认/改级；否则建议创建 Trellis task，并等我确认 task creation 后再创建
 3. 运行 brainstorm → dev-strategy；L3-L5 还要 grill-me，按等级决定是否需要 design.md / JSONL
 4. 判断是否需要 Superpowers（需求不清 / 架构权衡 / 多方案取舍时自动启用）
 5. 判断是否建议并行：默认先考虑 Trellis 原生并行；只有需要高级编排时才建议 OMC `ulw/ultrawork`，并等待确认
 6. 停下来等你确认 Plan
 7. 你确认进入 Execute 后，执行 before-dev → implement → check → review gates
 8. review 全部通过后停下来，等你明确说“进入 Finish 阶段”
-9. 你确认 Finish 后，再执行 update-spec → commit → finish-work
+9. 你确认 Finish 后，再执行 update-spec → commit → merge-review（如需）→ validation → finish-work
 
-你只需要在两个固定确认门、一个条件确认门操作：
-1. **Plan 确认** — PRD/design/implement plan 准备好后，你说"确认"或"改一下 xxx"
-2. **OMC 确认** — 如果 AI 建议 OMC `ulw/ultrawork` 并行，你说"确认"或"不用"
-3. **Finish 确认** — Execute + Check + Review 全部通过后，你说"进入 Finish 阶段"
+你只需要在三个固定确认门、一个条件确认门操作：
+1. **Task 创建确认** — AI 建议创建 task 后，你说"确认创建"或"不用"
+2. **Plan / 实现确认** — PRD/design/implement plan 准备好后，你说"确认进入实现"或"改一下 xxx"
+3. **OMC 确认** — 如果 AI 建议 OMC `ulw/ultrawork` 并行，你说"确认"或"不用"
+4. **Finish 确认** — Execute + Check + Review 全部通过后，你说"进入 Finish 阶段"
 
 除这几个确认门外，其余流程自动推进。
 
@@ -311,5 +314,5 @@ PRD 确认：
 "小修一下，直接改。"
 
 结束：
-"进入 Finish 阶段，按 workflow Phase 3 收尾：update-spec，commit，finish-work。"
+"进入 Finish 阶段，按 workflow Phase 3 收尾：update-spec，commit，merge-review（如需），validation，finish-work。"
 ```

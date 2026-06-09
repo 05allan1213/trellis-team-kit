@@ -85,27 +85,37 @@ After implementation:
 
 ---
 
-## Cross-Platform Template Consistency
+## Command And Install Artifact Consistency
 
-In Trellis, command templates (e.g., `record-session.md`) exist in **multiple platforms** with identical or near-identical content. This is a cross-layer boundary.
+In this team kit, command source files live in `claude/commands/trellis/*.md`
+and are installed to `.claude/commands/trellis/`. Workflow behavior is also
+described in `workflow/`, `entry/`, `prompt.md`, task templates, and
+marketplace specs. Treat these as one cross-layer contract.
 
-### Checklist: After Modifying Any Command Template
+### Checklist: After Modifying Any Trellis Command Or Workflow Text
 
-- [ ] Find all platforms with the same command: `find src/templates/*/commands/trellis/ -name "<command>.*"`
-- [ ] Update all platform copies (Markdown `.md` and TOML `.toml`)
-- [ ] For Gemini TOML: adapt line continuations (`\\` vs `\`) and triple-quoted strings
-- [ ] Run `/trellis:check-cross-layer` to verify nothing was missed
+- [ ] Update the source command in `claude/commands/trellis/*.md`
+- [ ] Update matching workflow docs in `workflow/`, `entry/`, and `prompt.md`
+- [ ] Update task templates or examples when artifact expectations changed
+- [ ] Run `python3 trellis/scripts/validate_runtime_hardening.py`
+- [ ] Run `python3 trellis/scripts/trellis_doctor.py setup` in an installed test project
+- [ ] Run `bash bootstrap/smoke-test-install.sh --mode all --developer-name test`
+- [ ] After push, run `bash bootstrap/smoke-test-install.sh --mode true-remote --developer-name test`
 
-**Real-world example**: Updated `record-session.md` in Claude to use `--mode record`, but forgot iFlow, Kilo, OpenCode, and Gemini — caught by cross-layer check.
+**Real-world example**: A command can be correct in
+`claude/commands/trellis/status.md` but stale in `entry/CLAUDE.md`,
+`entry/AGENTS.md`, or `docs/verify-workflow.md`. The installed runtime then
+injects mixed guidance even though the command file itself is current.
 
 ---
 
 ## Generated Runtime Template Upgrade Consistency
 
-Some generated files are both documentation and runtime input. In Trellis,
-`.trellis/workflow.md` is parsed by `get_context.py`, `workflow_phase.py`,
-SessionStart filters, and per-turn hooks. Template changes must be validated
-against both fresh init and upgrade paths.
+Some generated files are both documentation and runtime input. In this team
+kit, the installed `.trellis/workflow.md` comes from `workflow/workflow.md` and
+is parsed by `claude/hooks/inject-workflow-state.py`, SessionStart behavior,
+and helper scripts such as `get_context.py` where available. Runtime blocks
+like `[workflow-state:*]` are executable guidance, not prose-only docs.
 
 ### Checklist: After Modifying A Runtime-Parsed Template
 
@@ -113,19 +123,15 @@ against both fresh init and upgrade paths.
   writer that installs it
 - [ ] Check whether relevant syntax lives outside obvious managed regions
   such as tag blocks
-- [ ] Verify fresh `init` output and a versioned `update` scenario that writes
-  the older `.trellis/.version`
-- [ ] Add an upgrade regression using an older pristine template fixture, then
-  assert the installed file reaches the current packaged shape
+- [ ] Verify fresh `init` output and the installed
+  `.trellis/.team-kit-version` marker
+- [ ] Compare local and true-remote installs when published artifacts changed
 - [ ] Update the backend spec that owns the runtime contract
 
-**Real-world example**: Codex inline mode changed workflow platform markers from
-`[Codex]` / `[Kilo, Antigravity, Windsurf]` to `[codex-sub-agent]` /
-`[codex-inline, Kilo, Antigravity, Windsurf]`. Fresh init was correct, but
-`trellis update` only merged `[workflow-state:*]` blocks and preserved stale
-markers outside those blocks. Result: upgraded projects got new hook scripts
-but old workflow routing, so `get_context.py --mode phase --platform codex`
-could return empty Phase 2.1 detail.
+**Real-world example**: Adding a new workflow state is not only a prose edit.
+The state list, `[workflow-state:*]` blocks, status/continue commands,
+validators, examples, and install smoke tests all need to agree, otherwise a
+fresh install can tell Claude Code to resume from the wrong phase.
 
 ---
 

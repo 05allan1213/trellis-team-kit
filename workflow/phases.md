@@ -57,19 +57,27 @@ Goal: ensure quality, capture lessons, record work.
 
 | Step | Name | Required | Output |
 |------|------|----------|--------|
-| 3.1 | Finish evidence | required · once | Spec Update Decision + Observable Outcomes in `finish.md` |
+| 3.0 | Finish consent | required · once | User explicitly enters Finish |
+| 3.1 | Finish evidence | required · once | Finish Approval + Spec Update Decision + Observable Outcomes + Delivery Sync Check in `finish.md` |
 | 3.2 | Commit changes | required · once | git commits |
 | 3.3 | Merge review | conditional · once | `review/merge-review.md` |
 | 3.4 | Validation | required · once | `validation/test-results.md` |
 | 3.5 | Finish work | required · once | archive + journal |
 | 3.6 | Debug retrospective | on demand | `research/break-loop.md` |
 
+### Gates
+
+- No explicit Finish consent → no `finish.md`, no spec update, no commit, no archive
+
 ### Finish-Work Preconditions
 
 1. Implementation complete
 2. `trellis-check` PASS
 3. Selected review gates PASS
-4. Spec update decision recorded
-5. Observable outcomes recorded with evidence
-6. Code committed or explicitly no commit needed
-7. Build/test PASS or explicitly recorded as not executable
+4. Finish Approval recorded
+5. Spec Update Decision recorded
+6. Observable Outcomes recorded with evidence
+7. Delivery Sync Check recorded
+8. Merge review PASS when required
+9. Code committed, PR created, or explicitly no commit needed
+10. Build/test PASS or explicitly recorded as not executable

@@ -11,14 +11,18 @@ Show the current Trellis task status in a compact, actionable summary.
    - planning + implement.md → WAITING_IMPLEMENTATION_APPROVAL
    - in_progress + no before-dev.md → BEFORE_DEV
    - in_progress + before-dev.md + no validation/ → IMPLEMENTING
-   - in_progress + validation/check-results.md → CHECKING
-   - in_progress + review/ dir with files → REVIEWING
-   - in_progress + finish.md → FINISHING
+   - in_progress + validation/check-results.md but pending/missing review gates → CHECKING / REVIEWING
+   - in_progress + review/ dir with selected gates not all PASS → REVIEWING
+   - in_progress + all selected review gates PASS but no finish.md → WAITING_FINISH_APPROVAL
+   - in_progress + finish.md but no commit evidence → UPDATING_SPEC / COMMITTING
+   - in_progress + merge-review required and missing/failing → MERGE_REVIEWING
+   - in_progress + commit evidence but no validation/test-results.md → VALIDATING
+   - in_progress + finish.md + commit evidence + validation/test-results.md → FINISHING
 5. Check which required artifacts are **missing** for the current level:
-   - L2: prd.md
-   - L3: prd.md, implement.md
-   - L4: prd.md, design.md, implement.md
-   - L5: prd.md, design.md, implement.md, research/
+   - L2: prd.md, implement.md
+   - L3: prd.md, research/grill-me.md, implement.md, implement.jsonl, check.jsonl
+   - L4: prd.md, research/grill-me.md, design.md, implement.md, implement.jsonl, check.jsonl
+   - L5: prd.md, research/grill-me.md, design.md, implement.md, implement.jsonl, check.jsonl, review/merge-review.md when required
 6. Check gate status: read review/ files for PASS/FAIL, read validation/test-results.md for build/test status.
 7. Check scope and override audit:
    - If `before-dev.md` exists on an L2+ task, report whether `scope-manifest.json` exists and whether it has declared paths/globs.
@@ -54,4 +58,4 @@ Guardrail overrides:
 Next step: <one actionable sentence>
 ```
 
-If all artifacts exist and all gates pass, the next step should be the finish command.
+If all artifacts exist and all selected check/review gates pass but `finish.md` is missing, the next step is to wait for explicit Finish consent. Only suggest `/trellis:finish-work` after Finish Approval, spec update decision, commit, required merge-review, and validation are complete.

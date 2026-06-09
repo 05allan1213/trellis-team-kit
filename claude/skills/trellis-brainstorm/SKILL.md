@@ -7,7 +7,7 @@ description: "Evidence-first requirements discovery before implementation. Creat
 
 ## Preconditions
 
-- Task-creation consent has been obtained (dual-consent gate 1).
+- Task-creation consent has been obtained (consent gate 1).
 - Task directory exists via `task.py create`.
 - User is ready to enter Trellis planning (Phase 1.1).
 
@@ -58,7 +58,7 @@ After each user answer, update `prd.md` before continuing. Do not batch updates.
 4. **Write brainstorm log** — record the question-answer trajectory in `research/brainstorm.md`.
 5. **Ask the single highest-value remaining question** — with recommendation and trade-off.
 6. **After each answer** — update `prd.md`, then update `research/brainstorm.md`.
-7. **For complex tasks** (L3-L5) — create or update `design.md` and `implement.md` before implementation starts.
+7. **For non-trivial tasks** — create or update `implement.md` before implementation starts; create `design.md` for L4/L5 tasks and optionally for L3 tasks with architectural impact.
 8. **Declare planning ready** when: all repository-answerable questions are resolved, remaining questions are genuinely about user intent, and `prd.md` has testable acceptance criteria.
 
 Do not invent a project-specific hierarchy. If the repository already has product, domain, or spec docs, use them. If it does not, proceed with the evidence that exists.
@@ -139,4 +139,4 @@ Do not invent a project-specific hierarchy. If the repository already has produc
 - `research/brainstorm.md` records the full question-answer trajectory.
 - The user has reviewed the final planning artifacts or explicitly approved proceeding.
 
-Do not start implementation until the user approves or asks for implementation. That requires implementation consent (dual-consent gate 2).
+Do not start implementation until the user approves or asks for implementation. That requires the Implementation Consent gate.
