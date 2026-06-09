@@ -69,9 +69,9 @@ Use task files or journal for those.
 Place rules by scope:
 
 ```text
-spec/backend/   → backend code conventions
-spec/frontend/  → frontend code conventions
-spec/guides/    → cross-layer thinking and spec-maintenance guides
+.trellis/spec/backend/   → backend code conventions
+.trellis/spec/frontend/  → frontend code conventions
+.trellis/spec/guides/    → cross-layer thinking and spec-maintenance guides
 ```
 
 Use the most specific existing file that fits.

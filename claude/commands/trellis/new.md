@@ -56,7 +56,7 @@ Based on the level, tell the user exactly what to expect:
 
 **L3**: "I'll write prd.md + grill-me + implement.md with a Review Gate Contract (trellis-check + code-review), curate JSONL context, then ask you to approve. Optional design.md if the change has architectural impact."
 
-**L4**: "I'll write prd.md + grill-me + design.md + implement.md with full review gates (check + spec-review + code-review + architecture-review), curate JSONL context, then ask you to approve. This is a complex change — careful planning first."
+**L4**: "I'll write prd.md + grill-me + design.md + implement.md with full review gates (check + spec-review + code-review + architecture-review, plus merge-review when the validator trigger contract applies), curate JSONL context, then ask you to approve. This is a complex change — careful planning first."
 
 **L5**: "I'll write full planning artifacts, set up all review gates including merge-review, and use Trellis-native parallel + worktree by default when the work can be safely split. OMC `ulw/ultrawork` remains an optional advanced path only after explicit approval. This needs thorough planning — multiple agents may work in parallel."
 

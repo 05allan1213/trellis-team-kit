@@ -114,7 +114,9 @@ Write to `{TASK_DIR}/review/spec-review.md`:
 
 ## Verdict
 
-PASS / FAIL
+- [x] PASS
+- [ ] FAIL
+<!-- For a failing review, mark FAIL instead and list violations below. -->
 
 ## Specs Checked
 

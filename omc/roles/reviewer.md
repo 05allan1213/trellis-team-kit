@@ -29,7 +29,11 @@ Every review must produce:
 ```markdown
 ## Review: <review-type>
 
-### Verdict: PASS / FAIL
+### Verdict
+
+- [x] PASS
+- [ ] FAIL
+<!-- For a failing review, mark FAIL instead and list blockers. -->
 
 ### Blocking Issues (must fix before proceeding)
 1. [<file>:<line>] <issue description> — violates <spec reference>

@@ -4,8 +4,8 @@
 - [ ] prd.md
 - [ ] design.md / N/A
 - [ ] implement.md
-- [ ] implement.jsonl
-- [ ] check.jsonl
+- [ ] implement.jsonl / N/A for L0-L2
+- [ ] check.jsonl / N/A for L0-L2
 - [ ] relevant specs
 - [ ] research
 

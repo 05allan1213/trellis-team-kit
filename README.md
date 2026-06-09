@@ -7,7 +7,7 @@ Claude Code 优先的 Trellis 团队 AI 编程工作流套件。
 trellis-team-kit 是一个**工作流套件**，架设在官方
 [Trellis](https://github.com/mindfoldhq/trellis) 任务管理系统之上，强化 AI 编程体验：
 
-- 明确的 **19 状态工作流状态机**，Claude Code 严格遵循
+- 明确的 **17 runtime 状态工作流状态机**，Claude Code 严格遵循；分类和创建 task 是进入状态机前的概念步骤
 - **L0-L5 任务分级路由**，按复杂度匹配流程严格度
 - **三段确认门禁**，把"创建任务"、"开始实现"和"进入 Finish"彻底分开
 - **Finish 显式确认边界**，Review 全部通过后先停下来，等待用户明确进入 Finish
@@ -60,33 +60,32 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
 - **缺失扩展时必须降级**：如果某个扩展没安装、当前环境不支持或执行失败，AI 必须说明限制，并回退到可用的 Trellis 原生路径，而不是阻塞任务。
 - **这里的 OMC 并行特指 `ulw/ultrawork`**：它不是所有“多 agent”现象的统称；Trellis 自己的 reviewer background agents 和 worktree 并行是另一层能力。
 
-## 完整工作流（19 状态）
+## 完整工作流（17 runtime 状态）
 
 ```text
 用户需求
   → NO_TASK
-    → TRIAGE（分类 L0-L5）
-      → TASK_CREATED（task.py create）
-        → PLANNING_PRD（brainstorm → prd.md）
-          → PLANNING_GRILL（grill-me → 挑刺 PRD）
-            → PLANNING_DESIGN（L4/L5 必出 design.md，L3 可选）
-              → PLANNING_IMPLEMENT（implement.md + review gate contract）
-                → WAITING_IMPLEMENTATION_APPROVAL
-                  → IN_PROGRESS（task.py start）
-                    → BEFORE_DEV（读取 artifacts/specs → before-dev.md）
-                      → IMPLEMENTING
-                        → CHECKING
-                          → REVIEWING（spec → code → architecture → deep）
-                            → 等待 Finish 确认
-                              → UPDATING_SPEC
+    → [概念步骤：分类 L0-L5；用户同意后 task.py create]
+      → PLANNING_PRD（brainstorm → prd.md）
+        → PLANNING_GRILL（grill-me → 挑刺 PRD）
+          → PLANNING_DESIGN（L4/L5 必出 design.md，L3 可选）
+            → PLANNING_IMPLEMENT（implement.md + review gate contract）
+              → WAITING_IMPLEMENTATION_APPROVAL
+                → IN_PROGRESS（task.py start）
+                  → BEFORE_DEV（读取 artifacts/specs → before-dev.md）
+                    → IMPLEMENTING
+                      → CHECKING
+                        → REVIEWING（spec → code → architecture → deep）
+                          → 等待 Finish 确认
+                            → UPDATING_SPEC
                               → COMMITTING
-                                → MERGE_REVIEWING（L5 / worktree / parallel 或 workstream multi-subagent / OMC / PR merge / conflict / parent-child）
-                                  → VALIDATING（build/test）
+                                → MERGE_REVIEWING（条件触发，见下）
+                                  → VALIDATING（Build/Test/Smoke + Ready/Overall）
                                     → FINISHING（归档 + 日志）
                                       → DONE
 ```
 
-每个状态都有：进入条件、必需产物、允许操作、禁止操作、退出条件、下一状态。
+17 个 runtime 状态都有：进入条件、必需产物、允许操作、禁止操作、退出条件、下一状态。分类和 task 创建不是 runtime state 常量。
 
 ## 任务分级（L0-L5）
 
@@ -96,7 +95,7 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
 | L1 | typo/极小改动/文案 | 可选 | AI 可建议 inline | 轻量检查 |
 | L2 | 轻量实现 | 建议 | prd.md + minimal implement.md | check |
 | L3 | 普通 feature/bugfix | 是 | prd.md + grill-me + implement.md + JSONLs | check + code-review |
-| L4 | 复杂跨层任务 | 是 | prd.md + grill-me + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review |
+| L4 | 复杂跨层任务 | 是 | prd.md + grill-me + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review + 条件 merge-review |
 | L5 | 多 agent/大重构 | 是 | 全量产物 | 全部门禁 + merge-review |
 
 **AI 可以在明显 L1、局部、可逆、低风险时建议 inline；一旦范围扩大、触及共享/高风险区域，立即升级为 task。**
@@ -109,7 +108,7 @@ Subagents 掌管隔离工作。    → 研究、实现、检查、审查
 
 1. **Task 创建同意** — 用户同意创建 task → 仅进入规划阶段
 2. **实现同意** — 用户明确批准 → `task.py start` 然后写代码
-3. **Finish 确认** — Execute + Check + Review 全部通过后，等待用户明确说进入 Finish，再写 `finish.md` / commit / archive
+3. **Finish 确认** — Execute + Check + Review 全部通过后，等待用户明确说进入 Finish，再写完整 `finish.md` evidence、运行 `trellis-update-spec`、准备本地状态、commit、按需 merge-review、final validation，最后 archive
 
 规划阶段：禁止编辑源码、禁止 spawn implementer、禁止 `task.py start`。
 开始实现前，还必须把用户批准写回 `implement.md` 的 `Implementation Approval` 区块。
@@ -156,7 +155,7 @@ Soft block 可通过 `override team-kit guardrail: <reason>` 绕过。所有 ove
 3. trellis-code-review    （L3-L5）
 4. trellis-code-architecture-review （L4+）
 5. trellis-improve-codebase-architecture deep-review （L5）
-6. trellis-merge-review   （L5 / worktree / parallel 或 workstream multi-subagent / OMC / PR merge / conflict / parent-child）
+6. trellis-merge-review   （L5；选中 Trellis-native parallel + worktree；选中 OMC ulw/ultrawork + worktree + parent/child；`Branch strategy` 含 worktree；`Parent/child: yes`；`Merge review needed: yes`；PR merge；conflict resolution）
 ```
 
 每个 review 输出 PASS/FAIL 及 blocking issues。任何 FAIL → 回到
@@ -175,8 +174,10 @@ merge-reviewer、spec-updater）在输出 markdown 汇报时同步写入 JSON，
 `workstream`（适用于声明了 workstream 的 implementer/checker）、对象化 `changed_files`
 （每项含 `path` / `summary`）、`validation`、`blocking_issues`、`risks` 和
 `scope_expansion`。普通串行 implementer/checker/reviewer subagent 不会单独触发
-merge-review；并行/workstream 多 agent、worktree、OMC、PR merge、conflict 或
-parent-child 任务会触发 `trellis-merge-review`。merge-review 会聚合
+merge-review；只有满足 L5、选中 `Trellis-native parallel + worktree`、选中
+`OMC ulw/ultrawork + worktree + parent/child`、`Branch strategy` 含
+`worktree`、`Parent/child: yes`、`Merge review needed: yes`、PR merge 或
+conflict resolution 时才触发 `trellis-merge-review`。merge-review 会聚合
 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl` 和
 `scope-manifest.json`，检查重复编辑、未声明路径、失败验证、未解决 blocker
 以及 OMC 是否有显式批准。
@@ -190,10 +191,10 @@ message 和 timestamp，缺失时 runtime hook 会 deny。
 
 `stop-guard` hook 在任务完成前自动运行：
 
-1. `validate_task.py` — 检查必需产物是否齐全、L3-L5 JSONL 是否非空，以及 `finish.md` 里的 `Finish Approval` / `Observable Outcomes` / `Delivery Sync Check` / `Spec Update Decision` 是否完整
+1. `validate_task.py` — 检查必需产物是否齐全、L3-L5 JSONL 是否非空，以及 `finish.md` 里的 `Finish Approval` / `Observable Outcomes` / `Delivery Sync Check` / `Guardrail Overrides`（有 override ledger 时）/ `Spec Update Decision` 是否完整
 2. `validate_review_gates.py` — 检查 mandatory gates 是否选中、review 文件是否存在且有结论
 3. `validate_delivery_sync.py` — 检查代码里已移除的公开路径是否还残留在 README / docs 中
-4. `validate_agent_results.py` — 对需要 merge-review 的 parallel/workstream multi-subagent、OMC、worktree、parent-child 等任务检查 `agent-results/*.json`
+4. Agent result 检查通过 `validate_task.py` 间接触发；当 `Execution Mode Decision` 选中 `single Trellis subagent`、`Trellis subagents`、`Trellis-native parallel + worktree` 或 `OMC ulw/ultrawork + worktree + parent/child` 时，必须有合法 `agent-results/*.json`
 
 `prepare_finish_workspace.py` 不是 `stop-guard` 自动执行的 validator；它由 commit/archive 前的 guard 强制要求先运行，用来补齐 `.gitignore` 本地状态规则，并把 `.omc/` / `settings.local.json` 等本地状态从 git index 中移除。
 
@@ -212,7 +213,7 @@ message 和 timestamp，缺失时 runtime hook 会 deny。
 ## 面包屑自动推断
 
 `inject-workflow-state` hook 根据 task.json 状态和 artifact 存在情况，
-自动推断精确的子阶段（PLANNING_PRD/GRILL/DESIGN/IMPLEMENT 等），
+自动推断精确的子阶段（PLANNING_PRD / PLANNING_GRILL / PLANNING_DESIGN / PLANNING_IMPLEMENT 等），
 并注入推荐的下一步 skill。不依赖 AI 手动维护 workflow.md 面包屑。
 
 ## 安装后你会得到什么
@@ -230,8 +231,10 @@ CLAUDE.md                  ← Claude Code 入口
 .trellis/
   workflow.md              ← 完整状态机
   spec/                    ← 分层团队知识库
+  config/                  ← config.json / routing_rules.json / workflow_profiles.json
   templates/               ← Task 产物模板（含 before-dev.md / finish.md.tmpl）
   scripts/                 ← workflow validators + archive helpers
+  replay/                  ← workflow replay fixtures（22 cases）
   tasks/                   ← 活跃和已归档任务
   workspace/               ← 个人开发者日志
 ```
@@ -353,7 +356,7 @@ hooks 保护工作流：
 
 - `docs/examples/01-typo-tiny-edit.md` — L1：极小改动，推荐 inline
 - `docs/examples/02-simple-bugfix.md` — L2：轻量 bugfix
-- `docs/examples/03-normal-feature.md` — L3：标准功能，含 design 和 review
+- `docs/examples/03-normal-feature.md` — L3：标准功能，含 grill-me、JSONL context、code-review；design 可选
 - `docs/examples/04-cross-layer-api-change.md` — L4：跨层 API 变更
 - `docs/examples/05-frontend-component.md` — L3：前端组件
 - `docs/examples/06-backend-persistence-change.md` — L4：后端持久化变更
@@ -410,7 +413,7 @@ python3 .trellis/scripts/trellis_doctor.py workflow .trellis/tasks/T001-xxx
 python3 .trellis/scripts/detect_spec_update_candidates.py
 ```
 
-回放真实 workflow 失败样本：
+在安装后的目标项目中回放真实 workflow 失败样本：
 
 ```bash
 python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
@@ -424,6 +427,8 @@ python3 .trellis/scripts/validate_spec_update_targets.py
 ```bash
 shellcheck bootstrap/*.sh claude/hooks/trellis-notify.sh
 python3 trellis/scripts/replay_workflow_cases.py tests/fixtures/replay
+python3 trellis/scripts/validate_runtime_hardening.py
+python3 -m pytest tests -q
 ```
 
 | 改什么 | 改哪里 |

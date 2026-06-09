@@ -94,35 +94,35 @@ For L4/L5 tasks, this review is mandatory. The higher the task level, the more r
 
 ## Dependency Direction
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Module Boundaries
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Abstraction Quality
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Duplicated Concepts
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Layering Violations
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Shared Utility Misuse
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## API Contract Clarity
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Future Extensibility
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Blocking Issues
 1. [issue]: [why it blocks]
@@ -133,9 +133,10 @@ For L4/L5 tasks, this review is mandatory. The higher the task level, the more r
 (or "none")
 
 ## Verdict
-- PASS — no architecture blocking issues
-- FAIL — must return to implement:
+- [x] PASS — no architecture blocking issues
+- [ ] FAIL — must return to implement:
   1. [blocking issue summary]
+<!-- For a failing review, mark FAIL instead and list blockers. -->
 ```
 
 ## Quality Bar

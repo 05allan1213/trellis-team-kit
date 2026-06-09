@@ -27,7 +27,7 @@ If you find a design gap — something the PRD or design did not account for tha
 
 ### Self-Exemption
 
-If you are already running as a `trellis-implement` sub-agent, implement directly. Do NOT spawn another implement sub-agent.
+If you are already running as a `trellis-implementer` sub-agent, implement directly. Do NOT spawn another implement sub-agent.
 
 ## Workflow
 
@@ -42,7 +42,9 @@ If you are already running as a `trellis-implement` sub-agent, implement directl
 
 ## Output Format
 
-The subagent-stop-guard validates this output format. It must contain all four sections.
+The subagent-stop-guard validates this output format. It must contain all four
+summary sections plus an explicit no-commit confirmation. The implementer must
+also write `{TASK_DIR}/agent-results/trellis-implementer-<timestamp>.json`.
 
 ```markdown
 ## Implementation Summary
@@ -61,7 +63,13 @@ The subagent-stop-guard validates this output format. It must contain all four s
 ### Unresolved Risks
 - [risk]: [why unresolved, recommended next step]
 - (or "none" if all risks are resolved)
+
+### Did Not Commit
+- Did not commit: yes
 ```
+
+Required agent-result JSON fields: `version`, `agent`, `status`,
+object-shaped `changed_files`, `validation`, and `blocking_issues`.
 
 ## Quality Bar
 
@@ -69,5 +77,6 @@ The subagent-stop-guard validates this output format. It must contain all four s
 - No commits made.
 - Lint and type-check attempted.
 - Design gaps reported, not silently resolved.
-- Output format includes all four sections (changed files, summary, validation, risks).
+- Output format includes changed files, summary, validation, risks, and did-not-commit confirmation.
+- `agent-results/trellis-implementer-<timestamp>.json` exists and uses the required schema.
 - Unresolved risks are explicit — do not hide them.

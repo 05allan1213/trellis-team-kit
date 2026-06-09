@@ -90,7 +90,7 @@ Persist important reasoning into task files when it affects implementation.
 
 Use oh-my-claudecode only as a parallel execution layer.
 
-It may be used when the PRD is confirmed, Acceptance Criteria are clear, work can be split safely, parallelism improves speed or coverage, the user approves parallel mode, and the main agent can integrate the result.
+It may be used when the PRD is confirmed, Acceptance Criteria are clear, work can be split safely, parallelism improves speed or coverage, the user explicitly approves OMC `ulw/ultrawork` mode, and the main agent can integrate the result.
 
 Do not use oh-my-claudecode to plan scope, bypass Check, replace Trellis task state, or hide unresolved conflicts.
 

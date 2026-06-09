@@ -117,10 +117,11 @@ Separate blocking issues from non-blocking issues. Blocking issues must be fixed
 - PASS/FAIL — [evidence]
 
 ## Verdict
-- PASS — no blocking issues
-- FAIL — blocking issues must be fixed:
+- [x] PASS — no blocking issues
+- [ ] FAIL — blocking issues must be fixed:
   1. [blocking issue summary]
   2. [blocking issue summary]
+<!-- For a failing review, mark FAIL instead and list blockers. -->
 ```
 
 ## Quality Bar

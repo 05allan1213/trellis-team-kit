@@ -146,7 +146,9 @@ described below. The JSON is required even when checking fails or is blocked.
 
 ### Verdict
 
-PASS / FAIL
+- [x] PASS
+- [ ] FAIL
+<!-- For a failing check, mark FAIL instead and list unresolved blockers below. -->
 
 ### Files Checked
 
@@ -196,7 +198,6 @@ The JSON object must match this schema contract:
   "version": 1,
   "agent": "trellis-checker",
   "status": "PASS",
-  "workstream": "api-users",
   "changed_files": [
     {
       "path": "src/example.ts",
@@ -221,6 +222,8 @@ Rules:
 - `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `workstream` must match a declared `scope-manifest.json` workstream when
   workstreams are declared.
+- Add `"workstream": "<declared workstream name>"` only when
+  `scope-manifest.json` declares workstreams.
 - `changed_files` must be a list of objects with `path` and `summary`, or `[]`
   if you made no edits.
 - `validation` must contain every verification command or inspection you ran.

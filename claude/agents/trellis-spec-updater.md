@@ -79,17 +79,15 @@ Read `{TASK_DIR}/finish.md` and find the Spec Update Decision section:
 ```markdown
 ## Spec Update Decision
 
-Need spec update?
-- [ ] yes
-- [ ] no
-
-Reason:
-
-Updated files:
--
+- **Need update?**: yes / no
+- **Reason**: <why or why not>
+- **Updated files**: <spec files updated, or N/A>
 ```
 
-If "no" is checked, report that no spec update is needed and stop.
+If an older artifact uses legacy labels such as `Need spec update:` and
+`Reason:`, normalize them to the current `Need update?` / `Reason` /
+`Updated files` fields before acting. If the current or normalized decision is
+"no", report that no spec update is needed and stop.
 
 ### Step 2: Read Task Artifacts
 
@@ -146,8 +144,9 @@ validation fails, or the update is blocked.
 
 ### Spec Update Decision
 
-Need spec update: <yes / no>
-Reason: <from finish.md>
+- **Need update?**: <yes / no>
+- **Reason**: <from finish.md>
+- **Updated files**: <from finish.md>
 
 ### Files Updated
 

@@ -59,10 +59,14 @@ A reviewer's job is to **protect the codebase**, not to be nice to the diff.
 
 ## Output Format
 
-Every review must produce:
+Every review must produce at least:
 
 ```markdown
-## Verdict: PASS | FAIL
+## Verdict
+
+- [x] PASS
+- [ ] FAIL
+<!-- For a failing review, mark FAIL instead and list blocking issues. -->
 
 ### Blocking Issues
 - `file:line` — what is wrong
@@ -81,6 +85,10 @@ Every review must produce:
 - typecheck: pass | fail | not run
 - tests: pass | fail | not run
 ```
+
+For Trellis review gates, this is only the minimum review-thinking shape. Use
+the specific `review/*.md` template or reviewer agent instructions for the gate
+being run, and write `agent-results/*.json` when a subagent performs the review.
 
 ---
 

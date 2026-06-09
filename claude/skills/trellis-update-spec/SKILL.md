@@ -69,16 +69,9 @@ Even in these cases, explain why no update is needed. The explanation itself is 
 ```markdown
 ## Spec Update Decision
 
-Need spec update?
-- [ ] yes
-- [ ] no
-
-Reason:
-[Why or why not. Specific about what was learned or why nothing was learned that warrants capture.]
-
-Updated files (if yes):
-- .trellis/spec/[path]: [what was added/changed]
-- .trellis/spec/[path]: [what was added/changed]
+- **Need update?**: yes / no
+- **Reason**: [Why or why not. Specific about what was learned or why nothing was learned that warrants capture.]
+- **Updated files**: [.trellis/spec/path.md if yes, or N/A]
 ```
 
 ## Quality Bar

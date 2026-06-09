@@ -137,10 +137,11 @@ Write to `{TASK_DIR}/validation/check-results.md`:
 - [observable outcome]: PASS/FAIL — [how verified]
 
 ## Verdict
-- PASS — all checks pass
-- FAIL — blocking issues:
+- [x] PASS — all checks pass
+- [ ] FAIL — blocking issues:
   1. [blocking issue]
   2. [blocking issue]
+<!-- For a failing check, mark FAIL instead and list blockers. -->
 
 ## Fixes Applied
 - [fix description] (if any)

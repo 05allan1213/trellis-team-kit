@@ -20,14 +20,16 @@
 13. 派发 `trellis-code-reviewer`
 14. 派发 `trellis-architecture-reviewer`
 15. 全部 PASS → AI 停下来等待用户明确说"进入 Finish 阶段"
-16. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 将共享工具模式沉淀到 .trellis/spec/
-17. Commit → merge-review → validate（运行全部测试）→ `/trellis:finish-work`
+16. 用户确认 Finish → AI 按当前模板写完整 `finish.md`，并运行 `trellis-update-spec` → 将共享工具模式沉淀到 .trellis/spec/
+17. `prepare_finish_workspace.py` → Commit → merge-review → final validation 写 `validation/test-results.md`（运行全部测试）→ `/trellis:finish-work`
 
 ## 预期产物
 - 完整产物，design.md 映射所有调用点
 - research/evidence.md，含调用点目录
 - review/：spec、code、architecture、merge
-- validation/test-results.md（完整测试套件）
+- validation/check-results.md（实现后检查）
+- validation/test-results.md（commit 后完整测试套件）
+- finish.md（当前模板章节：Finish Approval、Task Summary、Observable Outcomes、Changed Files、Acceptance Criteria Coverage、Delivery Sync Check、Guardrail Overrides、Spec Update Decision、Follow-ups、Risks）
 
 ## 关键行为
 - 任务级别：L4

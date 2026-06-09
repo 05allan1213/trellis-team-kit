@@ -34,7 +34,7 @@ You own decisions, communication, dispatch, and integration:
 - Communicate with the user
 - Classify task level (L0-L5)
 - Request task creation consent
-- Drive the planning phase (brainstorm → grill-me → design → implement plan)
+- Drive the planning phase (brainstorm → grill-me/design as required by level → implement plan)
 - Request implementation consent
 - Dispatch subagents (implementer, checker, reviewers)
 - Handle failed gates (decide to return to IMPLEMENTING)
@@ -52,7 +52,7 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 - **trellis-code-reviewer**: Code quality review
 - **trellis-architecture-reviewer**: Architecture review
 - **trellis-architecture-deep-reviewer**: Deep architecture review
-- **trellis-merge-reviewer**: Post-merge review
+- **trellis-merge-reviewer**: Integration / merge-review gate
 - **trellis-spec-updater**: Spec update execution
 
 ## L0-L5 Task Routing
@@ -61,9 +61,9 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 |-------|------|-------------|-------------------|-----------|-------|
 | L0 | Pure Q&A | No | None | Main session | None |
 | L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Main session | Light check |
-| L2 | Light implementation | Recommended | prd.md + minimal implement.md | Main/subagent | check |
+| L2 | Light implementation | Recommended | prd.md + minimal implement.md | Single subagent by default; main only with explicit inline override | check |
 | L3 | Normal feature/bugfix | Yes | prd.md + grill-me + implement.md + JSONLs | subagent | check + code-review |
-| L4 | Complex cross-layer | Yes | prd.md + grill-me + design.md + implement.md + JSONLs | subagent + worktree by default; OMC `ulw` only with explicit approval | check + spec-review + code-review + architecture-review |
+| L4 | Complex cross-layer | Yes | prd.md + grill-me + design.md + implement.md + JSONLs | subagent + worktree by default; OMC `ulw` only with explicit approval | check + spec-review + code-review + architecture-review + conditional merge-review |
 | L5 | Large refactor/multi-agent | Yes | Full artifacts | Trellis-native parallel + worktree by default; OMC `ulw` only with explicit approval | All + merge-review |
 
 ### Triage Rules
@@ -80,7 +80,7 @@ You do NOT write code directly (unless the user explicitly says inline or it's a
 
 1. User agrees to create a task → enter planning only. Do NOT edit source code.
 2. User explicitly approves implementation → then `task.py start` and write code.
-3. User explicitly enters Finish → then write `finish.md`, run spec update, commit, validate, and finish-work.
+3. User explicitly enters Finish → then write finish evidence, run `trellis-update-spec`, run `prepare_finish_workspace.py`, commit, run required merge-review, record final validation, and finish-work.
 
 Without implementation consent:
 - No source editing
@@ -97,11 +97,11 @@ Without Finish consent:
 
 ```
 Request → classify L0-L5 → task creation consent → task.py create
-  → brainstorm (prd.md) → grill-me → design (L4/L5 required, L3 optional) → implement plan
+  → brainstorm (prd.md) → grill-me (L3-L5 required, L2 optional) → design (L4/L5 required, L3 optional) → implement plan
   → implementation consent → task.py start
   → before-dev → implement → check → review gates (per contract)
   → stop for Finish consent
-  → finish.md + update-spec + observable outcomes → commit → merge-review (if required) → validate → finish-work
+  → finish evidence → update-spec → prepare_finish_workspace.py + commit → merge-review (if required) → validation/test-results.md → finish-work
 ```
 
 ## Review Gate Contract

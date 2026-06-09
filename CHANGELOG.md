@@ -1,5 +1,7 @@
 # 变更记录
 
+> 历史发布记录是当时快照，可能包含旧状态名、旧数量或旧门禁措辞。当前事实以 `README.md`、`workflow/`、`prompt.md`、AI behavior specs、validators 和测试结果为准。
+
 ## 2026-06-04 — Workflow Artifact Hardening
 
 ### 工作流边界

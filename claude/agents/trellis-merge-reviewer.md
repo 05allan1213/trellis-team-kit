@@ -1,8 +1,10 @@
 ---
 name: trellis-merge-reviewer
 description: |
-  Post-merge review agent. Triggered after worktree merge, multi-subagent
-  execution, OMC parallel execution, PR merge, or conflict resolution. Checks
+  Integration / merge-review gate agent. Triggered for L5, selected
+  Trellis-native parallel + worktree, selected OMC ulw/ultrawork + worktree +
+  parent/child, Branch strategy containing worktree, Parent/child: yes, Merge
+  review needed: yes, PR merge, or conflict resolution. Checks
   for conflict-introduced logic issues, duplicate implementations, missing
   files, and interface inconsistencies. Outputs PASS/FAIL. Dispatch during
   MERGE_REVIEWING phase.
@@ -257,7 +259,9 @@ Write to `{TASK_DIR}/review/merge-review.md`:
 
 ## Verdict
 
-PASS / FAIL
+- [x] PASS
+- [ ] FAIL
+<!-- For a failing merge review, mark FAIL instead and list blocking issues below. -->
 
 ## Merge Context
 

@@ -16,9 +16,10 @@ ALL of the following must be satisfied:
 5. Spec update decision is recorded in `finish.md`.
 6. Observable outcomes are recorded in `finish.md` with verification evidence.
 7. Delivery Sync Check is recorded in `finish.md`.
-8. Merge review has PASS when required.
-9. Code is committed, or PR is created, or explicitly no commit needed.
-10. Build/test PASS, or reason for inability is recorded.
+8. Guardrail Overrides review is recorded when `runtime/guardrail-overrides.jsonl` exists.
+9. Merge review has PASS when required.
+10. Code is committed, or PR is created, or explicitly no commit needed.
+11. Build/Test/Smoke are recorded in `validation/test-results.md`, `Ready for finish-work?` is marked yes, and Overall PASS or skipped-with-valid-reason evidence is recorded.
 
 Any missing precondition — finish-work refuses to execute.
 
@@ -46,7 +47,7 @@ Any missing precondition — finish-work refuses to execute.
 
 ## Workflow
 
-1. **Verify preconditions** — check each of the ten preconditions listed above.
+1. **Verify preconditions** — check each of the eleven preconditions listed above.
 2. **If any precondition fails** — reject with a clear message stating what is missing.
 3. **If all preconditions pass** — proceed with the following steps.
 
@@ -60,9 +61,10 @@ Finish Approval recorded? [YES/NO]
 Spec update decision recorded? [YES/NO]
 Observable outcomes recorded? [YES/NO]
 Delivery Sync Check recorded? [YES/NO]
+Guardrail Overrides reviewed when ledger exists? [YES/NO / N/A]
 Merge review PASS when required? [YES/NO / N/A]
 Code committed? [YES/NO / N/A with reason]
-Build/test PASS? [YES/NO / N/A with reason]
+Build/Test/Smoke recorded with Ready yes and Overall PASS? [YES/NO / N/A with reason]
 ```
 
 Any NO — stop and report what is missing.
@@ -80,6 +82,7 @@ The archive wrapper must leave the archived task in a validator-clean state:
 ```bash
 python3 ./.trellis/scripts/validate_task.py <archived-task-dir>
 python3 ./.trellis/scripts/validate_review_gates.py <archived-task-dir>
+python3 ./.trellis/scripts/validate_guardrail_overrides.py <archived-task-dir>
 python3 ./.trellis/scripts/validate_agent_results.py <archived-task-dir>
 python3 ./.trellis/scripts/validate_workflow_state.py <archived-task-dir>
 ```
@@ -88,7 +91,7 @@ Required post-archive checks:
 - `task.json` still contains `level`
 - `implement.jsonl` / `check.jsonl` still resolve after archive
 - JSONL still contains only spec/research context, not duplicated task artifacts
-- `agent-results/*.json` is valid when merge-review / parallel / OMC execution requires it
+- `agent-results/*.json` is present and valid when Execution Mode Decision selects single Trellis subagent, Trellis subagents, Trellis-native parallel + worktree, or OMC ulw/ultrawork + worktree + parent/child; if results are not required, any existing agent-results still validate cleanly
 - journal / workspace index entries are updated with real commit information
 - no `.omc/state/*` runtime state files remain in the tracked dirty set
 
@@ -127,28 +130,13 @@ The task is now DONE. No further changes should be made to this task.
 
 ## Output Format
 
-### finish.md (complete)
+### finish.md (required shape)
 
 ```markdown
 # Finish: [Task Title]
 
-## Preconditions Verification
-- Implementation complete: YES
-- trellis-check PASS: YES
-- Review gates PASS: YES
-- Finish Approval recorded: YES
-- Spec update decision recorded: YES
-- Observable outcomes recorded: YES
-- Delivery Sync Check recorded: YES
-- Code committed: YES / N/A: [reason]
-- Build/test PASS: YES / N/A: [reason]
-
-## Spec Update Decision
-Need spec update?
-- [ ] yes — [what was updated]
-- [ ] no — [reason]
-
 ## Finish Approval
+
 Approval status:
 - [x] approved
 
@@ -161,11 +149,28 @@ Allowed to proceed with finish?
 - [x] yes
 - [ ] no
 
+## Task Summary
+[1-3 sentences describing what was accomplished]
+
 ## Observable Outcomes
-- [outcome] — [evidence]
-- [outcome] — [evidence]
+- Outcome: [what someone can now see, do, or verify]
+- Evidence: [command, test, screenshot, or manual flow]
+- Remaining gap / risk: none
+
+## Changed Files
+
+| File | Change |
+|------|--------|
+| `path/to/file` | modified: [what changed] |
+
+## Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC1: [description] | PASS / FAIL / PARTIAL | [how verified] |
 
 ## Delivery Sync Check
+
 - [x] README / user docs reviewed
 - [x] Example commands / scripts reviewed
 - [x] Public API paths / contracts reviewed
@@ -174,26 +179,28 @@ Allowed to proceed with finish?
 Files checked:
 - [file] — [what was verified]
 
-## Commits
-- [hash] [message]
+## Guardrail Overrides
+- [ ] override ledger reviewed
+- Ledger: runtime/guardrail-overrides.jsonl
+- Decision: N/A - no overrides / accepted - [reason] / denied - [follow-up]
 
-## PR (if applicable)
-- [PR URL]
-
-## Summary
-[1-3 sentences on what was accomplished]
+## Spec Update Decision
+- **Need update?**: yes / no
+- **Reason**: [why or why not]
+- **Updated files**: [spec files updated, or N/A]
 
 ## Follow-ups
 - [follow-up item] — [priority]
 - (or "none")
 
-## Journal Entry
-[What was accomplished, key decisions, specs updated, follow-ups]
+## Risks
+- [risk] | Status: accepted / mitigated / needs follow-up
+- (or "none")
 ```
 
 ## Quality Bar
 
-- All seven preconditions are verified before proceeding.
+- All eleven preconditions are verified before proceeding.
 - If any precondition fails, finish-work is rejected with a clear message.
 - No code changes are made during finish-work.
 - No failed gates are bypassed.

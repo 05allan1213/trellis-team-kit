@@ -76,7 +76,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 
 - **Create task**: Recommended
 - **Artifacts**: `prd.md` + minimal `implement.md`
-- **Execution**: Main session or subagent
+- **Execution**: Single Trellis subagent by default; main session only with explicit inline override
 - **Gates**: `trellis-check`
 
 **Examples**:
@@ -103,7 +103,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 - **Create task**: Yes
 - **Artifacts**: `prd.md` + `research/grill-me.md` + `design.md` + `implement.md` + JSONLs + research
 - **Execution**: subagent + worktree by default; OMC only with explicit approval
-- **Gates**: check + spec-review + code-review + architecture-review
+- **Gates**: check + spec-review + code-review + architecture-review + conditional merge-review when the validator trigger contract applies
 
 **Examples**:
 - Feature spanning frontend + backend API contract
@@ -127,7 +127,7 @@ When `UNCERTAIN` is returned, the system enters a **three-phase closed loop**:
 
 ## Implementation Details
 
-Routing decisions are implemented in `claude/hooks/lib/prompt_routing.py`, with rule configuration stored in `trellis/config/routing_rules.json`.
+Routing decisions are implemented in `claude/hooks/lib/prompt_routing.py`. Rule configuration is maintained in `trellis/config/routing_rules.json` in this source repo and installed to `.trellis/config/routing_rules.json` in target projects.
 
 ### Rule Types
 
@@ -142,8 +142,8 @@ Routing decisions are implemented in `claude/hooks/lib/prompt_routing.py`, with 
 
 ### Rule Loading Order
 
-1. `<workspace-root>/.trellis/config/routing_rules.json` (workspace override)
-2. `trellis/config/routing_rules.json` (team-kit default rules)
+1. `<workspace-root>/.trellis/config/routing_rules.json` (installed project config / workspace override)
+2. `trellis/config/routing_rules.json` (team-kit source repo default rules)
 
 If the workspace override file exists but contains invalid JSON, the system automatically falls back to the default rules.
 

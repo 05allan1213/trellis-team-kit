@@ -101,26 +101,35 @@ Require human review for:
 
 ## Review Output
 
-```text
-Review Result: Pass / Pass with Notes / Changes Required
+When this guide is used inside a Trellis review gate, write the gate-specific
+artifact (`review/code-review.md`, `review/spec-review.md`,
+`review/architecture-review.md`, or `review/merge-review.md`) using that gate's
+installed template or agent instructions. Subagent reviews must also write the
+matching `agent-results/*.json` file.
 
-P0 Blockers:
+Minimum shape for a code review artifact:
+
+```markdown
+## Verdict
+
+- [x] PASS
+- [ ] FAIL
+<!-- For a failing review, mark FAIL instead and list blocking issues. -->
+
+## Blocking Issues
 - None
 
-P1 Major Issues:
+## Non-Blocking Issues
 - None
 
-P2 Minor Issues:
-- None
+## Common Mistakes Regression
+- Result: PASS or FAIL — evidence
 
-Verification Notes:
-- ...
+## Acceptance Criteria Coverage
+- <AC from prd.md>: covered / partially covered / not covered
 
-Human Review Needed:
-- Yes/No, with reason
-
-Summary:
-- ...
+## Files Reviewed
+- `src/<file>`
 ```
 
 ## Pass Criteria

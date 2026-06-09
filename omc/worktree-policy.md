@@ -44,7 +44,7 @@ git worktree add .trellis/worktrees/<task-slug> -b <task-slug>
 
 ### During Work
 
-- Commit regularly within the worktree
+- Do not commit from implementer/checker subagents; the main session handles Phase 3.2 commit after Finish evidence
 - Run checks and reviews within the worktree before proposing merge
 - Keep the branch up to date with the base branch if long-running
 
@@ -54,7 +54,7 @@ git worktree add .trellis/worktrees/<task-slug> -b <task-slug>
 2. Ensure all review gates PASS
 3. Run trellis-merge-review against the worktree branch
 4. Only merge after merge-review PASS
-5. Use standard git merge or PR process
+5. Use standard git merge or PR process only after the main session reaches the merge-review phase
 
 ### Cleanup
 

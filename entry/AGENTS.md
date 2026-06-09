@@ -43,7 +43,7 @@ You own decisions, communication, dispatch, and integration. Do NOT write code d
 | trellis-code-reviewer | Code quality review |
 | trellis-architecture-reviewer | Architecture review |
 | trellis-architecture-deep-reviewer | Deep architecture review |
-| trellis-merge-reviewer | Post-merge review |
+| trellis-merge-reviewer | Integration / merge-review gate |
 | trellis-spec-updater | Spec update execution |
 
 ## L0-L5 Task Routing
@@ -54,7 +54,7 @@ You own decisions, communication, dispatch, and integration. Do NOT write code d
 | L1 | Typo/tiny edit | Optional | Skippable, AI may recommend inline | Light check |
 | L2 | Light implementation | Recommended | prd.md + minimal implement.md | check |
 | L3 | Normal feature/bugfix | Yes | prd.md + grill-me + implement.md + JSONLs | check + code-review |
-| L4 | Complex cross-layer | Yes | prd.md + grill-me + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review |
+| L4 | Complex cross-layer | Yes | prd.md + grill-me + design.md + implement.md + JSONLs | check + spec-review + code-review + architecture-review + conditional merge-review |
 | L5 | Large refactor/multi-agent | Yes | Full artifacts | All + merge-review |
 
 - **L0**: Answer directly
@@ -69,17 +69,17 @@ You own decisions, communication, dispatch, and integration. Do NOT write code d
 
 1. Task creation consent → enter planning only. No source editing.
 2. Implementation consent → then `task.py start` and write code.
-3. Finish consent → then write `finish.md`, run spec update, commit, validate, and finish-work.
+3. Finish consent → then write finish evidence, run `trellis-update-spec`, run `prepare_finish_workspace.py`, commit, run required merge-review, record final validation, and finish-work.
 
 ## Complete Workflow
 
 ```
 Request → classify → task creation consent → task.py create
-  → brainstorm → grill-me → design → implement plan
+  → brainstorm → grill-me/design as required by level → implement plan
   → implementation consent → task.py start
   → before-dev → implement → check → review gates
   → stop for Finish consent
-  → finish.md + update-spec + observable outcomes → commit → merge-review (if required) → validate → finish-work
+  → finish evidence → update-spec → prepare_finish_workspace.py + commit → merge-review (if required) → validation/test-results.md → finish-work
 ```
 
 ## Review Gate Contract

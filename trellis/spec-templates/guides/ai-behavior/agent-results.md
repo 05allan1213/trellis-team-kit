@@ -35,8 +35,11 @@ Recommended fields:
 - `non_blocking_issues`: follow-up findings that do not block.
 - `risks`: residual uncertainty.
 - `scope_expansion`: changed paths or behavior outside the expected task scope.
-- `execution_mode`: `single-agent`, `trellis-native parallel + worktree`, or
-  `OMC ulw/ultrawork + worktree + parent/child`.
+- `execution_mode`: a useful source label such as `single-agent`,
+  `Trellis subagents`, `trellis-native parallel + worktree`,
+  `merge-review`, or `OMC ulw/ultrawork + worktree + parent/child`.
+  Validators use this field to detect OMC approval requirements; do not treat
+  the examples here as a closed enum.
 - `git.committed`: normally `false`; Trellis subagents must not commit.
 
 ---

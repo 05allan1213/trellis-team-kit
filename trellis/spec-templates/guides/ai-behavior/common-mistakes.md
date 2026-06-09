@@ -45,8 +45,11 @@ guide.
 
 - Dispatching Trellis subagents without requiring an `agent-results/*.json`
   handoff.
-- Omitting `status`, `workstream`, `changed_files`, `validation`, or
-  `blocking_issues` when workstreams are declared.
+- Omitting always-required fields: `version`, `agent`, `status`,
+  object-shaped `changed_files`, list-shaped `validation`, or
+  `blocking_issues`.
+- Omitting `workstream` from implementer/checker results when workstreams are
+  declared in `scope-manifest.json`.
 - Writing legacy `changed_files` string lists instead of objects with `path` and
   `summary`.
 - Reporting PASS while validation failed or blocking issues remain.

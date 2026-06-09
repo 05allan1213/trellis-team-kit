@@ -168,7 +168,6 @@ The JSON object must match this schema contract:
   "version": 1,
   "agent": "trellis-implementer",
   "status": "PASS",
-  "workstream": "api-users",
   "phase": "IMPLEMENTING",
   "changed_files": [
     {
@@ -201,6 +200,8 @@ Rules:
 - `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `workstream` must match a declared `scope-manifest.json` workstream when
   workstreams are declared.
+- Add `"workstream": "<declared workstream name>"` only when
+  `scope-manifest.json` declares workstreams.
 - `changed_files` must be a list of objects with `path` and `summary`.
 - `validation` must contain every verification command or inspection you ran.
   Each item must include `command` and `status`, where `status` is `PASS` if

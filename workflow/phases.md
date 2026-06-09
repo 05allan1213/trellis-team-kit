@@ -34,10 +34,10 @@ Goal: turn planning artifacts into code that passes quality checks and review ga
 
 | Step | Name | Required | Output |
 |------|------|----------|--------|
-| 2.0 | Before-dev | required · once | Constraint checklist |
-| 2.1 | Implement | required · repeatable | Changed files |
-| 2.2 | Quality check | required · repeatable | PASS/FAIL |
-| 2.3 | Review gates | required · repeatable | Each review PASS/FAIL |
+| 2.0 | Before-dev | required · once | `before-dev.md` + `scope-manifest.json` |
+| 2.1 | Implement | required · repeatable | changed files + `agent-results/*.json` when Trellis subagents are used |
+| 2.2 | Quality check | required · repeatable | `validation/check-results.md` + checker `agent-results/*.json` when subagent is used |
+| 2.3 | Review gates | required · repeatable | `review/*.md` + reviewer `agent-results/*.json` |
 | 2.4 | Rollback | on demand | Return to correct state |
 
 ### Gates
@@ -58,7 +58,7 @@ Goal: ensure quality, capture lessons, record work.
 | Step | Name | Required | Output |
 |------|------|----------|--------|
 | 3.0 | Finish consent | required · once | User explicitly enters Finish |
-| 3.1 | Finish evidence | required · once | Finish Approval + Spec Update Decision + Observable Outcomes + Delivery Sync Check in `finish.md` |
+| 3.1 | Finish evidence | required · once | Current `finish.md` template completed: Finish Approval, Task Summary, Observable Outcomes, Changed Files, Acceptance Criteria Coverage, Delivery Sync Check, Guardrail Overrides, Spec Update Decision, Follow-ups, Risks |
 | 3.2 | Commit changes | required · once | git commits |
 | 3.3 | Merge review | conditional · once | `review/merge-review.md` |
 | 3.4 | Validation | required · once | `validation/test-results.md` |
@@ -78,6 +78,7 @@ Goal: ensure quality, capture lessons, record work.
 5. Spec Update Decision recorded
 6. Observable Outcomes recorded with evidence
 7. Delivery Sync Check recorded
-8. Merge review PASS when required
-9. Code committed, PR created, or explicitly no commit needed
-10. Build/test PASS or explicitly recorded as not executable
+8. Guardrail Overrides reviewed when `runtime/guardrail-overrides.jsonl` exists
+9. Merge review PASS when required
+10. Code committed, PR created, or explicitly no commit needed
+11. Build/Test/Smoke recorded in `validation/test-results.md`, `Ready for finish-work?` marked yes, and Overall PASS or skipped-with-valid-reason evidence recorded

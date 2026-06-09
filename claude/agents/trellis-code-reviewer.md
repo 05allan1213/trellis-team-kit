@@ -140,7 +140,9 @@ Write to `{TASK_DIR}/review/code-review.md`:
 
 ## Verdict
 
-PASS / FAIL
+- [x] PASS
+- [ ] FAIL
+<!-- For a failing review, mark FAIL instead and list blocking issues below. -->
 
 ## Blocking Issues
 
@@ -159,7 +161,7 @@ PASS / FAIL
 
 ## Common Mistakes Regression
 
-- PASS / FAIL -- <evidence>
+- Result: PASS or FAIL -- <evidence>
 
 ## Acceptance Criteria Coverage
 

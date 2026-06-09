@@ -86,7 +86,7 @@ Customize based on task specifics, but do not remove required gates.
 
 #### Merge Review
 
-Required for: L5, worktree, parallel or workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, parent/child task.
+Required when any validator trigger applies: L5; `Execution Mode Decision` selected `Trellis-native parallel + worktree`; `Execution Mode Decision` selected `OMC ulw/ultrawork + worktree + parent/child`; `Branch strategy` contains `worktree`; `Parent/child: yes`; `Merge review needed: yes`; PR merge; or conflict resolution.
 
 Ordinary serial Trellis implementer/checker/reviewer subagents require
 `agent-results/*.json`, but they do not by themselves require merge-review.
@@ -145,7 +145,7 @@ Selected gates:
 Selection rationale: [why these gates]
 
 Failure rule:
-- Failed gate returns to trellis-implement.
+- Failed gate returns to IMPLEMENTING (`trellis-implement` skill / `trellis-implementer` agent).
 - Do not skip a failed gate.
 - Do not mark done until all selected gates pass.
 

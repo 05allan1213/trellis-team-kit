@@ -18,13 +18,14 @@
 11. 派发 `trellis-checker` → 验证
 12. 派发 `trellis-code-reviewer` → PASS
 13. 所有 review gates PASS 后，AI 停下来等待用户明确说"进入 Finish 阶段"
-14. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 将表格组件模式沉淀到 .trellis/spec/frontend/
-15. Commit → `/trellis:finish-work`
+14. 用户确认 Finish → AI 按当前模板写完整 `finish.md`，并运行 `trellis-update-spec` → 将表格组件模式沉淀到 .trellis/spec/frontend/
+15. `prepare_finish_workspace.py` → Commit → final validation 写 `validation/test-results.md` → `/trellis:finish-work`
 
 ## 预期产物
-- prd.md、implement.md、可选 design.md
+- prd.md、implement.md、before-dev.md、scope-manifest.json、可选 design.md
+- validation/check-results.md、validation/test-results.md
 - review/code-review.md
-- finish.md（spec 已更新：是）
+- finish.md（当前模板章节完整；spec 已更新：是）
 
 ## 关键行为
 - 任务级别：L3

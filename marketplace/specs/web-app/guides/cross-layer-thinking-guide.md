@@ -97,8 +97,8 @@ marketplace specs. Treat these as one cross-layer contract.
 - [ ] Update the source command in `claude/commands/trellis/*.md`
 - [ ] Update matching workflow docs in `workflow/`, `entry/`, and `prompt.md`
 - [ ] Update task templates or examples when artifact expectations changed
-- [ ] Run `python3 trellis/scripts/validate_runtime_hardening.py`
-- [ ] Run `python3 trellis/scripts/trellis_doctor.py setup` in an installed test project
+- [ ] Run `python3 trellis/scripts/validate_runtime_hardening.py` in the team-kit source repo
+- [ ] Run `python3 .trellis/scripts/trellis_doctor.py setup` in an installed test project
 - [ ] Run `bash bootstrap/smoke-test-install.sh --mode all --developer-name test`
 - [ ] After push, run `bash bootstrap/smoke-test-install.sh --mode true-remote --developer-name test`
 

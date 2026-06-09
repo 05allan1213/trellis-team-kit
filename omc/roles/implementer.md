@@ -2,7 +2,7 @@
 
 ## Definition
 
-The implementer is a subagent dispatched by the main agent to write production code. In trellis-team-kit, the implementer follows the `trellis-implement` agent definition.
+The implementer is a subagent dispatched by the main agent to write production code. In trellis-team-kit, the implementer follows the `trellis-implementer` agent definition.
 
 ## Responsibilities
 
@@ -29,7 +29,7 @@ When the main agent dispatches an implementer:
 ```
 Active task: <task path from task.py current>
 
-You are trellis-implement. Implement the following:
+You are trellis-implementer. Implement the following:
 
 PRD: <relevant section or reference to prd.md>
 Design: <relevant section or reference to design.md>
@@ -66,7 +66,7 @@ The implementer must produce:
 When dispatched into a worktree:
 
 1. Work within the worktree directory
-2. Commit regularly within the worktree (these are local commits, not pushes)
+2. Do not commit from the implementer role; the main session handles Phase 3.2 commit after Finish evidence
 3. Ensure the worktree branch is up to date before finishing
 4. Do not merge the worktree back — that is the main agent's responsibility after merge-review
 

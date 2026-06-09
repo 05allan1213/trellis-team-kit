@@ -77,10 +77,11 @@ Spec review checks whether the implementation respects the project's documented 
 - [ ] no — [reason]
 
 ## Verdict
-- PASS — no spec violations
-- FAIL — violated spec files:
+- [x] PASS — no spec violations
+- [ ] FAIL — violated spec files:
   1. [spec file]: [violation]
   2. [spec file]: [violation]
+<!-- For a failing review, mark FAIL instead and list violated specs. -->
 ```
 
 ## Quality Bar

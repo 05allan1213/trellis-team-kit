@@ -1,23 +1,27 @@
 # Spec Index
 
-trellis-team-kit specs regulate **AI workflow behavior** only — not personal coding style.
+trellis-team-kit installs workflow behavior specs for AI agents plus
+project-fillable backend/frontend convention templates. Fill convention
+templates from actual project patterns, not personal preference.
 
 ## Two Spec Types
 
 | Type | Definition | Examples | Directory |
 |------|-----------|----------|-----------|
-| **code-spec** | Process rules the AI must follow | When to create a task, how to configure Review Gates, what checks to run | `backend/` `frontend/` |
+| **workflow behavior spec** | Process rules the AI must follow | When to create a task, how to configure Review Gates, what checks to run | `guides/ai-behavior/` |
+| **project convention template** | Project-specific backend/frontend rules to fill from real implementation patterns | Database, error handling, components, hooks, state, type safety | `backend/` `frontend/` |
 | **guide** | How the AI should think | How to judge architecture boundaries, how to review code, how to debug | `guides/` |
 
-**Out of scope**: How to write APIs, how to name components, how to operate databases — these vary by developer and are not team AI workflow specs.
+**Out of scope**: Personal coding style preferences that are not backed by
+actual project conventions or workflow reliability needs.
 
 ## Directory Map
 
 | Directory | Scope | Entry |
 |---|---|---|
-| `guides/` | Cross-layer process guides: tooling, testing, debugging, review, parallel agents, architecture thinking, spec writing, code reuse | [guides/index.md](./guides/index.md) |
-| `backend/` | Backend AI behavior specs | [backend/index.md](./backend/index.md) |
-| `frontend/` | Frontend AI behavior specs | [frontend/index.md](./frontend/index.md) |
+| `guides/` | Cross-layer process and AI workflow guides: tooling, testing, debugging, review, parallel agents, architecture thinking, spec writing, code reuse | [guides/index.md](./guides/index.md) |
+| `backend/` | Project-fillable backend convention templates | [backend/index.md](./backend/index.md) |
+| `frontend/` | Project-fillable frontend convention templates | [frontend/index.md](./frontend/index.md) |
 
 ## Quick Discovery
 

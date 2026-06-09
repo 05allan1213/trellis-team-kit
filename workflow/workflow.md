@@ -11,7 +11,7 @@
 5. **Capture learnings** — after each task, review and write new knowledge back to spec
 6. **Trellis owns lifecycle** — task state, PRD, acceptance criteria, check, finish, and spec update stay under Trellis
 7. **Superpowers extends reasoning** — use it for unclear, complex, architectural, or repeatedly failing work; skip it for genuinely small, clear tasks
-8. **Trellis native execution comes first** — default to main session, subagents, reviewer background agents, and worktrees before reaching for heavier orchestration
+8. **Trellis native execution comes first** — default to Trellis skills, subagents, reviewer background agents, and worktrees before reaching for heavier orchestration; main-session editing is only for L1 or an explicit inline override
 9. **oh-my-claudecode extends execution** — when installed, use its `ulw/ultrawork` mode only as an advanced multi-agent parallel execution layer after PRD confirmation and explicit user approval
 10. **Scenario tools stay scenario-triggered** — MCPs, domain skills, browser tools, frontend-design, testing, debugging, and review rules load only when the task calls for them
 11. **Extensions are optional, not blockers** — if Superpowers, OMC, MCPs, or a skill are unavailable, explain the limitation and continue with the best available Trellis-native path
@@ -51,9 +51,9 @@ All tasks are classified by complexity to avoid over-engineering small tasks or 
 | ----- | ---- | ------------------: | ------------------ | -------------- | -------------- |
 | L0 | Pure Q&A / explanation / analysis | No | None | Main session direct answer | None |
 | L1 | Tiny change / typo / copy | Optional | Skippable, AI may recommend inline | Main session | Light check |
-| L2 | Light implementation | Recommended | `prd.md` + minimal `implement.md` | Main session or subagent | `trellis-check` |
+| L2 | Light implementation | Recommended | `prd.md` + minimal `implement.md` | Single Trellis subagent by default; main session only with explicit inline override | `trellis-check` |
 | L3 | Normal feature / bugfix | Yes | `prd.md` + `research/grill-me.md` + `implement.md` + JSONLs, optionally `design.md` | subagent | check + code-review |
-| L4 | Complex cross-layer / API / schema / auth / infra | Yes | `prd.md` + `research/grill-me.md` + `design.md` + `implement.md` + JSONLs + research | subagent + worktree by default; OMC only with explicit approval | check + spec-review + code-review + architecture-review |
+| L4 | Complex cross-layer / API / schema / auth / infra | Yes | `prd.md` + `research/grill-me.md` + `design.md` + `implement.md` + JSONLs + research | subagent + worktree by default; OMC only with explicit approval | check + spec-review + code-review + architecture-review + conditional merge-review |
 | L5 | Multi-agent / parent-child / large refactor / architecture | Yes | Full artifacts | Trellis-native parallel + worktree by default; OMC only with explicit approval | All gates + merge-review |
 
 ### Triage Rules
@@ -86,26 +86,28 @@ All tasks are classified by complexity to avoid over-engineering small tasks or 
 
 ```text
 NO_TASK
-  → TRIAGE (classify request)
-    → TASK_CREATED (task.py create)
-      → PLANNING_PRD (brainstorm)
-        → PLANNING_GRILL (L3-L5 grill-me, optional for L2)
-          → PLANNING_DESIGN (design.md for complex tasks)
-            → PLANNING_IMPLEMENT (implement.md + review gate contract)
-              → WAITING_IMPLEMENTATION_APPROVAL
-                → IN_PROGRESS (task.py start)
-                  → BEFORE_DEV (read artifacts/specs)
-                    → IMPLEMENTING
-                        → CHECKING
-                          → REVIEWING (spec/code/architecture review gates)
-                            → [wait for explicit Finish consent]
-                              → UPDATING_SPEC
-                            → COMMITTING
-                              → MERGE_REVIEWING (complex tasks)
-                                → VALIDATING (build/test)
-                                  → FINISHING (archive + journal)
-                                    → DONE
+  → [conceptual pre-state steps: classify L0-L5; task.py create after consent]
+    → PLANNING_PRD (brainstorm)
+      → PLANNING_GRILL (L3-L5 grill-me, optional for L2)
+        → PLANNING_DESIGN (design.md for L4/L5, optional for L3)
+          → PLANNING_IMPLEMENT (implement.md + review gate contract)
+            → WAITING_IMPLEMENTATION_APPROVAL
+              → IN_PROGRESS (task.py start)
+                → BEFORE_DEV (read artifacts/specs)
+                  → IMPLEMENTING
+                      → CHECKING
+                        → REVIEWING (spec/code/architecture review gates)
+                          → [wait for explicit Finish consent]
+                            → UPDATING_SPEC
+                              → COMMITTING
+                                → MERGE_REVIEWING (conditional; see below)
+                                  → VALIDATING (Build/Test/Smoke + Ready/Overall)
+                                    → FINISHING (archive + journal)
+                                      → DONE
 ```
+
+Runtime code exposes 17 canonical states. Triage/classification and task
+creation are conceptual pre-state steps, not runtime state constants.
 
 ---
 
@@ -118,18 +120,18 @@ NO_TASK
 - **Allowed**: Answer L0 questions, triage
 - **Forbidden**: Create task (need consent first), edit source (unless the turn is confirmed as L1 inline)
 - **Exit condition**: Task creation consent obtained or L0/L1 route confirmed
-- **Next state**: TRIAGE
+- **Next state**: PLANNING_PRD after conceptual triage and `task.py create`, direct answer (L0), or inline (L1)
 
-### TRIAGE
+### Conceptual Triage (not a runtime state)
 - **Description**: Classify the request
 - **Entry condition**: User makes a request
 - **Required files**: None
 - **Allowed**: Analyze complexity, suggest task level
 - **Forbidden**: Create task, edit source
 - **Exit condition**: Classification done, user consent obtained
-- **Next state**: TASK_CREATED (L2-L5), direct answer (L0), or inline (L1)
+- **Next state**: PLANNING_PRD after `task.py create` (L2-L5), direct answer (L0), or inline (L1)
 
-### TASK_CREATED
+### Conceptual Task Creation (not a runtime state)
 - **Description**: Task created, status = planning
 - **Entry condition**: `task.py create` succeeded
 - **Required files**: `task.json`
@@ -167,7 +169,7 @@ NO_TASK
 - **Forbidden**: Edit source, `task.py start`
 - **Exit condition**: design.md complete (optional L3, required L4/L5)
 - **Next state**: PLANNING_IMPLEMENT
-- **Triggerable skills**: `trellis-improve-codebase-architecture guidance`, `trellis-research`
+- **Triggerable skills / agents**: `trellis-improve-codebase-architecture guidance`, `trellis-researcher` subagent
 
 ### PLANNING_IMPLEMENT
 - **Description**: Execution planning
@@ -216,7 +218,7 @@ NO_TASK
 - **Forbidden**: Commit, push, expand scope, self-finish-work
 - **Exit condition**: Implementation done, output changed files/summary/validation/unresolved risks
 - **Next state**: CHECKING
-- **Triggerable skills**: `trellis-implement` (subagent) or OMC parallel agents
+- **Triggerable skills / agents**: `trellis-implement` skill dispatching `trellis-implementer`, or OMC parallel agents
 
 ### CHECKING
 - **Description**: Quality check
@@ -241,10 +243,10 @@ NO_TASK
 ### UPDATING_SPEC
 - **Description**: Spec update decision + finish evidence capture
 - **Entry condition**: Check + selected reviews PASS
-- **Required files**: `finish.md` (with Finish Approval, Observable Outcomes, Delivery Sync Check, and Spec Update Decision)
-- **Allowed**: Record the user's explicit Finish consent, judge whether spec update needed, capture concrete observable outcomes and verification evidence, and verify docs/examples/public-contract surfaces are synchronized
-- **Forbidden**: Skip the Finish Approval record, skip delivery-sync review, or skip finish evidence
-- **Exit condition**: Finish Approval, Spec Update Decision, Observable Outcomes, and Delivery Sync Check are all recorded
+- **Required files**: `finish.md` completed from the current template: Finish Approval, Task Summary, Observable Outcomes, Changed Files, Acceptance Criteria Coverage, Delivery Sync Check, Guardrail Overrides, Spec Update Decision, Follow-ups, and Risks
+- **Allowed**: Record the user's explicit Finish consent, judge whether spec update needed, capture concrete observable outcomes and verification evidence, review guardrail overrides when a ledger exists, and verify docs/examples/public-contract surfaces are synchronized
+- **Forbidden**: Skip the Finish Approval record, skip delivery-sync review, skip required guardrail override review, or skip finish evidence
+- **Exit condition**: all current `finish.md` template sections are recorded, including Finish Approval, Spec Update Decision, Observable Outcomes, Delivery Sync Check, and any required Guardrail Overrides review
 - **Next state**: COMMITTING
 - **Triggerable skills**: `trellis-update-spec`
 
@@ -255,11 +257,11 @@ NO_TASK
 - **Allowed**: git status, classify dirty files, draft commit plan, wait for confirmation, commit
 - **Forbidden**: Push, amend, commit unrelated files, auto-commit without confirmation
 - **Exit condition**: Code committed or user chooses manual commit
-- **Next state**: MERGE_REVIEWING (L5/worktree/parallel or workstream multi-subagent/OMC/PR merge/conflict/parent-child) or VALIDATING
+- **Next state**: MERGE_REVIEWING (if required by the merge-review trigger contract below) or VALIDATING
 
 ### MERGE_REVIEWING
-- **Description**: Post-merge review for integration-sensitive work
-- **Entry condition**: Commit done, task is L5 or used worktree/OMC/parallel or workstream multi-subagent/PR merge/conflict resolution/parent-child
+- **Description**: Integration / merge-review gate for integration-sensitive work
+- **Entry condition**: Commit done and merge-review is required: L5; `Execution Mode Decision` selected `Trellis-native parallel + worktree`; `Execution Mode Decision` selected `OMC ulw/ultrawork + worktree + parent/child`; `Branch strategy` contains `worktree`; `Parent/child: yes`; `Merge review needed: yes`; PR merge; or conflict resolution
 - **Required files**: `review/merge-review.md`
 - **Allowed**: Check conflicts, duplicate implementations, missing files, interface consistency
 - **Forbidden**: Skip
@@ -270,10 +272,10 @@ NO_TASK
 ### VALIDATING
 - **Description**: Final validation
 - **Entry condition**: Commit + merge-review (if needed) done
-- **Required files**: `validation/commands.md`, `validation/test-results.md`
-- **Allowed**: Build, test, e2e
+- **Required files**: `validation/test-results.md` (`validation/commands.md` is optional supporting evidence)
+- **Allowed**: Build, test, smoke, e2e, and record skipped-with-valid-reason evidence when a check cannot run
 - **Forbidden**: Skip (unless reason recorded)
-- **Exit condition**: Build/test PASS or reason recorded for inability
+- **Exit condition**: `validation/test-results.md` records checked Build, Test, and Smoke results, `Ready for finish-work?`, and Overall PASS or skipped-with-valid-reason evidence
 - **Next state**: FINISHING
 
 ### FINISHING
@@ -329,7 +331,7 @@ Required gates:
 Selection rationale: <why these gates>
 
 Failure rule:
-- Failed gate returns to trellis-implement.
+- Failed gate returns to IMPLEMENTING (`trellis-implement` skill / `trellis-implementer` agent).
 - Do not skip a failed gate.
 - Do not mark done until all selected gates pass.
 ```
@@ -432,22 +434,22 @@ Before `task.py start`, write that approval back into `implement.md`:
 - 2.4 Rollback `[on demand]`
 
 [workflow-state:in_progress]
-**Tools**: `trellis-implementer` / `trellis-researcher` are sub-agent types only (Task/Agent tool, NOT Skill). `trellis-update-spec` is a skill. `trellis-check` exists as both a skill and agent (`trellis-checker`); prefer the Agent form after code changes. Superpowers is a reasoning extension. oh-my-claudecode is an optional advanced parallel execution extension whose official mode here is `ulw/ultrawork`.
-**Flow**: `trellis-before-dev` → decide execution mode → `trellis-implement`, Trellis-native parallel/worktree, or OMC `ulw/ultrawork` → `trellis-check` → Superpowers if blocked/repeatedly failing → review gates (per contract) → STOP and wait for Finish consent → `trellis-update-spec` → commit (Phase 3.2) → merge-review (if L5/worktree/parallel or workstream multi-subagent/OMC/PR merge/conflict/parent-child) → validate → `/trellis:finish-work`.
+**Tools**: `trellis-implementer` / `trellis-researcher` are sub-agent types only (Task/Agent tool, NOT Skill). `trellis-update-spec` is a skill. `trellis-check` is the skill; `trellis-checker` is the agent form. Prefer dispatching `trellis-checker` after code changes. Superpowers is a reasoning extension. oh-my-claudecode is an optional advanced parallel execution extension whose official mode here is `ulw/ultrawork`.
+**Flow**: `trellis-before-dev` → decide execution mode → `trellis-implement` skill / `trellis-implementer` agent, Trellis-native parallel/worktree, or OMC `ulw/ultrawork` → `trellis-check` skill / `trellis-checker` agent → Superpowers if blocked/repeatedly failing → review gates (per contract) → STOP and wait for Finish consent → finish evidence → `trellis-update-spec` → `prepare_finish_workspace.py` + commit (Phase 3.2) → merge-review when required by the trigger contract → final validation in `validation/test-results.md` → `/trellis:finish-work`.
 **Execution mode gate**: use standard Trellis sub-agents, reviewer background agents, and worktrees by default. Use oh-my-claudecode `ulw/ultrawork` only when PRD is confirmed, AC are clear, the work can be split safely, parallelism materially improves the result, and the user explicitly confirmed that mode. If OMC is unavailable, continue with the Trellis-native path. If OMC stalls or fails after being chosen, explain the failure and wait for user confirmation before retrying or falling back. Standard reviewer background-agent parallelism is Trellis-native review execution, not OMC.
-**Main-session default**: dispatch `trellis-implement` / `trellis-check` sub-agents — the main agent does NOT edit code by default. If oh-my-claudecode is used, the main agent still owns task context, coordination, integration, conflict resolution, and final report.
+**Main-session default**: dispatch `trellis-implementer` / `trellis-checker` sub-agents — the main agent does NOT edit code by default. If oh-my-claudecode is used, the main agent still owns task context, coordination, integration, conflict resolution, and final report.
 **Extension fallback**: missing OMC, Superpowers, MCPs, or scenario skills must not block execution. Report the limitation and continue with the best available Trellis-native path.
 **Review gates**: after check passes, run each selected review gate from the contract. Any FAIL → return to IMPLEMENTING. All PASS → STOP and wait for the user to explicitly enter Finish.
 **Failed gate rule**: failed gate returns to IMPLEMENTING. Do NOT skip. Do NOT mark done until all selected gates pass.
 Phase 3.2 commit (required, once): after trellis-update-spec and explicit Finish consent, the main agent drives the commit — state the commit plan in user-facing text, then run `git commit` BEFORE suggesting `/trellis:finish-work`.
-**Sub-agent self-exemption**: if you are already running as `trellis-implement`, implement directly and do NOT spawn another; if already `trellis-check`, review/fix directly and do NOT spawn another.
+**Sub-agent self-exemption**: if you are already running as `trellis-implementer`, implement directly and do NOT spawn another; if already `trellis-checker`, review/fix directly and do NOT spawn another.
 **Sub-agent dispatch protocol**: dispatch prompt MUST start with: `Active task: <task path from task.py current>`. No exceptions.
 **Inline override** (per-turn only): user's CURRENT message MUST contain "do it inline" / "no sub-agent" / "main session". Without these phrases you must NOT inline. This override does not apply to L5/orchestrated tasks; re-scope the task or keep the orchestrated path.
 [/workflow-state:in_progress]
 
 [workflow-state:in_progress-inline]
-**Flow** (inline mode): `trellis-before-dev` → edit code → `trellis-check` → run lint/type-check/tests → fix → Superpowers if blocked → review gates (per contract) → STOP and wait for Finish consent → `trellis-update-spec` → commit (Phase 3.2) → merge-review (if worktree/parallel or workstream multi-subagent/OMC/PR merge/conflict/parent-child) → validate → `/trellis:finish-work`.
-**Main-session default (inline)**: the main agent edits code directly. Do NOT dispatch `trellis-implement` / `trellis-check` sub-agents.
+**Flow** (inline mode): `trellis-before-dev` → edit code → `trellis-check` → run lint/type-check/tests → fix → Superpowers if blocked → review gates (per contract) → STOP and wait for Finish consent → finish evidence → `trellis-update-spec` → `prepare_finish_workspace.py` + commit (Phase 3.2) → merge-review when required by the trigger contract → final validation in `validation/test-results.md` → `/trellis:finish-work`.
+**Main-session default (inline)**: the main agent edits code directly. Do NOT dispatch `trellis-implementer` / `trellis-checker` sub-agents.
 Phase 3.2 commit (required, once): after `trellis-update-spec` and explicit Finish consent, the main agent drives the commit BEFORE suggesting `/trellis:finish-work`.
 [/workflow-state:in_progress-inline]
 
@@ -458,17 +460,17 @@ FAIL → return to IMPLEMENTING. Do NOT skip. All PASS → stop and wait for exp
 [/workflow-state:reviewing]
 
 [workflow-state:finishing]
-Finishing. Verify all gates passed, spec update decision recorded, code committed.
-Run `/trellis:finish-work` to archive task, update journal, mark done.
+Finishing. Verify all gates passed, complete the current `finish.md` template (Finish Approval, Task Summary, Observable Outcomes, Changed Files, Acceptance Criteria Coverage, Delivery Sync Check, Guardrail Overrides, Spec Update Decision, Follow-ups, Risks), ensure required merge-review PASS, ensure `validation/test-results.md` records Build/Test/Smoke, Ready for finish-work?, and Overall PASS or a justified skip, and confirm code is committed or explicitly not needed.
+Only then run `/trellis:finish-work` to archive task, update journal, mark done.
 Do NOT write new code. Do NOT fix bugs. Do NOT bypass failed gates.
 [/workflow-state:finishing]
 
 ### Phase 3: Finish
 - 3.0 Finish consent `[required · once]`
-- 3.1 Spec update `[required · once]`
-- 3.2 Commit changes `[required · once]`
-- 3.3 Merge review `[conditional · once]` (L5/worktree/parallel or workstream multi-subagent/OMC/PR merge/conflict/parent-child)
-- 3.4 Validation `[required · once]` (build/test)
+- 3.1 Finish evidence + spec update `[required · once]`
+- 3.2 Prepare local state + commit changes `[required · once]`
+- 3.3 Merge review `[conditional · once]` (per merge-review trigger contract)
+- 3.4 Validation `[required · once]` (Build/Test/Smoke + Ready/Overall)
 - 3.5 Finish work `[required · once]` (archive + journal)
 - 3.6 Debug retrospective `[on demand]`
 
@@ -516,7 +518,7 @@ When a user request matches one of these intents, load the corresponding skill (
 
 | What you're thinking | Why it's wrong |
 |---|---|
-| "This is simple, I'll just code it in the main thread" | Dispatching `trellis-implement` is the cheap path; skipping it loses spec context — sub-agents get curated `implement.jsonl` when present, and always get task artifacts injected |
+| "This is simple, I'll just code it in the main thread" | Dispatching `trellis-implementer` is the cheap path; skipping it loses spec context — sub-agents get curated `implement.jsonl` when present, and always get task artifacts injected |
 | "I already thought it through in plan mode" | Plan-mode output lives in memory — sub-agents can't see it; must be persisted to prd.md |
 | "I already know the spec" | The spec may have been updated since you last read it; the sub-agent gets the fresh copy |
 | "Code first, check later" | `trellis-check` surfaces issues you won't notice yourself; earlier is cheaper |
@@ -599,10 +601,10 @@ Load `trellis-dev-strategy` to decide:
 1. Execution mode: main session / single Trellis subagent / Trellis subagents / Trellis-native parallel + worktree / OMC ulw/ultrawork + worktree + parent/child
 2. Branch strategy: current branch / dedicated worktree
 3. TDD: yes / no
-4. Parent/child task: yes / no
+4. Parent/child: yes / no
 5. Architecture guidance needed: yes / no
 6. Review gates: which to enable
-7. Merge-review needed: yes / no
+7. Merge review needed: yes / no
 
 L5/orchestrated tasks MUST NOT select `main session`; use Trellis-native
 parallel + worktree by default, or re-route to a narrower level if the work is
@@ -679,7 +681,7 @@ Load `trellis-before-dev` skill. Before writing any code:
 
 | Mode | Use when | Owner |
 |---|---|---|
-| Standard Trellis sub-agent | Small, medium, or tightly coupled work | `trellis-implement` |
+| Standard Trellis sub-agent | Small, medium, or tightly coupled work | `trellis-implementer` |
 | Trellis-native parallel + worktree | Work can run in parallel but simple subagent/worktree orchestration is enough | Main agent orchestrates; Trellis agents execute |
 | oh-my-claudecode `ulw/ultrawork` | Confirmed PRD, clear AC, independent workstreams, and advanced orchestration is worth the overhead | Main agent orchestrates; OMC agents execute |
 | Inline | Only when platform mode or explicit user override | Main session |
@@ -693,9 +695,11 @@ Spawn the implement sub-agent:
 
 The implement agent must also write
 `<task path>/agent-results/trellis-implementer-<timestamp>.json` with
-`version`, `agent`, `status`, `workstream`, object-shaped `changed_files`
-entries containing `path` and `summary`, `validation`, `blocking_issues`,
-`non_blocking_issues`, `risks`, `scope_expansion`, and `execution_mode`.
+`version`, `agent`, `status`, object-shaped `changed_files` entries containing
+`path` and `summary`, `validation`, `blocking_issues`,
+`non_blocking_issues`, `risks`, `scope_expansion`, and `execution_mode`. If
+`scope-manifest.json` declares workstreams, implementer/checker results must
+also include a matching `workstream`.
 
 #### 2.2 Quality check `[required · repeatable]`
 
@@ -739,9 +743,9 @@ The user must explicitly say to enter Finish before any Phase 3 artifact or
 git operation. Without this consent, do not write `finish.md`, run
 `trellis-update-spec`, commit, archive, or finish-work.
 
-#### 3.1 Spec update `[required · once]`
+#### 3.1 Finish evidence + spec update `[required · once]`
 
-Load `trellis-update-spec` skill. Before anything else, write the user's explicit Finish consent into `finish.md`, then record the rest of the finish evidence:
+Before loading `trellis-update-spec`, write the user's explicit Finish consent into `finish.md` and complete the finish evidence sections: Finish Approval, Task Summary, Observable Outcomes, Changed Files, Acceptance Criteria Coverage, Delivery Sync Check, and Guardrail Overrides. Then load `trellis-update-spec`, record Spec Update Decision, and finish Follow-ups and Risks.
 
 If spec updates are executed by the `trellis-spec-updater` subagent, it must
 write `<task path>/agent-results/trellis-spec-updater-<timestamp>.json` even
@@ -762,6 +766,26 @@ Allowed to proceed with finish?
 - [x] yes
 - [ ] no
 
+## Task Summary
+<1-3 sentences describing what was accomplished>
+
+## Observable Outcomes
+- Outcome: <what someone can now see, do, or verify>
+- Evidence: <command, test, screenshot, or manual flow>
+- Remaining gap / risk: <none or concrete remaining risk>
+
+## Changed Files
+
+| File | Change |
+|------|--------|
+| <path/to/file> | <created / modified / deleted: what changed> |
+
+## Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| <AC description> | PASS / FAIL / PARTIAL | <how verified> |
+
 ## Delivery Sync Check
 
 - [x] README / user docs reviewed
@@ -780,14 +804,15 @@ Files checked:
 
 ## Spec Update Decision
 
-Need spec update?
-- [ ] yes
-- [ ] no
+- **Need update?**: yes / no
+- **Reason**: <why or why not>
+- **Updated files**: <spec files updated, or N/A>
 
-Reason:
+## Follow-ups
+- <follow-up item, or none>
 
-Updated files:
--
+## Risks
+- <risk and status, or none>
 ```
 
 #### 3.2 Commit changes `[required · once]`
@@ -813,7 +838,11 @@ Reply 'ok' to execute. Reply with edits, or 'manual' to abort.
 
 #### 3.3 Merge review `[conditional · once]`
 
-Required for: L5, worktree, parallel or workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, parent/child task.
+Required when any validator trigger applies: L5; `Execution Mode Decision`
+selected `Trellis-native parallel + worktree`; `Execution Mode Decision`
+selected `OMC ulw/ultrawork + worktree + parent/child`; `Branch strategy`
+contains `worktree`; `Parent/child: yes`; `Merge review needed: yes`; PR
+merge; or conflict resolution.
 
 Ordinary serial Trellis implementer/checker/reviewer subagents still write
 `agent-results/*.json`, but they do not by themselves trigger merge-review.
@@ -832,7 +861,7 @@ unreviewed guardrail overrides, or OMC outputs without explicit approval.
 
 #### 3.4 Validation `[required · once]`
 
-Run build/test. Record results in `validation/test-results.md`. If cannot execute, record reason.
+Run Build, Test, and Smoke validation. Record results in `validation/test-results.md`, mark `Ready for finish-work?`, and record Overall PASS. If a check cannot execute, record skipped-with-valid-reason evidence.
 
 #### 3.5 Finish work `[required · once]`
 
@@ -906,9 +935,10 @@ Forbidden:
 5. Spec Update Decision recorded
 6. Observable Outcomes recorded with evidence
 7. Delivery Sync Check recorded
-8. Merge review PASS when required
-9. Code committed, PR created, or explicitly no commit needed
-10. Build/test PASS or explicitly recorded as not executable
+8. Guardrail Overrides reviewed when `runtime/guardrail-overrides.jsonl` exists
+9. Merge review PASS when required
+10. Code committed, PR created, or explicitly no commit needed
+11. Build/Test/Smoke recorded, `Ready for finish-work?` marked yes, and Overall PASS or skipped-with-valid-reason evidence recorded
 
 Any missing precondition → finish-work refuses to execute.
 

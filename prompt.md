@@ -93,7 +93,7 @@ Plan 阶段已确认。
 2. 然后再执行 task.py start，进入 in_progress。
 3. 运行 trellis-before-dev 读取所有 artifacts，输出 before-dev.md 约束和 scope-manifest.json 范围契约。
 4. 严格按照 prd.md 和 Acceptance Criteria 实现。
-5. 默认使用 trellis-implement → trellis-check → Review Gates subagent 路径。
+5. 默认使用 `trellis-implement` skill / `trellis-implementer` agent → `trellis-check` skill / `trellis-checker` agent → Review Gates subagent 路径。
 6. Check 通过后，按 implement.md 的 Review Gate Contract 执行审查门禁。
 7. 所有 selected review gates PASS 后，先停下来汇报结果，等待我明确说“进入 Finish 阶段”。
 8. 在我确认 Finish 之前，不要自动写 finish.md、不要自动做 spec update、不要自动 commit、不要自动 archive。
@@ -157,9 +157,15 @@ Plan 阶段已确认。
 1. 做最终质量验证，确认是否满足 prd.md 的 Acceptance Criteria。
 2. `finish.md` 必须完整记录：
    - Finish Approval（用户进入 Finish 的原始批准）
+   - Task Summary
    - Observable Outcomes
+   - Changed Files
+   - Acceptance Criteria Coverage
    - Delivery Sync Check
+   - Guardrail Overrides（若存在 `runtime/guardrail-overrides.jsonl`，必须复核每条 override）
    - Spec Update Decision
+   - Follow-ups
+   - Risks
 3. 如果任务中出现重复调试、反复失败或同类问题，请运行 trellis-break-loop 做 debug retrospective。
 4. 执行 trellis-update-spec 判断：
    - 如果需要更新 spec，请说明应该沉淀什么规则、经验或约定。
@@ -172,7 +178,7 @@ Plan 阶段已确认。
    - 未经确认，不要提交未知脏文件。
    - 不要 push。
 6. commit 处理完成后，如任务触发 merge-review 条件，先运行 trellis-merge-review。
-7. 运行最终 validation，记录 build/test 结果。
+7. 运行最终 validation，在 `validation/test-results.md` 记录 Build、Test、Smoke、Ready for finish-work? 和 Overall 结果；无法执行时写明 skipped with valid reason。
 8. 执行 /trellis:finish-work 收尾（内部使用 `finalize_task_archive.py`）。
 
 最后总结：
@@ -237,7 +243,7 @@ Shared Contract:
 Merge-Review 计划:
   【集成后需要检查的冲突点】
   【shared 区域的变更需要哪些 agent 确认】
-  【是否需要 trellis-merge-review gate】
+  【trellis-merge-review gate：OMC 固定触发，必须执行】
 ```
 
 确认后启动：
@@ -253,7 +259,7 @@ Merge-Review 计划:
 5. main agent 负责集成、冲突解决和最终结果。
 6. 不允许扩大 PRD 范围。
 7. 集成后仍然必须走 trellis-check。
-8. 如果拆分方案中标记了 merge-review，集成后必须走 trellis-merge-review gate。
+8. 集成后必须走 trellis-merge-review gate（OMC 固定触发）。
 9. 如果 OMC 执行失败或 agent 空转，先停下来说明情况，等待我确认是重试还是回退；不要静默改成串行实现。
 ```
 
@@ -284,9 +290,9 @@ AI 会自动：
 4. 判断是否需要 Superpowers（需求不清 / 架构权衡 / 多方案取舍时自动启用）
 5. 判断是否建议并行：默认先考虑 Trellis 原生并行；只有需要高级编排时才建议 OMC `ulw/ultrawork`，并等待确认
 6. 停下来等你确认 Plan
-7. 你确认进入 Execute 后，执行 before-dev → implement → check → review gates
+7. 你确认进入 Execute 后，执行 before-dev → implementer → checker → review gates
 8. review 全部通过后停下来，等你明确说“进入 Finish 阶段”
-9. 你确认 Finish 后，再执行 update-spec → commit → merge-review（如需）→ validation → finish-work
+9. 你确认 Finish 后，再执行 finish evidence → update-spec → prepare_finish_workspace.py + commit → merge-review（如需）→ validation/test-results.md → finish-work
 
 你只需要在三个固定确认门、一个条件确认门操作：
 1. **Task 创建确认** — AI 建议创建 task 后，你说"确认创建"或"不用"
@@ -314,5 +320,5 @@ PRD 确认：
 "小修一下，直接改。"
 
 结束：
-"进入 Finish 阶段，按 workflow Phase 3 收尾：update-spec，commit，merge-review（如需），validation，finish-work。"
+"进入 Finish 阶段，按 workflow Phase 3 收尾：finish evidence，update-spec，prepare_finish_workspace.py + commit，merge-review（如需），validation/test-results.md，finish-work。"
 ```

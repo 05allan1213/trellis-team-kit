@@ -1,6 +1,6 @@
 # Trellis Team Kit 工作流验证任务
 
-> 从零开始，分阶段验证完整的 19 状态工作流。每一步可独立检查。
+> 从零开始，分阶段验证完整的 17 runtime 状态工作流。分类和 task 创建是前置概念步骤，不是 runtime state 常量。
 
 ---
 
@@ -43,17 +43,20 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 0：NO_TASK → TRIAGE
+## 前置阶段 0：NO_TASK + 概念 triage
 
-**操作**：在 Claude Code 中说 "我需要加一个 hello world 工具函数"
+**操作**：在 Claude Code 中说 "添加用户头像上传功能，包含前端上传 UI、后端 API、对象存储和数据库头像 URL 持久化"
 
 **检查点**：
 - [ ] Claude 不直接写代码
-- [ ] Claude 分类为 L2（轻量实现）
-- [ ] Claude 给出轻量任务建议，并询问是否创建 Trellis task
+- [ ] Claude 分类为 L4（跨层 API / 存储 / 数据持久化变更）
+- [ ] Claude 给出标准 Trellis task 建议，并询问是否创建 Trellis task
 
 **补充检查（L1 分流）**：
 - [ ] 如果输入 "把按钮文案从提交改成保存"，Claude 建议 L1 inline，不强求 task
+
+**补充检查（L2 分流）**：
+- [ ] 如果输入 "修复一个原因明确的登录表单校验 bug"，Claude 分类为 L2，minimal `implement.md` 必需，`grill-me` / JSONL 可选
 
 **补充检查（L3/L4/L5 分流）**：
 - [ ] 普通 feature / bugfix → L3，默认 subagent，必须 code-review
@@ -63,7 +66,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 1：TASK_CREATED
+## 前置阶段 1：task.py create（进入 PLANNING_PRD）
 
 **操作**：回复 "是的，创建 task"
 
@@ -81,7 +84,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 **检查点**：
 - [ ] 生成 `prd.md`，含需求描述和验收标准
-- [ ] task.json 添加 `level: "L2"`
+- [ ] task.json 添加 `level: "L4"`
 
 ---
 
@@ -95,17 +98,28 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 4：PLANNING_IMPLEMENT
+## 阶段 4：PLANNING_DESIGN
+
+**操作**：Claude 按任务等级编写 design.md（L4/L5 必需，L3 可选）
+
+**检查点**：
+- [ ] L4/L5 生成 `design.md`
+- [ ] `design.md` 记录架构、接口、数据或跨层影响
+- [ ] L3 若跳过 design，跳过原因已记录在 plan / implement 产物中
+
+---
+
+## 阶段 5：PLANNING_IMPLEMENT
 
 **操作**：Claude 编写 implement plan
 
 **检查点**：
 - [ ] 生成 `implement.md`，含 Scope、Files to change
-- [ ] Review Gate Contract 选中 `trellis-check`
+- [ ] Review Gate Contract 选中 `trellis-check`、`trellis-spec-review`、`trellis-code-review`、`trellis-code-architecture-review`
 
 ---
 
-## 阶段 5：WAITING_IMPLEMENTATION_APPROVAL
+## 阶段 6：WAITING_IMPLEMENTATION_APPROVAL
 
 **操作**：Claude 询问 "批准实现吗？"
 
@@ -115,7 +129,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 6：IN_PROGRESS
+## 阶段 7：IN_PROGRESS
 
 **操作**：回复 "批准实现"
 
@@ -126,7 +140,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 7：BEFORE_DEV
+## 阶段 8：BEFORE_DEV
 
 **操作**：Claude 运行 trellis-before-dev
 
@@ -145,7 +159,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 **L4 全流程测试**：
 - [ ] 用一条跨层 API/schema 测试任务完整走完 Plan -> Execute -> Check -> Review -> Finish
-- [ ] Plan 阶段产出 `prd.md`、`design.md`、`implement.md`
+- [ ] Plan 阶段产出 `prd.md`、`research/grill-me.md`、`design.md`、`implement.md`
 - [ ] Execute 前生成 `before-dev.md` 与 `scope-manifest.json`
 - [ ] Check 阶段运行 `trellis-check` 并写入 `validation/check-results.md`
 - [ ] Review 阶段运行 spec-review、code-review、architecture-review
@@ -153,7 +167,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 8：IMPLEMENTING
+## 阶段 9：IMPLEMENTING
 
 **操作**：Claude 编写代码
 
@@ -163,7 +177,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 - [ ] `implement.jsonl` / `check.jsonl` 不重复 task artifacts（`prd.md`、`design.md`、`implement.md`、`finish.md`）
 - [ ] 若使用 trellis-researcher，则写入 `agent-results/trellis-researcher-<timestamp>.json`
 - [ ] trellis-implementer 写入 `agent-results/trellis-implementer-<timestamp>.json`
-- [ ] agent result 含 `status`、`workstream`、对象化 `changed_files`、`validation`、`blocking_issues`
+- [ ] agent result 含 `version`、`agent`、`status`、对象化 `changed_files`、列表 `validation`、`blocking_issues`；若 `scope-manifest.json` 声明了 workstreams，则 implementer/checker result 还必须含匹配的 `workstream`
 - [ ] `python3 .trellis/scripts/validate_agent_results.py <task-dir>` PASS
 
 **范围守卫测试**：
@@ -176,7 +190,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 9：CHECKING
+## 阶段 10：CHECKING
 
 **操作**：Claude 运行 trellis-check
 
@@ -188,7 +202,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 10：REVIEWING
+## 阶段 11：REVIEWING
 
 **操作**：Claude 运行选中的 review gates（如 spec / code / architecture）
 
@@ -209,7 +223,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 - [ ] 使用 OMC `ulw/ultrawork` 前必须记录 explicit OMC approval、user message、timestamp
 - [ ] 未批准时启动 `ulw/ultrawork` → PreToolUse deny
 - [ ] OMC execution result（含 canonical `OMC ulw/ultrawork + worktree + parent/child`）缺少 explicit OMC approval → `validate_agent_results.py` 或 merge-review FAIL
-- [ ] OMC 或多 agent 并行任务缺少 merge-review → validator / doctor workflow FAIL
+- [ ] L5、Trellis-native parallel + worktree、OMC、worktree、parent/child、PR merge 或 conflict resolution 等触发条件缺少 merge-review → validator / doctor workflow FAIL
 - [ ] merge-review 聚合 `agent-results/*.json`、scope、override ledger、OMC approval 记录后 PASS
 
 **Review FAIL 回流测试**：
@@ -220,12 +234,12 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 11：UPDATING_SPEC
+## 阶段 12：UPDATING_SPEC
 
 **操作**：回复 "进入 Finish 阶段"。
 
 **检查点**：
-- [ ] `finish.md` 的 `Finish Approval` 已记录用户原话、timestamp、summary 和 allowed=yes
+- [ ] `finish.md` 的 `Finish Approval` 已记录用户原话、timestamp、summary，并勾选 `Allowed to proceed with finish? -> yes`
 - [ ] 在 finish.md 中记录 Spec Update Decision
 - [ ] 在 finish.md 中记录 Observable Outcomes 和 Delivery Sync Check
 - [ ] `python3 .trellis/scripts/validate_delivery_sync.py <task-dir>` PASS
@@ -234,7 +248,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 12：COMMITTING
+## 阶段 13：COMMITTING
 
 **操作**：清理本地状态、确认提交计划，然后 `git add` + `git commit`
 
@@ -248,11 +262,11 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 13：MERGE_REVIEWING
+## 阶段 14：MERGE_REVIEWING
 
 **操作**：条件触发时运行 trellis-merge-review
 
-**触发条件**：L5 / worktree / parallel 或 workstream multi-subagent / OMC / PR merge / conflict resolution / parent-child。
+**触发条件**：L5；`Execution Mode Decision` 选中 `Trellis-native parallel + worktree`；`Execution Mode Decision` 选中 `OMC ulw/ultrawork + worktree + parent/child`；`Branch strategy` 含 `worktree`；`Parent/child: yes`；`Merge review needed: yes`；PR merge；conflict resolution。
 
 **检查点**：
 - [ ] 不触发条件时，记录跳过原因并进入 VALIDATING
@@ -262,17 +276,19 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ---
 
-## 阶段 14：VALIDATING
+## 阶段 15：VALIDATING
 
 **操作**：运行 build 和 test
 
 **检查点**：
 - [ ] `validation/test-results.md` 存在
-- [ ] Build 和 Test 均为 PASS 或 SKIPPED WITH REASON
+- [ ] Build、Test 和 Smoke 均为 PASS，或记录 skipped with valid reason
+- [ ] `Ready for finish-work?` 勾选 yes
+- [ ] Overall verdict 为 PASS，或有明确 skipped-with-reason 证据
 
 ---
 
-## 阶段 15：FINISHING → DONE
+## 阶段 16：FINISHING → DONE
 
 **操作**：Claude 运行 trellis-finish-work
 

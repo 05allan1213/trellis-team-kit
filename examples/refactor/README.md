@@ -97,7 +97,31 @@ billing/validators.py   ← 从 @shared/validation 导入（amount 保留）
 
 ## 开发策略
 - 模式：subagent + worktree
-- 分支：refactor/extract-validation-library
+- **Branch strategy**: dedicated worktree at .trellis/worktrees/extract-validation-library/
+- **Parent/child**: no
+- **Architecture guidance**: yes - load trellis-improve-codebase-architecture guidance
+- **Merge review needed**: yes
+
+## Execution Mode Decision
+
+Recommended mode:
+- [ ] main session
+- [ ] single Trellis subagent
+- [ ] Trellis subagents
+- [x] Trellis-native parallel + worktree
+- [ ] OMC ulw/ultrawork + worktree + parent/child
+
+Reason:
+- L4 跨模块重构使用 Trellis-native worktree 隔离实现，并触发 merge-review。
+
+Why not heavier:
+- 不需要 parent/child 拆分或 OMC 高级并行编排。
+
+OMC approval:
+- [x] not applicable
+- [ ] user explicitly approved OMC
+- user message: N/A
+- timestamp: N/A
 
 ## 有序步骤
 1. 创建 @shared/validation 包结构
@@ -113,12 +137,50 @@ billing/validators.py   ← 从 @shared/validation 导入（amount 保留）
 11. 运行完整测试套件
 
 ## Review Gate Contract
+Contract version: team-kit
+
+### Required gates (always run)
 - [x] trellis-check
+
+### Selected gates for this task
 - [x] trellis-spec-review
 - [x] trellis-code-review
 - [x] trellis-code-architecture-review
+- [x] trellis-merge-review
 
-选择理由：L4 跨层重构需要 spec + code + architecture review。
+Selection rationale: L4 worktree 重构需要 spec + code + architecture + merge-review。
+
+## Implementation Approval
+
+Approval status:
+- [x] approved
+
+Approval source:
+- user message: "继续开始实现"
+- timestamp: 2026-06-09T00:00:00Z
+- summary approved: 提取共享验证库，迁移 6 个模块并完成架构/代码/spec review
+
+Allowed to run task.py start?
+- [x] yes
+- [ ] no
+```
+
+## validation/check-results.md
+
+```markdown
+# Check Results
+
+Status: PASS
+
+## Commands
+- pytest tests/auth tests/billing tests/user_profile tests/admin_api tests/onboarding tests/reporting：PASS
+- python scripts/check_no_duplicate_validators.py：PASS
+
+## Findings
+阻塞问题：无
+
+## Fixes Applied During Check
+无
 ```
 
 ## review/architecture-review.md
@@ -126,8 +188,9 @@ billing/validators.py   ← 从 @shared/validation 导入（amount 保留）
 ```markdown
 # 架构审查：提取共享验证库
 
-状态：
+## Verdict
 - [x] PASS
+- [ ] FAIL
 
 依赖方向：所有模块 → @shared/validation。正确。
 模块边界：每个验证器职责单一。清晰。
@@ -142,47 +205,130 @@ billing/validators.py   ← 从 @shared/validation 导入（amount 保留）
 ## validation/test-results.md
 
 ```markdown
-# 验证结果
+# Test Results: 提取共享验证库
 
-## 构建结果
-状态：PASS
+## Build
 
-## 测试结果
-状态：PASS
-- 全部 6 个模块：测试通过
-- 新共享验证测试：45 个测试通过
-- 无需修改任何测试（向后兼容）
+- [x] pass
+- [ ] fail
+
+| Metric | Value |
+|--------|-------|
+| Command | npm run build |
+| Build Time | 22s |
+| Output | success |
+
+## Test
+
+- [x] pass
+- [ ] fail
+
+| Metric | Value |
+|--------|-------|
+| Command | pytest tests/auth tests/billing tests/user_profile tests/admin_api tests/onboarding tests/reporting |
+| Tests Run | 318 |
+| Passed | 318 |
+| Failed | 0 |
+| Skipped | 0 |
+| Coverage | 90% |
+| Output | all 6 migrated modules and 45 shared validation tests passed |
+
+## Smoke
+
+- [x] pass
+- [ ] fail
+
+| Metric | Value |
+|--------|-------|
+| Command | python scripts/check_no_duplicate_validators.py |
+| Output | no duplicate validator implementations found |
+
+## Ready for finish-work?
+
+- [x] yes
+- [ ] no
+
+## Overall
+
+- [x] PASS — build, migrated module tests, shared validator tests, and duplicate scan passed.
+- [ ] FAIL — one or more validation steps failed.
 ```
 
-## final-summary.md
+## finish.md
 
 ```markdown
-# 最终摘要：提取共享验证库
+# Finish：提取共享验证库
 
-## 结果
-创建了 `@shared/validation` 包，含 6 个验证器。全部 6 个模块已迁移。
-零重复验证逻辑残留。所有测试无需修改即通过。
+## Finish Approval
 
-## 提交
-1. refactor: 创建 @shared/validation 包及 6 个验证器 (stu7890)
-2. refactor: 迁移 auth 到共享验证 (vwx8901)
-3. refactor: 迁移 onboarding 到共享验证 (yza9012)
-4. refactor: 迁移 user-profile 到共享验证 (bcd0123)
-5. refactor: 迁移 billing 到共享验证 (efg1234)
-6. refactor: 迁移 admin-api 到共享验证 (hij2345)
-7. refactor: 迁移 reporting 到共享验证 (klm3456)
-8. refactor: 移除重复验证代码 (nop4567)
+Approval status:
+- [x] approved
 
-## Review
-- spec-review：PASS
-- code-review：PASS
-- architecture-review：PASS
+Approval source:
+- user message: "进入 Finish 阶段"
+- timestamp: 2026-06-09T00:00:00Z
+- summary approved: 提取共享验证库，迁移 6 个模块并完成架构/代码/spec review
 
-## 验证
-- 构建：PASS
-- 测试：PASS（全部 6 模块 + 45 个新验证测试）
+Allowed to proceed with finish?
+- [x] yes
+- [ ] no
 
-## Spec 更新
-新增 `.trellis/spec/shared/validation.md`，记录共享验证包
-API 及未来模块迁移指南。
+## Task Summary
+提取 `@shared/validation` 共享验证库，迁移 6 个模块并删除重复验证实现。
+
+## Observable Outcomes
+- Outcome: `@shared/validation` 包存在，包含 6 个验证器
+- Evidence: package export and shared validation unit tests PASS
+- Remaining gap / risk: none
+- Outcome: 全部 6 个模块已改为从共享验证库导入，重复验证逻辑已移除
+- Evidence: migrated module tests PASS and duplicate validator scan PASS
+
+## Changed Files
+
+| File | Change |
+|------|--------|
+| `packages/shared/validation/*` | created: shared validators and package export |
+| `src/auth/*` | modified: import shared validators |
+| `src/billing/*` | modified: import shared validators |
+| `src/user_profile/*` | modified: import shared validators |
+| `src/admin_api/*` | modified: import shared validators |
+| `src/onboarding/*` | modified: import shared validators |
+| `src/reporting/*` | modified: import shared validators |
+| `tests/shared/validation/*` | created: shared validator test coverage |
+
+## Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC1: shared validation package exposes all 6 validators | PASS | package export check and shared tests PASS |
+| AC2: all target modules use shared validators | PASS | migrated module tests PASS |
+| AC3: duplicate validator implementations are removed | PASS | `python scripts/check_no_duplicate_validators.py` PASS |
+| AC4: existing behavior remains compatible | PASS | existing module tests passed unchanged |
+
+## Delivery Sync Check
+- [x] README / user docs reviewed
+- [x] Example commands / scripts reviewed
+- [x] Public API paths / contracts reviewed
+- [x] Implemented vs planned status reviewed
+
+Files checked:
+- README.md - 补充共享验证库使用方式
+- docs/shared/validation.md - 补充 API 和迁移指南
+- package exports - 确认 `@shared/validation` 公开入口
+
+## Guardrail Overrides
+- [x] override ledger reviewed
+- Ledger: runtime/guardrail-overrides.jsonl
+- Decision: N/A - no overrides
+
+## Spec Update Decision
+- **Need update?**: yes
+- **Reason**: 共享验证包 API 和未来模块迁移指南可复用
+- **Updated files**: `.trellis/spec/shared/validation.md`
+
+## Follow-ups
+- None.
+
+## Risks
+- Shared package coupling risk; mitigated by architecture review and all migrated module tests.
 ```

@@ -21,18 +21,18 @@
 14. 派发 `trellis-code-reviewer`
 15. 派发 `trellis-architecture-reviewer`
 16. 全部 PASS → AI 停下来等待用户明确说"进入 Finish 阶段"
-17. 用户确认 Finish → AI 写 `finish.md` 的 Finish Approval，并运行 `trellis-update-spec` → 添加审计日志模式
-18. Commit → merge-review → validate（运行 migration 测试）→ `/trellis:finish-work`
+17. 用户确认 Finish → AI 按当前模板写完整 `finish.md`，并运行 `trellis-update-spec` → 添加审计日志模式
+18. `prepare_finish_workspace.py` → Commit → merge-review → final validation 写 `validation/test-results.md`（运行 migration 测试）→ `/trellis:finish-work`
 
 ## 预期产物
 - 完整产物：prd.md、design.md、implement.md
 - research/：evidence.md、brainstorm.md、grill-me.md
 - review/：spec-review.md、code-review.md、architecture-review.md、merge-review.md
-- validation/：commands.md、test-results.md（migration 测试）、build-results.md
-- finish.md
+- validation/：check-results.md、test-results.md（migration 测试）；可选辅助证据 commands.md、build-results.md
+- finish.md（当前模板章节：Finish Approval、Task Summary、Observable Outcomes、Changed Files、Acceptance Criteria Coverage、Delivery Sync Check、Guardrail Overrides、Spec Update Decision、Follow-ups、Risks）
 
 ## 关键行为
 - 任务级别：L4
 - design.md 中检查迁移安全性
 - 深度检查包含 schema/API 一致性
-- Build/test 包含 migration 测试
+- Build/Test/Smoke 包含 migration 测试

@@ -11,7 +11,7 @@ Use it only when all of the following are true:
 3. **Multi-agent parallel execution** — when the PRD confirms that work can be safely split into independent streams
 4. **User explicitly confirms** — OMC `ulw/ultrawork` requires explicit user approval before spawning agents
 
-OMC must NOT be used for L0-L3 tasks unless the user explicitly requests it with full understanding of the implications.
+OMC must NOT be used for L0-L3 tasks. If the work truly needs OMC, reroute or rescope it as an L4/L5 task and get explicit OMC `ulw/ultrawork` approval.
 If OMC is unavailable, the task must continue on the Trellis-native path instead of blocking.
 
 ## Execution Mode Hierarchy
@@ -20,8 +20,9 @@ The execution mode escalates based on task complexity:
 
 | Level | Mode | When |
 |-------|------|------|
-| L1-L2 | Main session | Direct answer or single-stream implementation |
-| L3 | Subagent | Dispatch trellis-implement / trellis-check subagents |
+| L1 | Main session | Direct inline answer or tiny change |
+| L2 | Single Trellis subagent by default | Main session only with explicit inline override |
+| L3 | Subagent | Dispatch trellis-implementer / trellis-checker subagents |
 | L4 | Subagent + worktree | Default complex-task path |
 | L5 | Trellis-native parallel + worktree | Default heavy-task parallel path |
 | L5 advanced | OMC `ulw/ultrawork` + worktree + parent/child | When advanced orchestration is worth the overhead |

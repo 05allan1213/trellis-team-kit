@@ -1,6 +1,6 @@
 # Trellis 配置
 
-Trellis 的默认配置文件，安装到目标项目的 `.trellis/` 目录。
+Trellis 的默认配置文件。安装后位于目标项目的 `.trellis/config/` 目录；源码仓库中的维护路径为 `trellis/config/`。
 
 ## 文件
 
@@ -43,8 +43,8 @@ Trellis 的默认配置文件，安装到目标项目的 `.trellis/` 目录。
 
 运行时按以下顺序加载：
 
-1. `<workspace-root>/.trellis/config/routing_rules.json`（覆写）
-2. `trellis/config/routing_rules.json`（默认）
+1. `<workspace-root>/.trellis/config/routing_rules.json`（安装后的项目配置，也可作为 workspace 覆写）
+2. `trellis/config/routing_rules.json`（team-kit 源码仓库维护时的默认配置）
 
 ### 校验
 
@@ -74,14 +74,14 @@ OMC `ulw/ultrawork` 只属于高级执行选项，需要明确用户批准；默
 
 ## Scope / Override / Agent Result Validators
 
-阶段二和阶段三新增三个 task-level 校验器：
+阶段二和阶段三新增三个 task-level 校验器，并配套一个 workflow doctor：
 
 - `validate_scope_manifest.py <task-dir>` — 校验 L2+ task 的 `scope-manifest.json`
 - `validate_guardrail_overrides.py <task-dir>` — 校验 `runtime/guardrail-overrides.jsonl` 与 `finish.md` 复核状态
-- `validate_agent_results.py <task-dir>` — 校验多 agent / worktree / OMC 任务的 `agent-results/*.json`
+- `validate_agent_results.py <task-dir>` — 当 `Execution Mode Decision` 选中 `single Trellis subagent`、`Trellis subagents`、`Trellis-native parallel + worktree` 或 `OMC ulw/ultrawork + worktree + parent/child` 时，校验必需的 `agent-results/*.json`
 - `trellis_doctor.py workflow <task-dir>` — 汇总当前任务的 workflow alignment 并给出 `To fix:` 修复路径
 
 `validate_task.py <task-dir>` 会在 before-dev 后联动 scope/override 校验，
-并在需要 merge-review 的并行任务上联动 agent result 校验。全局
+并在选择 `single Trellis subagent` / `Trellis subagents` / `Trellis-native parallel + worktree` / `OMC ulw/ultrawork + worktree + parent/child` 执行模式时联动 agent result 校验。全局
 `validate_runtime_hardening.py` 只检查脚本可用性；实际 task 状态必须传入 task
 目录单独验证。

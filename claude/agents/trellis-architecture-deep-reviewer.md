@@ -178,7 +178,10 @@ Write to `{TASK_DIR}/review/architecture-deep-review.md`:
 
 ## Verdict
 
-PASS / FAIL / REDESIGN-REQUIRED
+- [x] PASS
+- [ ] FAIL
+- [ ] REDESIGN-REQUIRED
+<!-- For a failing or redesign-required review, mark that option instead and list blocking issues below. -->
 
 ## Blocking Issues
 

@@ -143,7 +143,7 @@ For each distinct research topic, Write a markdown file at
 
 ### External References
 
-- [Library X docs](url) -- <why relevant, version constraints>
+- Library X docs: <url> -- <why relevant, version constraints>
 
 ### Related Specs
 

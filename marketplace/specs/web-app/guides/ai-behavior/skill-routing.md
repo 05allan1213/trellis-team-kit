@@ -48,7 +48,7 @@ L4/L5 tasks this decision is required before implementation starts.
 
 Valid modes are:
 
-- main session
+- main session (L1 or explicit inline override only)
 - single Trellis subagent
 - Trellis subagents
 - Trellis-native parallel + worktree
@@ -62,7 +62,8 @@ The decision must include:
 
 L5 defaults to Trellis-native parallel + worktree when parallelism is justified.
 An L5/orchestrated task must not select `main session` as its execution mode.
-OMC is an advanced path and must not be selected without explicit user approval.
+OMC is an advanced path and must not be selected without explicit OMC
+`ulw/ultrawork` approval.
 
 ---
 

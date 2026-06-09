@@ -129,27 +129,27 @@ FAIL in deep-review mode must return to IMPLEMENTING. Do not proceed to finish.
 
 ## Structural Alignment with Design
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Cross-Layer Integration
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Module Ownership
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Shared Type/Utility Impact
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Extensibility and Coupling
 - [finding]
-- Verdict: PASS/FAIL
+- Result: PASS or FAIL — [evidence]
 
 ## Concurrency and Consistency (if applicable)
 - [finding]
-- Verdict: PASS/FAIL / N/A
+- Result: PASS, FAIL, or N/A — [evidence]
 
 ## Blocking Issues
 1. [issue]: [architectural impact]
@@ -160,9 +160,10 @@ FAIL in deep-review mode must return to IMPLEMENTING. Do not proceed to finish.
 (or "none")
 
 ## Verdict
-- PASS — architecture is sound
-- FAIL — must return to implement:
+- [x] PASS — architecture is sound
+- [ ] FAIL — must return to implement:
   1. [blocking issue summary]
+<!-- For a failing review, mark FAIL instead and list blockers. -->
 ```
 
 ## Quality Bar

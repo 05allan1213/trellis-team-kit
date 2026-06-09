@@ -1,6 +1,6 @@
 ---
 name: trellis-merge-review
-description: "Review integration for L5, worktree, parallel/workstream multi-subagent execution, OMC parallel, PR merge, conflict resolution, or parent/child integration. Checks conflict resolution logic, duplicate implementations, missing files, and interface inconsistencies between agents. Outputs to review/merge-review.md with PASS/FAIL."
+description: "Review integration when the merge-review trigger contract applies: L5; selected Trellis-native parallel + worktree; selected OMC ulw/ultrawork + worktree + parent/child; Branch strategy contains worktree; Parent/child: yes; Merge review needed: yes; PR merge; or conflict resolution. Checks conflict resolution logic, duplicate implementations, missing files, and interface inconsistencies between agents. Outputs to review/merge-review.md with PASS/FAIL."
 ---
 
 # Trellis Merge Review
@@ -9,18 +9,19 @@ description: "Review integration for L5, worktree, parallel/workstream multi-sub
 
 One or more trigger conditions are met:
 - L5 task
-- Worktree used (changes need to merge back to main branch)
-- Parallel/workstream multi-subagent execution (multiple agents produced code independently)
-- OMC parallel execution (parallel agents worked on different parts)
+- `Execution Mode Decision` selected `Trellis-native parallel + worktree`
+- `Execution Mode Decision` selected `OMC ulw/ultrawork + worktree + parent/child`
+- `Branch strategy` contains `worktree`
+- `Merge review needed: yes`
 - PR merge pending
 - Conflict resolution was performed
-- Parent/child task integration (child outputs need to integrate into parent)
+- `Parent/child: yes`
 
 ## Core Rules
 
 Merge review is about integration quality - whether the combined output of multiple sources is coherent and complete. It is not about individual code quality (that is `trellis-code-review`).
 
-Merge review is required for L5 tasks, and for any task that used worktree, parallel/workstream multi-subagent execution, OMC, PR merge, conflict resolution, or parent/child structure.
+Merge review is required for L5 tasks and when any validator trigger applies: selected `Trellis-native parallel + worktree`, selected `OMC ulw/ultrawork + worktree + parent/child`, `Branch strategy` contains `worktree`, `Parent/child: yes`, `Merge review needed: yes`, PR merge, or conflict resolution.
 
 Ordinary serial Trellis implementer/checker/reviewer subagents require
 `agent-results/*.json`, but they do not by themselves require merge-review.
@@ -163,9 +164,10 @@ OMC is an optional advanced execution path, not the default. If OMC output is pr
 (or "none")
 
 ## Verdict
-- PASS - merge is coherent and complete
-- FAIL - must resolve blocking issues:
+- [x] PASS - merge is coherent and complete
+- [ ] FAIL - must resolve blocking issues:
   1. [blocking issue summary]
+<!-- For a failing merge review, mark FAIL instead and list blockers. -->
 ```
 
 ## Quality Bar

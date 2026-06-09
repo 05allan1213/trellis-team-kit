@@ -18,9 +18,9 @@ Trellis-native execution comes first:
 - L5: Trellis-native parallel plus worktree by default for large multi-agent
   work.
 
-OMC is an advanced optional execution path. It requires explicit user approval
-after PRD and acceptance criteria are clear. Routing to L5 is not approval to
-start OMC.
+OMC is an advanced optional execution path. It requires explicit OMC
+`ulw/ultrawork` approval after PRD and acceptance criteria are clear. Routing to
+L5 is not approval to start OMC.
 
 ---
 
@@ -28,7 +28,7 @@ start OMC.
 
 `implement.md` must record the selected execution mode before implementation:
 
-- main session
+- main session (L1 or explicit inline override only)
 - single Trellis subagent
 - Trellis subagents
 - Trellis-native parallel + worktree
@@ -65,10 +65,12 @@ Every subagent writes `agent-results/*.json`. The main session integrates the
 results and remains responsible for final behavior. Subagents do not approve
 their own output.
 
-Merge-review is required for L5, worktree, parallel or workstream
-multi-subagent execution, OMC, PR merge, conflict resolution, and parent/child
-tasks. Merge-review must inspect agent results, scope, override ledger entries,
-validation failures, blocking issues, and OMC approval evidence.
+Merge-review is required when any validator trigger applies: L5; selected
+`Trellis-native parallel + worktree`; selected `OMC ulw/ultrawork + worktree +
+parent/child`; `Branch strategy` contains `worktree`; `Parent/child: yes`;
+`Merge review needed: yes`; PR merge; or conflict resolution. Merge-review must
+inspect agent results, scope, override ledger entries, validation failures,
+blocking issues, and OMC approval evidence.
 
 ---
 

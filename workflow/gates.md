@@ -55,17 +55,22 @@
 - **Rule**: `finish.md` must record README/docs/example-command/API-contract/implemented-vs-planned review
 - **Blocks**: Missing or placeholder delivery sync evidence → no finish
 
-### 11. Merge Review Gate
-- **Trigger**: L5, worktree, parallel or workstream multi-subagent execution, OMC, PR merge, conflict resolution, or parent/child integration
+### 11. Guardrail Override Review Gate
+- **Trigger**: `runtime/guardrail-overrides.jsonl` exists and has entries
+- **Rule**: `finish.md` must record a completed `Guardrail Overrides` review with ledger path and a concrete accept/deny decision
+- **Blocks**: Missing review, unchecked review, placeholder decision, or `N/A` decision while overrides exist → no finish
+
+### 12. Merge Review Gate
+- **Trigger**: L5; `Execution Mode Decision` selected `Trellis-native parallel + worktree`; `Execution Mode Decision` selected `OMC ulw/ultrawork + worktree + parent/child`; `Branch strategy` contains `worktree`; `Parent/child: yes`; `Merge review needed: yes`; PR merge; or conflict resolution
 - **Rule**: `trellis-merge-review` must PASS before final validation/finish-work
 - **Blocks**: Missing or failing merge review → no finish
 
-### 12. Build/Test Gate
+### 13. Final Validation Gate
 - **Trigger**: After commit
-- **Rule**: Run build/test, or explicitly record why not executable
+- **Rule**: Record checked Build, Test, and Smoke results in `validation/test-results.md`; mark `Ready for finish-work?`; record Overall PASS or an explicit skipped-with-valid-reason justification when checks cannot run
 - **Blocks**: Missing without explanation → no finish
 
-### 13. Finish Gate
+### 14. Finish Gate
 - **Trigger**: All preconditions met
 - **Rule**: archive task + update journal + mark done
 - **Blocks**: Any precondition missing → refuse execution

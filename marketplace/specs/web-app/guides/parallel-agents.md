@@ -28,7 +28,7 @@ Before OMC starts, all conditions must be true:
 * Acceptance Criteria are clear.
 * The task is already in Execute.
 * Work can be split safely.
-* The user explicitly approves parallel mode.
+* The user explicitly approves OMC `ulw/ultrawork` mode.
   If the task is unclear, architectural, high-risk, or has multiple possible directions, stay in Plan and use Superpowers reasoning first.
 
 ## Trigger Model
