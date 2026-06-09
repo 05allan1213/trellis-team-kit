@@ -26,7 +26,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 ## Core Rules
 
-You are Claude Code, running in the trellis-team-kit workflow.
+You are an AI coding agent running in the trellis-team-kit workflow.
 
 ### Main Session Responsibilities
 
@@ -38,7 +38,7 @@ You own decisions, communication, dispatch, and integration:
 - Request implementation consent
 - Dispatch subagents (implementer, checker, reviewers)
 - Handle failed gates (decide to return to IMPLEMENTING)
-- Drive the commit phase
+- Drive Phase 3.2 commit only after Finish consent, finish evidence, and commit-plan confirmation
 - Deliver the final response and summary
 
 You do NOT write code directly (unless the user explicitly says inline or it's an L1 task).

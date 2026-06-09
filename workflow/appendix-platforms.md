@@ -43,7 +43,7 @@ Codex 使用 `.codex/agents/` 和 `.codex/hooks/`。
 1. 将 hooks 移植到目标平台的 hook 系统
 2. 将 agent 定义移植到目标平台的 agent 格式
 3. 更新目标平台对应的 `settings.json` 等价配置
-4. 更新入口文档（`AGENTS.md` 等价文件）
+4. 更新入口文档（`AGENTS.md` / `CLAUDE.md` 等价文件），并保持同一 team-kit 合同同步
 5. 在目标平台上测试完整状态机
 
 ## 为什么选择 Claude Code-first

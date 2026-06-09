@@ -15,9 +15,9 @@ trellis-team-kit 是一个**工作流套件**，架设在官方
 - **Archive wrapper**，禁止直接 `task.py archive`，统一走 team-kit finalize wrapper
 - **Before-dev 门控**，实现前必须读取所有 artifacts 并声明约束
 - **范围守卫**，高风险未声明路径触发 PreToolUse warning，可 override
-- **14 个阶段 skills**，覆盖 brainstorm、grill-me、design、implement、check、review 等
-- **9 个专用 subagents**，隔离执行研究、实现、检查和审查
-- **9 个守护 hooks**，注入工作流状态、阻断危险操作、强制执行门禁
+- **14 个 team-kit 阶段 skills**，覆盖 brainstorm、grill-me、design、implement、check、review 等
+- **9 个 team-kit 专用 subagents**，隔离执行研究、实现、检查和审查
+- **9 个 team-kit 守护 hooks**，注入工作流状态、阻断危险操作、强制执行门禁
 - **Review Gate Contract**，串行 PASS/FAIL 强制执行，失败回流
 - **Spec 驱动的团队知识库**，存放在 `.trellis/spec/` 作为持久化项目记忆
 - **运行时验证** — 静态验证器 + finish 前自动校验，关键路径全强制
@@ -219,13 +219,13 @@ message 和 timestamp，缺失时 runtime hook 会 deny。
 ## 安装后你会得到什么
 
 ```
-AGENTS.md                  ← AI agent 入口
-CLAUDE.md                  ← Claude Code 入口
+AGENTS.md                  ← AI agent 入口（与 CLAUDE.md 使用同一 team-kit 合同）
+CLAUDE.md                  ← Claude Code 入口（与 AGENTS.md 同步）
 .trellis/.team-kit-version ← 版本标记
 .claude/
   settings.json            ← 团队 Claude Code 配置（hooks、skills、权限）
-  skills/                  ← 14 个 Trellis 阶段 skills
-  agents/                  ← 9 个专用 subagents
+  skills/                  ← 14 个 team-kit 管理的 Trellis 阶段 skills（官方 Trellis extras 可共存）
+  agents/                  ← 9 个 team-kit 管理的专用 subagents（官方 Trellis extras 可共存）
   hooks/                   ← 9 个工作流守护 hooks + 7 个 hook libs
   commands/trellis/        ← 7 个 Slash 命令
 .trellis/
@@ -233,7 +233,7 @@ CLAUDE.md                  ← Claude Code 入口
   spec/                    ← 分层团队知识库
   config/                  ← config.json / routing_rules.json / workflow_profiles.json
   templates/               ← Task 产物模板（含 before-dev.md / finish.md.tmpl）
-  scripts/                 ← workflow validators + archive helpers
+  scripts/                 ← 20 个 team-kit workflow validators/helpers + 官方 Trellis scripts
   replay/                  ← workflow replay fixtures（22 cases）
   tasks/                   ← 活跃和已归档任务
   workspace/               ← 个人开发者日志
@@ -435,7 +435,7 @@ python3 -m pytest tests -q
 |-------|--------|
 | 团队 AI 工作流规范 | `marketplace/specs/web-app/` |
 | AI behavior spec 镜像 | `marketplace/specs/web-app/guides/ai-behavior/` + `trellis/spec-templates/guides/ai-behavior/` + `trellis/spec-manifest.txt` |
-| 团队入口文件 | `entry/` |
+| 团队入口文件（AGENTS/CLAUDE 同步） | `entry/` |
 | 团队工作流 | `workflow/` |
 | 日常提示词模板 | `prompt.md` |
 | Skills | `claude/skills/` |

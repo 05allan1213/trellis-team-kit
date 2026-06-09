@@ -19,9 +19,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/05allan1213/trellis-team-kit
 bash ~/trellis-team-kit/bootstrap/personalize-local.sh 你的名字
 
 # 3. 验证安装
+cmp -s AGENTS.md CLAUDE.md
 python3 .trellis/scripts/trellis_doctor.py setup
 python3 .trellis/scripts/validate_runtime_hardening.py
-# 预期：setup doctor PASS，runtime hardening OVERALL: PASS
+# 预期：AGENTS/CLAUDE 完全一致，setup doctor PASS，runtime hardening OVERALL: PASS
 # 注意：validate_scope_manifest / validate_guardrail_overrides / validate_agent_results
 # 在无 task 参数时只显示 INFO availability check；task-runtime validation 必须传入 task-dir。
 
@@ -306,9 +307,10 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 ```bash
 # 安装后项目内验证
+cmp -s AGENTS.md CLAUDE.md
 python3 .trellis/scripts/trellis_doctor.py setup
 python3 .trellis/scripts/validate_runtime_hardening.py
-# 预期：setup doctor PASS，runtime hardening OVERALL: PASS
+# 预期：AGENTS/CLAUDE 完全一致，setup doctor PASS，runtime hardening OVERALL: PASS
 # task-specific validators 无 task-dir 时显示 INFO availability check，不代表具体 task 已通过。
 
 # Task 验证
@@ -350,6 +352,7 @@ python3 .trellis/scripts/validate_spec_update_targets.py
 维护者在 team-kit 仓库根目录还要跑：
 
 ```bash
+cmp -s entry/AGENTS.md entry/CLAUDE.md
 shellcheck bootstrap/*.sh claude/hooks/trellis-notify.sh
 python3 trellis/scripts/replay_workflow_cases.py tests/fixtures/replay
 # 预期：22/22 passed
