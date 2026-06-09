@@ -146,6 +146,7 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 - [ ] 代码文件创建在声明范围内
 - [ ] `implement.jsonl` / `check.jsonl` 只保留 curated spec/research context
 - [ ] `implement.jsonl` / `check.jsonl` 不重复 task artifacts（`prd.md`、`design.md`、`implement.md`、`finish.md`）
+- [ ] 若使用 trellis-researcher，则写入 `agent-results/trellis-researcher-<timestamp>.json`
 - [ ] trellis-implementer 写入 `agent-results/trellis-implementer-<timestamp>.json`
 - [ ] agent result 含 `status`、`workstream`、对象化 `changed_files`、`validation`、`blocking_issues`
 - [ ] `python3 .trellis/scripts/validate_agent_results.py <task-dir>` PASS
@@ -203,6 +204,8 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh
 
 **检查点**：
 - [ ] 在 finish.md 中记录 Spec Update Decision
+- [ ] 若使用 trellis-spec-updater，则写入 `agent-results/trellis-spec-updater-<timestamp>.json`
+- [ ] spec-updater 的 `changed_files` 只包含 `.trellis/spec/...` 或为空（no update needed）
 
 ---
 

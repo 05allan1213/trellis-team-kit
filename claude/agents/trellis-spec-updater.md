@@ -48,6 +48,8 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
    structure and index files.
 5. **Do not update specs for trivial changes** -- if the Spec Update Decision
    says "no update needed", do not update.
+6. **Write agent result JSON** -- write a machine-readable result under
+   `{TASK_DIR}/agent-results/` before replying.
 
 ## Allowed Actions
 
@@ -56,6 +58,8 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 - Create new spec files in `.trellis/spec/`.
 - Update spec index files.
 - Search code with Glob, Grep, and Bash.
+- Write agent result JSON to
+  `{TASK_DIR}/agent-results/trellis-spec-updater-<timestamp>.json`.
 
 ## Forbidden Actions
 
@@ -131,14 +135,18 @@ After updating specs:
 2. Check that index files reference all spec files correctly.
 3. Ensure new content follows the existing spec file format.
 
+Before replying to the main session, write the required agent result JSON
+described below. The JSON is required even when no spec update is needed,
+validation fails, or the update is blocked.
+
 ## Output Format
 
 ```markdown
 ## Spec Update Complete
 
-### Decision
+### Spec Update Decision
 
-Spec update needed: <yes / no>
+Need spec update: <yes / no>
 Reason: <from finish.md>
 
 ### Files Updated
@@ -157,4 +165,69 @@ Reason: <from finish.md>
 ### Consistency Check
 
 - <any contradictions found with other specs, or "No contradictions found">
+
+### Agent Result JSON
+
+- `{TASK_DIR}/agent-results/trellis-spec-updater-<timestamp>.json`
 ```
+
+## Agent Result JSON Protocol
+
+Create `{TASK_DIR}/agent-results/` if needed and write one JSON file at:
+
+```text
+{TASK_DIR}/agent-results/trellis-spec-updater-<timestamp>.json
+```
+
+Use a unique timestamp such as `20260608T153000Z`. This JSON file is required
+before your final response. In your final response, mention the JSON path.
+
+The JSON object must match this schema contract:
+
+```json
+{
+  "version": 1,
+  "agent": "trellis-spec-updater",
+  "status": "PASS",
+  "phase": "UPDATING_SPEC",
+  "changed_files": [
+    {
+      "path": ".trellis/spec/guides/testing.md",
+      "summary": "recorded the validated task learning"
+    }
+  ],
+  "validation": [
+    {"command": "python3 .trellis/scripts/validate_spec_index.py .trellis/spec", "status": "PASS"}
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "risks": [],
+  "scope": {
+    "expanded": false,
+    "undeclared_paths": []
+  },
+  "scope_expansion": [],
+  "git": {
+    "committed": false
+  },
+  "execution_mode": "single-agent"
+}
+```
+
+Rules:
+
+- `version` must be exactly `1`.
+- `agent` must be `trellis-spec-updater`.
+- `status` must be one of `PASS`, `FAIL`, or `BLOCKED`.
+- `changed_files` must list spec files changed under `.trellis/spec/`, with
+  `path` and `summary`. Use an empty list when no update was needed.
+- `validation` must contain every consistency check or inspection you ran. Each
+  item must include `command` and `status`, where `status` is `PASS` if the
+  check completed successfully and `FAIL` if it failed.
+- `blocking_issues` must list unresolved blockers; it must be empty on `PASS`.
+- `non_blocking_issues` must list non-blocking caveats or follow-up notes.
+- `risks` must list any uncertainty about spec consistency.
+- `scope_expansion` must list any attempted output outside `.trellis/spec/`, or
+  `[]` if none.
+- If status is `FAIL` or `BLOCKED`, still write the JSON and explain the reason
+  in `blocking_issues` or `risks`.

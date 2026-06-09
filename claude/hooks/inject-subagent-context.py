@@ -72,10 +72,7 @@ AGENTS_REVIEW = (
 AGENTS_ALL = (
     AGENT_RESEARCH, AGENT_IMPLEMENT, AGENT_CHECK,
 ) + AGENTS_REVIEW + (AGENT_SPEC_UPDATER, AGENT_MERGE_REVIEWER)
-AGENTS_REQUIRE_AGENT_RESULT = (
-    AGENT_IMPLEMENT,
-    AGENT_CHECK,
-) + AGENTS_REVIEW + (AGENT_MERGE_REVIEWER,)
+AGENTS_REQUIRE_AGENT_RESULT = AGENTS_ALL
 
 MAX_CONTEXT_CHARS = 32000  # Limit total injected context
 
@@ -376,6 +373,15 @@ def _get_agent_result_instruction(subagent_type: str, task_dir: str | None) -> s
     if subagent_type not in AGENTS_REQUIRE_AGENT_RESULT or not task_dir:
         return ""
 
+    phase_by_agent = {
+        AGENT_RESEARCH: "RESEARCH",
+        AGENT_IMPLEMENT: "IMPLEMENTING",
+        AGENT_CHECK: "CHECKING",
+        AGENT_SPEC_UPDATER: "UPDATING_SPEC",
+        AGENT_MERGE_REVIEWER: "MERGE_REVIEW",
+    }
+    phase = phase_by_agent.get(subagent_type, "REVIEWING")
+
     return (
         "## Required Agent Result JSON\n"
         f"Before your final response, write `{task_dir}/agent-results/"
@@ -385,14 +391,17 @@ def _get_agent_result_instruction(subagent_type: str, task_dir: str | None) -> s
         '  "version": 1,\n'
         f'  "agent": "{subagent_type}",\n'
         '  "status": "PASS",\n'
-        '  "workstream": "<declared workstream name, required for implementer/checker when scope-manifest declares workstreams>",\n'
+        f'  "phase": "{phase}",\n'
+        '  "workstream": "<declared workstream name; required for implementer/checker when scope-manifest declares workstreams>",\n'
         '  "changed_files": [{"path": "<repo-relative path>", "summary": "<what changed>"}],\n'
         '  "validation": [{"command": "<command or review performed>", "status": "PASS"}],\n'
         '  "blocking_issues": [],\n'
         '  "non_blocking_issues": [],\n'
         '  "risks": [],\n'
+        '  "scope": {"expanded": false, "undeclared_paths": []},\n'
         '  "scope_expansion": [],\n'
-        '  "execution_mode": "main session"\n'
+        '  "git": {"committed": false},\n'
+        '  "execution_mode": "single-agent"\n'
         "}\n"
         "```\n"
         "Set status to FAIL, REDESIGN-REQUIRED, or BLOCKED when appropriate. "

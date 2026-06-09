@@ -102,6 +102,7 @@ def main() -> int:
         "validate_scope_manifest.py",
         "validate_guardrail_overrides.py",
         "validate_agent_results.py",
+        "validate_spec_update_targets.py",
         "replay_workflow_cases.py",
         "detect_spec_update_candidates.py",
         "trellis_doctor.py",
@@ -161,6 +162,7 @@ def main() -> int:
     print("Replay/spec maintenance:")
     print(f"  python3 {scripts_dir}/replay_workflow_cases.py <replay-fixtures-dir>")
     print(f"  python3 {scripts_dir}/detect_spec_update_candidates.py [changed-file ...]")
+    print(f"  python3 {scripts_dir}/validate_spec_update_targets.py")
 
     return 0 if all_pass else 1
 

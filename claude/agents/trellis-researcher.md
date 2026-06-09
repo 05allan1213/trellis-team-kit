@@ -48,6 +48,8 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 3. **Persist** -- write each research topic to `{TASK_DIR}/research/<topic>.md`.
 4. **Report** -- return file paths + one-line summaries to the main agent (not
    full content).
+5. **Write agent result JSON** -- write a machine-readable result under
+   `{TASK_DIR}/agent-results/` before replying.
 
 ## Allowed Actions
 
@@ -56,6 +58,8 @@ Look for the `<!-- trellis-hook-injected -->` marker in your input above.
 - Fetch external documentation via WebSearch and WebFetch.
 - Write files ONLY to `{TASK_DIR}/research/*.md`.
 - Create `{TASK_DIR}/research/` directory via `mkdir -p` if it does not exist.
+- Write agent result JSON to
+  `{TASK_DIR}/agent-results/trellis-researcher-<timestamp>.json`.
 
 ## Forbidden Actions
 
@@ -152,6 +156,9 @@ For each distinct research topic, Write a markdown file at
 
 ### Step 5: Report to Main Agent
 
+Before replying to the main session, write the required agent result JSON
+described below. The JSON is required even when research fails or is blocked.
+
 Reply with ONLY:
 
 - List of files written (paths relative to repo root)
@@ -165,6 +172,19 @@ Do NOT paste full research content into the reply. The files are the contract.
 ```markdown
 ## Research Complete
 
+### Research Question
+- <original question or query>
+
+### Files / Sources Inspected
+- `<repo-relative file>` -- <why it mattered>
+- <external source URL or documentation title> -- <why it mattered>
+
+### Findings
+- <finding with citation or persisted research path>
+
+### Decision Impact
+- <what the main session should do with this research>
+
 ### Files Written
 - `{TASK_DIR}/research/<topic-1>.md` -- <one-line summary>
 - `{TASK_DIR}/research/<topic-2>.md` -- <one-line summary>
@@ -174,4 +194,68 @@ Do NOT paste full research content into the reply. The files are the contract.
 
 ### Recommendation
 - If implementation work is needed: "Dispatch trellis-implementer for code changes."
+
+### Agent Result JSON
+- `{TASK_DIR}/agent-results/trellis-researcher-<timestamp>.json`
 ```
+
+## Agent Result JSON Protocol
+
+Create `{TASK_DIR}/agent-results/` if needed and write one JSON file at:
+
+```text
+{TASK_DIR}/agent-results/trellis-researcher-<timestamp>.json
+```
+
+Use a unique timestamp such as `20260608T153000Z`. This JSON file is required
+before your final response. In your final response, mention the JSON path.
+
+The JSON object must match this schema contract:
+
+```json
+{
+  "version": 1,
+  "agent": "trellis-researcher",
+  "status": "PASS",
+  "phase": "RESEARCH",
+  "changed_files": [
+    {
+      "path": "research/example-topic.md",
+      "summary": "persisted cited findings for the requested topic"
+    }
+  ],
+  "validation": [
+    {"command": "reviewed cited source files", "status": "PASS"}
+  ],
+  "blocking_issues": [],
+  "non_blocking_issues": [],
+  "risks": [],
+  "scope": {
+    "expanded": false,
+    "undeclared_paths": []
+  },
+  "scope_expansion": [],
+  "git": {
+    "committed": false
+  },
+  "execution_mode": "single-agent"
+}
+```
+
+Rules:
+
+- `version` must be exactly `1`.
+- `agent` must be `trellis-researcher`.
+- `status` must be one of `PASS`, `FAIL`, or `BLOCKED`.
+- `changed_files` must list only files written under `research/`, with `path`
+  and `summary`.
+- `validation` must contain every source inspection, search, or verification
+  you ran. Each item must include `command` and `status`, where `status` is
+  `PASS` if the check completed successfully and `FAIL` if it failed.
+- `blocking_issues` must list unresolved blockers; it must be empty on `PASS`.
+- `non_blocking_issues` must list non-blocking caveats or follow-up notes.
+- `risks` must list uncertainty that may affect decisions.
+- `scope_expansion` must list any attempted output outside `research/`, or `[]`
+  if none.
+- If status is `FAIL` or `BLOCKED`, still write the JSON and explain the reason
+  in `blocking_issues` or `risks`.

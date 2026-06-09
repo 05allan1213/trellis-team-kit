@@ -63,6 +63,9 @@ require_cmd curl
 
 RAW_BASE_URI="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve().as_uri())' "$REPO_ROOT")"
 run_python_no_bytecode() { PYTHONDONTWRITEBYTECODE=1 python3 -B "$@"; }
+SMOKE_TMP_ROOT=""
+LOCAL_PROJECT=""
+REMOTE_PROJECT=""
 
 assert_file() {
   local path="$1"
@@ -101,8 +104,12 @@ run_case() {
   local case_mode="$1"
   local tmpdir project
 
-  tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
+  if [ -n "$SMOKE_TMP_ROOT" ]; then
+    tmpdir="$SMOKE_TMP_ROOT"
+  else
+    tmpdir="$(mktemp -d)"
+    trap 'rm -rf "$tmpdir"' RETURN
+  fi
   project="$tmpdir/project-$case_mode"
   mkdir -p "$project"
 
@@ -128,10 +135,15 @@ run_case() {
   assert_file "$project/.trellis/.team-kit-version"
   assert_file "$project/.trellis/config/config.json"
   assert_file "$project/.trellis/config/workflow_profiles.json"
+  assert_file "$project/.trellis/spec/guides/ai-behavior/agent-results.md"
   assert_file "$project/.trellis/spec/guides/ai-behavior/common-mistakes.md"
+  assert_file "$project/.trellis/spec/guides/ai-behavior/guardrails.md"
+  assert_file "$project/.trellis/spec/guides/ai-behavior/orchestration.md"
+  assert_file "$project/.trellis/spec/guides/ai-behavior/skill-routing.md"
   assert_file "$project/.trellis/scripts/validate_scope_manifest.py"
   assert_file "$project/.trellis/scripts/validate_guardrail_overrides.py"
   assert_file "$project/.trellis/scripts/validate_agent_results.py"
+  assert_file "$project/.trellis/scripts/validate_spec_update_targets.py"
   assert_file "$project/.trellis/scripts/replay_workflow_cases.py"
   assert_file "$project/.trellis/scripts/detect_spec_update_candidates.py"
   assert_file "$project/.trellis/scripts/trellis_doctor.py"
@@ -159,15 +171,53 @@ run_case() {
   assert_no_pycache "$project"
 
   echo "[smoke] PASS: $case_mode install path"
-  rm -rf "$tmpdir"
-  trap - RETURN
+  if [ "$case_mode" = "local" ]; then
+    LOCAL_PROJECT="$project"
+  elif [ "$case_mode" = "remote" ]; then
+    REMOTE_PROJECT="$project"
+  fi
+  if [ -z "$SMOKE_TMP_ROOT" ]; then
+    rm -rf "$tmpdir"
+    trap - RETURN
+  fi
 }
 
-if [ "$MODE" = "local" ] || [ "$MODE" = "all" ]; then
-  run_case "local"
-fi
+assert_install_inventories_match() {
+  local local_project="$1" remote_project="$2" left right
+  left="$(mktemp)"
+  right="$(mktemp)"
 
-if [ "$MODE" = "remote" ] || [ "$MODE" = "all" ]; then
+  (
+    cd "$local_project"
+    find . -path './.git' -prune -o -print | sort
+  ) > "$left"
+  (
+    cd "$remote_project"
+    find . -path './.git' -prune -o -print | sort
+  ) > "$right"
+
+  if ! cmp -s "$left" "$right"; then
+    echo "[smoke] ERROR: local and remote install inventories differ" >&2
+    diff -u "$left" "$right" >&2 || true
+    rm -f "$left" "$right"
+    exit 1
+  fi
+
+  rm -f "$left" "$right"
+  echo "[smoke] PASS: local and remote install inventories match"
+}
+
+if [ "$MODE" = "all" ]; then
+  SMOKE_TMP_ROOT="$(mktemp -d)"
+  trap 'rm -rf "$SMOKE_TMP_ROOT"' EXIT
+  run_case "local"
+  run_case "remote"
+  assert_install_inventories_match "$LOCAL_PROJECT" "$REMOTE_PROJECT"
+  rm -rf "$SMOKE_TMP_ROOT"
+  trap - EXIT
+elif [ "$MODE" = "local" ]; then
+  run_case "local"
+elif [ "$MODE" = "remote" ]; then
   run_case "remote"
 fi
 

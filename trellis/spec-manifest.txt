@@ -12,7 +12,11 @@ frontend/index.md
 frontend/quality-guidelines.md
 frontend/state-management.md
 frontend/type-safety.md
+guides/ai-behavior/agent-results.md
 guides/ai-behavior/common-mistakes.md
+guides/ai-behavior/guardrails.md
+guides/ai-behavior/orchestration.md
+guides/ai-behavior/skill-routing.md
 guides/ai-tooling.md
 guides/architecture-thinking.md
 guides/code-reuse-thinking-guide.md

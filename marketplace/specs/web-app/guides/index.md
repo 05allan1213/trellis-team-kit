@@ -24,7 +24,11 @@ These guides help AI assistants ask the right questions and load the right rules
 
 | Guide                                                         | Purpose                                                                         | When to Use                                           |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| [Agent Results](./ai-behavior/agent-results.md)               | Define machine-readable Trellis subagent handoffs and merge-review evidence | When dispatching, checking, reviewing, or merging subagent work |
 | [Common Mistakes](./ai-behavior/common-mistakes.md)           | Prevent repeated workflow regressions in routing, scope, overrides, agents, replay, doctor, and OMC approval | Before-dev, check, code review, and workflow hardening |
+| [Guardrails](./ai-behavior/guardrails.md)                     | Keep scope, high-risk edits, overrides, and finish evidence auditable | Before editing, overriding guardrails, reviewing, or finishing |
+| [Orchestration](./ai-behavior/orchestration.md)               | Choose Trellis-native parallel, worktree, merge-review, and optional OMC paths | When routing L4/L5 or coordinating multi-agent work |
+| [Skill Routing](./ai-behavior/skill-routing.md)               | Map L0-L5 routes to workflow profiles, skills, specs, and OMC approval boundaries | Before loading skills or starting a Trellis task |
 | [AI Tooling](./ai-tooling.md)                                 | Define Trellis, Superpowers, oh-my-claudecode, MCP, skills, and hooks ownership | When deciding which tool or workflow should be used   |
 | [Architecture Thinking](./architecture-thinking.md)           | Reason about module boundaries, contracts, compatibility, and trade-offs        | When a task crosses layers, introduces modules, or changes contracts |
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md)   | Identify patterns and reduce duplication                                        | When you notice repeated patterns or create utilities |

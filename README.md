@@ -168,8 +168,9 @@ IMPLEMENTING → 修复 → 重新 check → 重新 review。不可跳过。
 .trellis/tasks/<task>/agent-results/<agent-name>-<timestamp>.json
 ```
 
-`trellis-implementer`、`trellis-checker` 和各类 reviewer 在输出 markdown
-汇报时同步写入 JSON，记录 `workstream`、对象化 `changed_files`
+所有 Trellis subagent（researcher、implementer、checker、reviewer、
+merge-reviewer、spec-updater）在输出 markdown 汇报时同步写入 JSON，记录
+`workstream`（适用于声明了 workstream 的 implementer/checker）、对象化 `changed_files`
 （每项含 `path` / `summary`）、`validation`、`blocking_issues`、`risks` 和
 `scope_expansion`。`trellis-merge-review` 会聚合
 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl` 和

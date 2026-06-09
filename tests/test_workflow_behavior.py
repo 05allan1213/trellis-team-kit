@@ -13,6 +13,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INJECT_HOOK = REPO_ROOT / "claude" / "hooks" / "inject-workflow-state.py"
+INJECT_SUBAGENT_CONTEXT_HOOK = (
+    REPO_ROOT / "claude" / "hooks" / "inject-subagent-context.py"
+)
 PROTECT_HOOK = REPO_ROOT / "claude" / "hooks" / "protect-dangerous-actions.py"
 STOP_GUARD_HOOK = REPO_ROOT / "claude" / "hooks" / "stop-guard.py"
 NOTIFY_HOOK = REPO_ROOT / "claude" / "hooks" / "trellis-notify.sh"
@@ -26,6 +29,9 @@ VALIDATE_SCOPE_MANIFEST = REPO_ROOT / "trellis" / "scripts" / "validate_scope_ma
 VALIDATE_GUARDRAIL_OVERRIDES = REPO_ROOT / "trellis" / "scripts" / "validate_guardrail_overrides.py"
 VALIDATE_AGENT_RESULTS = REPO_ROOT / "trellis" / "scripts" / "validate_agent_results.py"
 VALIDATE_SPEC_INDEX = REPO_ROOT / "trellis" / "scripts" / "validate_spec_index.py"
+VALIDATE_SPEC_UPDATE_TARGETS = (
+    REPO_ROOT / "trellis" / "scripts" / "validate_spec_update_targets.py"
+)
 REPLAY_WORKFLOW_CASES = REPO_ROOT / "trellis" / "scripts" / "replay_workflow_cases.py"
 DETECT_SPEC_UPDATE_CANDIDATES = (
     REPO_ROOT / "trellis" / "scripts" / "detect_spec_update_candidates.py"
@@ -46,6 +52,13 @@ COMMON_MISTAKES_INSTALLED = ".trellis/spec/guides/ai-behavior/common-mistakes.md
 COMMON_MISTAKES_TEMPLATE = (
     REPO_ROOT / "trellis" / "spec-templates" / "guides" / "ai-behavior" / "common-mistakes.md"
 )
+AI_BEHAVIOR_SPEC_RELS = [
+    "guides/ai-behavior/agent-results.md",
+    "guides/ai-behavior/common-mistakes.md",
+    "guides/ai-behavior/guardrails.md",
+    "guides/ai-behavior/orchestration.md",
+    "guides/ai-behavior/skill-routing.md",
+]
 
 
 def load_module(path: Path, name: str):
@@ -3393,6 +3406,205 @@ class ValidateAgentResultsTests(unittest.TestCase):
 
         self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
 
+    def test_researcher_and_spec_updater_results_are_valid_agents(self):
+        task_dir = self.make_task_dir()
+        researcher = {
+            "version": 1,
+            "agent": "trellis-researcher",
+            "status": "PASS",
+            "changed_files": [
+                {
+                    "path": "research/order-patterns.md",
+                    "summary": "persisted research findings for order patterns",
+                }
+            ],
+            "validation": [
+                {"command": "reviewed cited source files", "status": "PASS"}
+            ],
+            "blocking_issues": [],
+            "non_blocking_issues": [],
+            "risks": [],
+            "scope_expansion": [],
+        }
+        spec_updater = {
+            "version": 1,
+            "agent": "trellis-spec-updater",
+            "status": "PASS",
+            "changed_files": [
+                {
+                    "path": ".trellis/spec/guides/testing.md",
+                    "summary": "recorded task validation guidance",
+                }
+            ],
+            "validation": [
+                {"command": "python3 .trellis/scripts/validate_spec_index.py", "status": "PASS"}
+            ],
+            "blocking_issues": [],
+            "non_blocking_issues": [],
+            "risks": [],
+            "scope_expansion": [],
+        }
+        self.write_result(task_dir, "trellis-researcher-a.json", researcher)
+        self.write_result(task_dir, "trellis-spec-updater-b.json", spec_updater)
+        self.write_result(
+            task_dir,
+            "trellis-implementer-c.json",
+            self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"]),
+        )
+        self.write_result(
+            task_dir,
+            "trellis-checker-d.json",
+            self.valid_result(agent="trellis-checker", changed_files=["tests/orders/test_service.py"]),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir, require_results=False)
+
+        self.assertTrue(ok, msg=f"Unexpected issues: {issues}")
+
+    def test_spec_updater_cannot_report_arbitrary_source_paths_as_task_local(self):
+        task_dir = self.make_task_dir()
+        spec_updater = {
+            "version": 1,
+            "agent": "trellis-spec-updater",
+            "status": "PASS",
+            "changed_files": [
+                {
+                    "path": "src/unplanned.py",
+                    "summary": "attempted unrelated source update",
+                }
+            ],
+            "validation": [
+                {"command": "python3 .trellis/scripts/validate_spec_index.py", "status": "PASS"}
+            ],
+            "blocking_issues": [],
+            "non_blocking_issues": [],
+            "risks": [],
+            "scope_expansion": [],
+        }
+        self.write_result(task_dir, "trellis-spec-updater-a.json", spec_updater)
+        self.write_result(
+            task_dir,
+            "trellis-implementer-b.json",
+            self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"]),
+        )
+        self.write_result(
+            task_dir,
+            "trellis-checker-c.json",
+            self.valid_result(agent="trellis-checker", changed_files=["tests/orders/test_service.py"]),
+        )
+
+        ok, issues = self.module.validate_agent_results(task_dir, require_results=False)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("not declared" in issue for issue in issues))
+
+    def test_declared_workstream_requires_result_from_declared_owner(self):
+        task_dir = self.make_task_dir()
+        self.write_result(
+            task_dir,
+            "trellis-implementer-a.json",
+            self.valid_result(agent="trellis-implementer", changed_files=["src/orders/service.py"]),
+        )
+        reviewer = self.valid_result(
+            agent="trellis-code-reviewer",
+            changed_files=["review/code-review.md"],
+        )
+        reviewer["workstream"] = "orders-tests"
+        self.write_result(task_dir, "trellis-code-reviewer-b.json", reviewer)
+
+        ok, issues = self.module.validate_agent_results(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("declared workstream 'orders-tests'" in issue for issue in issues))
+
+
+class InjectSubagentContextAgentResultsTests(unittest.TestCase):
+    def make_repo(self) -> tuple[Path, Path]:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        (root / ".git").mkdir()
+        (root / ".trellis" / "spec" / "guides").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "index.md").write_text("# Spec Index\n", encoding="utf-8")
+
+        task_dir = root / ".trellis" / "tasks" / "T005-context"
+        task_dir.mkdir(parents=True)
+        (root / ".trellis" / "active-task").write_text(
+            ".trellis/tasks/T005-context",
+            encoding="utf-8",
+        )
+        (task_dir / "task.json").write_text(
+            json.dumps({"id": "T005", "level": "L5", "status": "in_progress"}),
+            encoding="utf-8",
+        )
+        (task_dir / "prd.md").write_text("# PRD\nResearch and update specs.\n", encoding="utf-8")
+        (task_dir / "design.md").write_text("# Design\nUse Trellis agents.\n", encoding="utf-8")
+        (task_dir / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement
+
+                ## Execution Mode Decision
+                - [x] Trellis-native parallel + worktree
+                """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish
+
+                ## Spec Update Decision
+                Need spec update?
+                - [x] yes
+                Reason: agent result protocol changed.
+                """
+            ),
+            encoding="utf-8",
+        )
+        return root, task_dir
+
+    def run_hook(self, root: Path, agent_type: str) -> str:
+        result = subprocess.run(
+            [sys.executable, str(INJECT_SUBAGENT_CONTEXT_HOOK)],
+            input=json.dumps({"cwd": str(root), "agent_type": agent_type}),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        payload = json.loads(result.stdout)
+        return payload["hookSpecificOutput"]["additionalContext"]
+
+    def test_researcher_receives_required_agent_result_json_instruction(self):
+        root, _ = self.make_repo()
+
+        context = self.run_hook(root, "trellis-researcher")
+
+        self.assertIn("Required Agent Result JSON", context)
+        self.assertIn("trellis-researcher-<timestamp>.json", context)
+        self.assertIn('"agent": "trellis-researcher"', context)
+        self.assertIn('"phase":', context)
+        self.assertIn('"scope":', context)
+        self.assertIn('"git":', context)
+        self.assertIn('"execution_mode": "single-agent"', context)
+        self.assertNotIn('"execution_mode": "main session"', context)
+
+    def test_spec_updater_receives_required_agent_result_json_instruction(self):
+        root, _ = self.make_repo()
+
+        context = self.run_hook(root, "trellis-spec-updater")
+
+        self.assertIn("Required Agent Result JSON", context)
+        self.assertIn("trellis-spec-updater-<timestamp>.json", context)
+        self.assertIn('"agent": "trellis-spec-updater"', context)
+        self.assertIn('"phase":', context)
+        self.assertIn('"scope":', context)
+        self.assertIn('"git":', context)
+        self.assertIn('"execution_mode": "single-agent"', context)
+        self.assertNotIn('"execution_mode": "main session"', context)
+
 
 class SubagentStopGuardAgentResultsTests(unittest.TestCase):
     def make_repo(self) -> tuple[Path, Path]:
@@ -3449,6 +3661,43 @@ class SubagentStopGuardAgentResultsTests(unittest.TestCase):
             """
         )
 
+    def valid_research_output(self) -> str:
+        return textwrap.dedent(
+            """\
+            ## Research Complete
+
+            ### Research Question
+            How orders are processed.
+
+            ### Files / Sources Inspected
+            - src/orders/service.py
+            - .trellis/spec/index.md
+
+            ### Findings
+            Found the order service entry point.
+
+            ### Decision Impact
+            Dispatch trellis-implementer for code changes.
+
+            ### Files Written
+            - `research/orders.md` -- order service entry point.
+            """
+        )
+
+    def valid_spec_updater_output(self) -> str:
+        return textwrap.dedent(
+            """\
+            ## Spec Update Complete
+
+            ### Spec Update Decision
+            Need spec update: yes
+            Reason: validation guidance changed.
+
+            ### Consistency Check
+            No contradictions found.
+            """
+        )
+
     def test_blocks_when_agent_result_json_missing(self):
         root, _ = self.make_repo()
 
@@ -3501,6 +3750,137 @@ class SubagentStopGuardAgentResultsTests(unittest.TestCase):
         )
 
         self.assertIsNone(response)
+
+    def test_researcher_requires_agent_result_json(self):
+        root, _ = self.make_repo()
+
+        response = self.run_hook(
+            root,
+            {
+                "cwd": str(root),
+                "agent_type": "trellis-researcher",
+                "last_assistant_message": self.valid_research_output(),
+            },
+        )
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response["decision"], "block")
+        self.assertIn("agent-results", response["reason"])
+
+    def test_spec_updater_requires_agent_result_json(self):
+        root, _ = self.make_repo()
+
+        response = self.run_hook(
+            root,
+            {
+                "cwd": str(root),
+                "agent_type": "trellis-spec-updater",
+                "last_assistant_message": self.valid_spec_updater_output(),
+            },
+        )
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response["decision"], "block")
+        self.assertIn("agent-results", response["reason"])
+
+    def test_researcher_accepts_when_agent_result_json_exists(self):
+        root, task_dir = self.make_repo()
+        (task_dir / "agent-results").mkdir()
+        (task_dir / "agent-results" / "trellis-researcher-20260608T100000Z.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-researcher",
+                    "status": "PASS",
+                    "changed_files": [
+                        {
+                            "path": "research/orders.md",
+                            "summary": "persisted order research",
+                        }
+                    ],
+                    "validation": [{"command": "reviewed source files", "status": "PASS"}],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        response = self.run_hook(
+            root,
+            {
+                "cwd": str(root),
+                "agent_type": "trellis-researcher",
+                "last_assistant_message": self.valid_research_output(),
+            },
+        )
+
+        self.assertIsNone(response)
+
+    def test_spec_updater_accepts_when_agent_result_json_exists(self):
+        root, task_dir = self.make_repo()
+        (task_dir / "agent-results").mkdir()
+        (task_dir / "agent-results" / "trellis-spec-updater-20260608T100000Z.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-spec-updater",
+                    "status": "PASS",
+                    "changed_files": [
+                        {
+                            "path": ".trellis/spec/guides/testing.md",
+                            "summary": "updated validation guidance",
+                        }
+                    ],
+                    "validation": [{"command": "validate spec index", "status": "PASS"}],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        response = self.run_hook(
+            root,
+            {
+                "cwd": str(root),
+                "agent_type": "trellis-spec-updater",
+                "last_assistant_message": self.valid_spec_updater_output(),
+            },
+        )
+
+        self.assertIsNone(response)
+
+    def test_researcher_prompt_documents_stop_guard_required_keywords(self):
+        content = (REPO_ROOT / "claude" / "agents" / "trellis-researcher.md").read_text(
+            encoding="utf-8"
+        )
+
+        for phrase in (
+            "Research Question",
+            "Files / Sources Inspected",
+            "Findings",
+            "Decision Impact",
+            "Files Written",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_spec_updater_prompt_documents_stop_guard_required_keywords(self):
+        content = (REPO_ROOT / "claude" / "agents" / "trellis-spec-updater.md").read_text(
+            encoding="utf-8"
+        )
+
+        for phrase in (
+            "Spec Update Decision",
+            "Need spec update:",
+            "Reason:",
+            "Consistency Check",
+        ):
+            self.assertIn(phrase, content)
 
 
 class ValidateDeliverySyncTests(unittest.TestCase):
@@ -3958,6 +4338,7 @@ class InitScriptTests(unittest.TestCase):
         self.assertTrue((root / ".trellis" / "config" / "workflow_profiles.json").is_file())
         self.assertTrue((root / COMMON_MISTAKES_INSTALLED).is_file())
         self.assertTrue((root / ".trellis" / "scripts" / "validate_agent_results.py").is_file())
+        self.assertTrue((root / ".trellis" / "scripts" / "validate_spec_update_targets.py").is_file())
         self.assertIn("OVERALL: PASS — Runtime hardening checks passed", result.stdout)
         self.assertIn("superpowers@claude-plugins-official", result.stdout)
         self.assertIn("disabled", result.stdout)
@@ -5675,26 +6056,28 @@ class SpecTemplateIntegrityTests(unittest.TestCase):
     def test_marketplace_template_passes_spec_index_validation(self):
         self.assertTrue(self.validator.validate_spec_index(str(SPEC_TEMPLATE_ROOT)))
 
-    def test_common_mistakes_spec_is_installed_indexed_and_mirrored(self):
-        marketplace_path = SPEC_TEMPLATE_ROOT / COMMON_MISTAKES_REL
+    def test_ai_behavior_specs_are_installed_indexed_and_mirrored(self):
         guides_index = SPEC_TEMPLATE_ROOT / "guides" / "index.md"
+        manifest_entries = SPEC_MANIFEST.read_text(encoding="utf-8").splitlines()
+        guides_index_content = guides_index.read_text(encoding="utf-8")
 
-        self.assertTrue(marketplace_path.is_file())
-        self.assertTrue(COMMON_MISTAKES_TEMPLATE.is_file())
-        self.assertEqual(
-            marketplace_path.read_text(encoding="utf-8"),
-            COMMON_MISTAKES_TEMPLATE.read_text(encoding="utf-8"),
-        )
-        self.assertIn(
-            COMMON_MISTAKES_REL,
-            SPEC_MANIFEST.read_text(encoding="utf-8").splitlines(),
-        )
-        self.assertIn(
-            "./ai-behavior/common-mistakes.md",
-            guides_index.read_text(encoding="utf-8"),
-        )
+        for rel_path in AI_BEHAVIOR_SPEC_RELS:
+            with self.subTest(rel_path=rel_path):
+                marketplace_path = SPEC_TEMPLATE_ROOT / rel_path
+                template_path = REPO_ROOT / "trellis" / "spec-templates" / rel_path
 
-        content = marketplace_path.read_text(encoding="utf-8")
+                self.assertTrue(marketplace_path.is_file())
+                self.assertTrue(template_path.is_file())
+                self.assertEqual(
+                    marketplace_path.read_text(encoding="utf-8"),
+                    template_path.read_text(encoding="utf-8"),
+                )
+                self.assertIn(rel_path, manifest_entries)
+                self.assertIn(f"./ai-behavior/{Path(rel_path).name}", guides_index_content)
+
+        common_mistakes_content = (
+            SPEC_TEMPLATE_ROOT / COMMON_MISTAKES_REL
+        ).read_text(encoding="utf-8")
         for phrase in (
             "routing",
             "scope-manifest.json",
@@ -5706,7 +6089,43 @@ class SpecTemplateIntegrityTests(unittest.TestCase):
             "Trellis-native parallel",
             "merge-review",
         ):
-            self.assertIn(phrase, content)
+            self.assertIn(phrase, common_mistakes_content)
+
+    def test_spec_update_detector_targets_existing_ai_behavior_specs(self):
+        detector = load_module(
+            DETECT_SPEC_UPDATE_CANDIDATES,
+            "detect_spec_update_candidates_existing_specs_module",
+        )
+        payload = detector.build_payload(
+            [
+                "claude/hooks/protect-dangerous-actions.py",
+                "claude/skills/trellis-check/SKILL.md",
+                "claude/agents/trellis-implementer.md",
+                "omc/orchestration.md",
+                "tests/fixtures/replay/guardrails/override-ledger.json",
+            ]
+        )
+        targets = {
+            candidate["target"]
+            for candidate in payload["candidates"]
+            if candidate["target"].startswith("spec/guides/ai-behavior/")
+        }
+
+        self.assertEqual(
+            {
+                "spec/guides/ai-behavior/agent-results.md",
+                "spec/guides/ai-behavior/common-mistakes.md",
+                "spec/guides/ai-behavior/guardrails.md",
+                "spec/guides/ai-behavior/orchestration.md",
+                "spec/guides/ai-behavior/skill-routing.md",
+            },
+            targets,
+        )
+        for target in targets:
+            rel_path = target.removeprefix("spec/")
+            with self.subTest(target=target):
+                self.assertTrue((SPEC_TEMPLATE_ROOT / rel_path).is_file())
+                self.assertIn(rel_path, SPEC_MANIFEST.read_text(encoding="utf-8").splitlines())
 
     def test_missing_root_index_fails_spec_validation(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -5932,6 +6351,30 @@ class RuntimeHardeningValidatorTests(unittest.TestCase):
         self.assertIn("[PASS] validate_guardrail_overrides.py", result.stdout)
         self.assertIn("[PASS] validate_agent_results.py", result.stdout)
 
+    def test_runtime_hardening_runs_spec_update_target_validation(self):
+        result = subprocess.run(
+            [sys.executable, str(VALIDATE_RUNTIME_HARDENING)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        self.assertIn("[PASS] validate_spec_update_targets.py", result.stdout)
+
+
+class SpecUpdateTargetValidatorTests(unittest.TestCase):
+    def test_detector_targets_exist_in_source_spec_tree(self):
+        result = subprocess.run(
+            [sys.executable, str(VALIDATE_SPEC_UPDATE_TARGETS)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=f"{result.stdout}\n{result.stderr}")
+        self.assertIn("PASS: spec update detector targets exist", result.stdout)
+
 
 class PhaseTwoTemplateTests(unittest.TestCase):
     def test_before_dev_template_includes_scope_manifest_contract(self):
@@ -5976,6 +6419,18 @@ class PhaseFiveWorkflowContractTests(unittest.TestCase):
                 content = path.read_text(encoding="utf-8")
                 self.assertIn(COMMON_MISTAKES_INSTALLED, content)
                 self.assertIn("common mistakes", content.lower())
+
+    def test_all_trellis_agents_define_agent_result_json_protocol(self):
+        for path in sorted((REPO_ROOT / "claude" / "agents").glob("trellis-*.md")):
+            agent_name = path.stem
+            with self.subTest(path=path.relative_to(REPO_ROOT)):
+                content = path.read_text(encoding="utf-8")
+                self.assertIn("Agent Result JSON", content)
+                self.assertIn(
+                    f"{{TASK_DIR}}/agent-results/{agent_name}-<timestamp>.json",
+                    content,
+                )
+                self.assertIn(f'"agent": "{agent_name}"', content)
 
     def test_verify_workflow_covers_phase_five_acceptance_scenarios(self):
         content = (REPO_ROOT / "docs" / "verify-workflow.md").read_text(encoding="utf-8")

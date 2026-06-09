@@ -486,6 +486,7 @@ def diagnose_setup(repo_root: Path) -> tuple[bool, str]:
         "validate_scope_manifest.py",
         "validate_guardrail_overrides.py",
         "validate_agent_results.py",
+        "validate_spec_update_targets.py",
         "replay_workflow_cases.py",
         "detect_spec_update_candidates.py",
         "trellis_doctor.py",

@@ -606,7 +606,7 @@ Write to `implement.md`. L2 tasks need only a minimal implementation plan plus t
 
 #### 1.5 Research `[optional · repeatable]`
 
-Research at any time during planning. Use `trellis-researcher` subagent. Output MUST be persisted to `{TASK_DIR}/research/`.
+Research at any time during planning. Use `trellis-researcher` subagent. Output MUST be persisted to `{TASK_DIR}/research/`, and the agent must also write `<task path>/agent-results/trellis-researcher-<timestamp>.json`.
 
 #### 1.6 Configure context `[required L3-L5 · optional L2]`
 
@@ -730,6 +730,10 @@ Enter Phase 3 only after explicit user Finish consent.
 
 Load `trellis-update-spec` skill. Before anything else, write the user's explicit Finish consent into `finish.md`, then record the rest of the finish evidence:
 
+If spec updates are executed by the `trellis-spec-updater` subagent, it must
+write `<task path>/agent-results/trellis-spec-updater-<timestamp>.json` even
+when no spec update is needed.
+
 ```markdown
 ## Finish Approval
 
@@ -801,6 +805,8 @@ Required for: worktree, multi-subagent, OMC parallel, PR merge, conflict resolut
 Load `trellis-merge-review` skill. It must read:
 
 - `agent-results/*.json`
+- `trellis-researcher` and `trellis-spec-updater` result JSON when those
+  subagents were used
 - `runtime/guardrail-overrides.jsonl`
 - `scope-manifest.json`
 

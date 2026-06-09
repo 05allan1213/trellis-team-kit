@@ -12,11 +12,13 @@ from typing import Any
 VALID_AGENTS = {
     "trellis-implementer",
     "trellis-checker",
+    "trellis-researcher",
     "trellis-spec-reviewer",
     "trellis-code-reviewer",
     "trellis-architecture-reviewer",
     "trellis-architecture-deep-reviewer",
     "trellis-merge-reviewer",
+    "trellis-spec-updater",
 }
 WORKSTREAM_REQUIRED_AGENTS = {"trellis-implementer", "trellis-checker"}
 VALID_STATUS = {"PASS", "FAIL", "REDESIGN-REQUIRED", "BLOCKED"}
@@ -61,24 +63,25 @@ def _normalize(path: str) -> str:
     return norm.strip("/")
 
 
-def _as_declared_workstreams(value: Any) -> list[str]:
+def _as_declared_workstreams(value: Any) -> dict[str, str]:
     if not isinstance(value, list):
-        return []
-    names: list[str] = []
+        return {}
+    names: dict[str, str] = {}
     for item in value:
         if not isinstance(item, dict):
             continue
         name = item.get("name")
         if isinstance(name, str) and name.strip():
-            names.append(name.strip())
+            owner = item.get("owner")
+            names[name.strip()] = owner.strip() if isinstance(owner, str) else ""
     return names
 
 
-def _load_scope_contract(task_dir: Path) -> tuple[list[str], list[str], list[str]]:
+def _load_scope_contract(task_dir: Path) -> tuple[list[str], list[str], dict[str, str]]:
     manifest_path = task_dir / "scope-manifest.json"
     data, err = _read_json(manifest_path)
     if err or not isinstance(data, dict):
-        return [], [], []
+        return [], [], {}
     return (
         [_normalize(item) for item in _as_string_list(data.get("declared_paths"))],
         [_normalize(item) for item in _as_string_list(data.get("declared_globs"))],
@@ -86,9 +89,17 @@ def _load_scope_contract(task_dir: Path) -> tuple[list[str], list[str], list[str
     )
 
 
-def _matches_declared(file_path: str, declared_paths: list[str], declared_globs: list[str]) -> bool:
+def _matches_declared(
+    file_path: str,
+    declared_paths: list[str],
+    declared_globs: list[str],
+    *,
+    agent: str | None,
+) -> bool:
     norm = _normalize(file_path)
     if norm in TASK_LOCAL_PATHS or norm.startswith(TASK_LOCAL_PATH_PREFIXES):
+        return True
+    if agent == "trellis-spec-updater" and norm.startswith(".trellis/spec/"):
         return True
     for path in declared_paths:
         if norm == path or norm.startswith(f"{path.rstrip('/')}/"):
@@ -200,7 +211,7 @@ def _validate_result_payload(
     path: Path,
     declared_paths: list[str],
     declared_globs: list[str],
-    declared_workstreams: list[str],
+    declared_workstreams: dict[str, str],
     omc_approved: bool,
 ) -> tuple[list[str], list[str], str | None]:
     errors: list[str] = []
@@ -227,6 +238,16 @@ def _validate_result_payload(
             workstream = raw_workstream.strip()
             if declared_workstreams and workstream not in declared_workstreams:
                 errors.append(f"{path.name}: unknown workstream '{workstream}'")
+            expected_owner = declared_workstreams.get(workstream)
+            if (
+                expected_owner
+                and isinstance(agent, str)
+                and agent in WORKSTREAM_REQUIRED_AGENTS
+                and agent != expected_owner
+            ):
+                errors.append(
+                    f"{path.name}: workstream '{workstream}' is owned by {expected_owner}, not {agent}"
+                )
         else:
             errors.append(f"{path.name}: workstream must be a non-empty string when present")
     elif declared_workstreams and agent in WORKSTREAM_REQUIRED_AGENTS:
@@ -255,7 +276,12 @@ def _validate_result_payload(
                 errors.append(f"{path.name}: changed_files item {index} missing summary")
             changed_files.append(_normalize(file_path))
         for file_path in changed_files:
-            if not _matches_declared(file_path, declared_paths, declared_globs):
+            if not _matches_declared(
+                file_path,
+                declared_paths,
+                declared_globs,
+                agent=agent if isinstance(agent, str) else None,
+            ):
                 errors.append(f"{path.name}: changed file '{file_path}' is not declared in scope-manifest.json")
 
     validation = payload.get("validation")
@@ -329,9 +355,11 @@ def validate_agent_results(
             omc_approved=approved,
         )
         errors.extend(result_errors)
-        if workstream:
-            result_workstreams.add(workstream)
         agent = payload.get("agent") if isinstance(payload, dict) else result_path.name
+        if workstream:
+            expected_owner = declared_workstreams.get(workstream)
+            if not expected_owner or expected_owner == agent:
+                result_workstreams.add(workstream)
         for file_path in changed_files:
             changed_by_file.setdefault(file_path, []).append(str(agent))
 

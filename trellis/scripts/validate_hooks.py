@@ -44,6 +44,51 @@ BLOCK_KEYWORDS = ["decision\": \"block\"", "decision': 'block'", 'decision": "bl
 DENY_KEYWORDS = ["permissionDecision\": \"deny\"", "permissionDecision': 'deny'"]
 
 
+def eval_agent_expr(node: ast.AST, names: dict[str, tuple[str, ...]]) -> tuple[str, ...] | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return (node.value,)
+    if isinstance(node, ast.Name):
+        return names.get(node.id)
+    if isinstance(node, (ast.Tuple, ast.List)):
+        values: list[str] = []
+        for item in node.elts:
+            item_value = eval_agent_expr(item, names)
+            if item_value is None:
+                return None
+            values.extend(item_value)
+        return tuple(values)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = eval_agent_expr(node.left, names)
+        right = eval_agent_expr(node.right, names)
+        if left is None or right is None:
+            return None
+        return left + right
+    return None
+
+
+def agent_result_required_agents(content: str) -> set[str] | None:
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return None
+
+    names: dict[str, tuple[str, ...]] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            continue
+        value = eval_agent_expr(node.value, names)
+        if value is not None:
+            names[target.id] = value
+
+    required = names.get("AGENTS_REQUIRE_AGENT_RESULT")
+    if required is None:
+        return None
+    return set(required)
+
+
 def find_project_root(start: Path) -> Path | None:
     cur = start.resolve()
     while cur != cur.parent:
@@ -121,6 +166,16 @@ def validate_hooks(hooks_dir: Path) -> tuple[bool, list[str]]:
         has_block = any(kw in content for kw in BLOCK_KEYWORDS)
         if not has_block:
             errors.append("subagent-stop-guard.py: missing block (hard block) path")
+        required_agents = agent_result_required_agents(content)
+        if required_agents is None:
+            errors.append("subagent-stop-guard.py: cannot resolve AGENTS_REQUIRE_AGENT_RESULT")
+        else:
+            missing = sorted(set(CANONICAL_AGENTS) - required_agents)
+            if missing:
+                errors.append(
+                    "subagent-stop-guard.py: AGENTS_REQUIRE_AGENT_RESULT missing "
+                    + ", ".join(missing)
+                )
 
     # Check inject-subagent-context supports all canonical agents
     inject = hooks_dir / "inject-subagent-context.py"
@@ -132,6 +187,16 @@ def validate_hooks(hooks_dir: Path) -> tuple[bool, list[str]]:
         for agent in CANONICAL_AGENTS:
             if agent not in content:
                 errors.append(f"inject-subagent-context.py: missing agent '{agent}'")
+        required_agents = agent_result_required_agents(content)
+        if required_agents is None:
+            errors.append("inject-subagent-context.py: cannot resolve AGENTS_REQUIRE_AGENT_RESULT")
+        else:
+            missing = sorted(set(CANONICAL_AGENTS) - required_agents)
+            if missing:
+                errors.append(
+                    "inject-subagent-context.py: AGENTS_REQUIRE_AGENT_RESULT missing "
+                    + ", ".join(missing)
+                )
 
     # Check lib modules
     lib_dir = hooks_dir / "lib"
