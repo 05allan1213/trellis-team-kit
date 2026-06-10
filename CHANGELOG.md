@@ -2,6 +2,21 @@
 
 > 历史发布记录是当时快照，可能包含旧状态名、旧数量或旧门禁措辞。当前事实以 `README.md`、`workflow/`、`prompt.md`、AI behavior specs、validators 和测试结果为准。
 
+## 2026-06-10 — E2E Workflow Compliance Hardening
+
+### 真实工作流反馈修复
+
+- `validate_agent_results.py` 现在在 Trellis subagent / Trellis-native parallel / OMC 执行模式下要求同时存在 `trellis-implementer` 与 `trellis-checker` agent result，防止把 implementer 内联检查当作独立 check gate
+- `validate_review_gates.py` 现在要求每个 selected review gate 有匹配的 PASS reviewer agent result，并拒绝仍含模板占位、HTML 注释或 `PASS / FAIL` 的 review artifact
+- `protect-dangerous-actions.py` 允许首次写入 `finish.md` 时同步记录完整 `Finish Approval`，修复显式 Finish consent 与 hook 时序冲突
+- `finalize_task_archive.py` 可从旧 active task 路径解析已经归档的任务，避免 archive 已完成但 workspace journal 未同步
+- Replay Lab 增加 subagent 缺 checker、review gate 缺 reviewer result、review artifact 模板占位三个负例，回放样本增至 25 个
+
+### 文档与 agent 合同
+
+- README、workflow、prompt、AGENTS/CLAUDE、AI behavior specs、finish/status/continue 命令文档同步为“真实 gate 证据”口径
+- Reviewer agent 和 review skills 的输出示例去除会被 validator 拦截的模板占位，明确空 section 写 `None.`
+
 ## 2026-06-04 — Workflow Artifact Hardening
 
 ### 工作流边界

@@ -67,6 +67,22 @@ blocks final PASS.
 If the agent is blocked, it still writes JSON with `status: BLOCKED` and records
 the blocker in `blocking_issues`.
 
+When `implement.md` selects `single Trellis subagent`, `Trellis subagents`,
+`Trellis-native parallel + worktree`, or
+`OMC ulw/ultrawork + worktree + parent/child`, final validation requires both a
+`trellis-implementer` result and a `trellis-checker` result. Inline checks by
+the implementer are not a substitute for the checker gate in subagent mode.
+
+Every selected review gate must have its matching reviewer result with
+`status: PASS`:
+
+- `trellis-spec-review` -> `trellis-spec-reviewer`
+- `trellis-code-review` -> `trellis-code-reviewer`
+- `trellis-code-architecture-review` -> `trellis-architecture-reviewer`
+- `trellis-improve-codebase-architecture deep-review` ->
+  `trellis-architecture-deep-reviewer`
+- `trellis-merge-review` -> `trellis-merge-reviewer`
+
 If OMC appears in `execution_mode`, including the canonical
 `OMC ulw/ultrawork + worktree + parent/child` value, `implement.md` must include
 explicit OMC approval with an auditable user message and timestamp.
@@ -77,6 +93,11 @@ explicit OMC approval with an auditable user message and timestamp.
 
 The main session must aggregate `agent-results/*.json` before finish. It must
 not rely on memory, chat summaries, or subagent self-approval.
+
+Review markdown files are not enough by themselves. A selected review gate is
+complete only when the `review/*.md` artifact has a concrete PASS/FAIL verdict,
+contains no unresolved template placeholders, and the matching reviewer JSON is
+present with `status: PASS`.
 
 Merge review must inspect:
 

@@ -119,6 +119,15 @@ All L3-L5 tasks must configure. Defaults:
 
 **Failed gate → return to IMPLEMENTING → cannot skip → cannot mark done**
 
+Selected review gates require concrete `review/*.md` evidence plus the matching
+reviewer `agent-results/*.json` with `status: PASS`. Do not mark a review gate
+PASS from a templated or post-filled artifact; unresolved placeholders, HTML
+comments, or `PASS / FAIL` text are invalid.
+
+When a Trellis subagent execution mode is selected, final validation requires
+both `trellis-implementer` and `trellis-checker` agent results. Implementer-run
+tests do not replace the independent checker gate.
+
 ## Forbidden Actions
 
 1. Don't decide "it's small so no task" on your own
@@ -132,6 +141,8 @@ All L3-L5 tasks must configure. Defaults:
 9. Don't expand PRD scope
 10. Don't write code directly in main session (unless user explicitly says inline or L1)
 11. Don't write finish.md, commit, archive, or finish-work before Finish consent
+12. Don't post-fill review/check artifacts to simulate gates that were not run
+13. Don't leave template placeholders in review artifacts marked PASS
 
 ## Superpowers and OMC Rules
 

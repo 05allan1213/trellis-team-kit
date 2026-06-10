@@ -193,24 +193,37 @@ def _merge_review_selected(task_dir: Path) -> bool:
 
 
 def _execution_needs_agent_results(task_dir: Path) -> bool:
+    return bool(_selected_execution_modes(task_dir)) or _merge_review_selected(task_dir)
+
+
+def _selected_execution_modes(task_dir: Path) -> set[str]:
     implement_md = task_dir / "implement.md"
     if not implement_md.is_file():
-        return _merge_review_selected(task_dir)
+        return set()
     try:
         content = implement_md.read_text(encoding="utf-8")
     except OSError:
-        return True
-    section = _extract_markdown_section(content, "Execution Mode Decision")
-    checked = _checked_labels_in_section(section)
-    return bool(
-        checked
-        & {
+        return {
             "single trellis subagent",
             "trellis subagents",
             "trellis-native parallel + worktree",
             "omc ulw/ultrawork + worktree + parent/child",
         }
-    )
+    section = _extract_markdown_section(content, "Execution Mode Decision")
+    checked = _checked_labels_in_section(section)
+    return checked & {
+        "single trellis subagent",
+        "trellis subagents",
+        "trellis-native parallel + worktree",
+        "omc ulw/ultrawork + worktree + parent/child",
+    }
+
+
+def _required_agents(task_dir: Path) -> set[str]:
+    modes = _selected_execution_modes(task_dir)
+    if not modes:
+        return set()
+    return {"trellis-implementer", "trellis-checker"}
 
 
 def _validate_result_payload(
@@ -348,6 +361,7 @@ def validate_agent_results(
     errors: list[str] = []
     changed_by_file: dict[str, list[str]] = {}
     result_workstreams: set[str] = set()
+    agents_seen: set[str] = set()
 
     for result_path in files:
         payload, err = _read_json(result_path)
@@ -364,6 +378,8 @@ def validate_agent_results(
         )
         errors.extend(result_errors)
         agent = payload.get("agent") if isinstance(payload, dict) else result_path.name
+        if isinstance(agent, str):
+            agents_seen.add(agent)
         if workstream:
             expected_owner = declared_workstreams.get(workstream)
             if not expected_owner or expected_owner == agent:
@@ -381,6 +397,9 @@ def validate_agent_results(
     for workstream in declared_workstreams:
         if workstream not in result_workstreams:
             errors.append(f"missing agent result for declared workstream '{workstream}'")
+
+    for agent in sorted(_required_agents(task_dir) - agents_seen):
+        errors.append(f"missing required agent result for '{agent}'")
 
     return len(errors) == 0, errors
 

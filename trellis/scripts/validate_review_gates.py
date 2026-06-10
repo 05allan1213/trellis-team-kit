@@ -7,6 +7,8 @@ Checks:
 - Selected gates in implement.md
 - Required review files exist
 - Each review file has PASS/FAIL
+- Each selected review gate has a matching PASS reviewer agent result
+- Review files do not retain unresolved template placeholders
 - Disabled gates have reason
 """
 from __future__ import annotations
@@ -16,12 +18,26 @@ import re
 import sys
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from validate_agent_results import validate_agent_results  # type: ignore[import-not-found]
+
 GATE_FILE_MAP: dict[str, str] = {
     "trellis-spec-review": "review/spec-review.md",
     "trellis-code-review": "review/code-review.md",
     "trellis-code-architecture-review": "review/architecture-review.md",
     "trellis-improve-codebase-architecture deep-review": "review/architecture-deep-review.md",
     "trellis-merge-review": "review/merge-review.md",
+}
+
+GATE_AGENT_MAP: dict[str, str] = {
+    "trellis-spec-review": "trellis-spec-reviewer",
+    "trellis-code-review": "trellis-code-reviewer",
+    "trellis-code-architecture-review": "trellis-architecture-reviewer",
+    "trellis-improve-codebase-architecture deep-review": "trellis-architecture-deep-reviewer",
+    "trellis-merge-review": "trellis-merge-reviewer",
 }
 
 NON_REVIEW_GATE_NAMES = {"trellis-check"}
@@ -114,6 +130,32 @@ def _extract_review_verdict(content: str) -> str | None:
     return None
 
 
+def _review_artifact_issues(content: str, file_rel: str) -> list[str]:
+    issues: list[str] = []
+    lowered = content.lower()
+    if re.search(r"\bpass\s*/\s*fail\b|\bfail\s*/\s*pass\b", lowered):
+        issues.append(f"{file_rel} still contains PASS/FAIL placeholder text")
+    if "{{" in content or "}}" in content:
+        issues.append(f"{file_rel} still contains template variable markers")
+    if "<!--" in content:
+        issues.append(f"{file_rel} still contains unresolved HTML template comments")
+    if re.search(r"<(?:file|description|issue|severity|suggested|module|source|signature|path|agent|command)[^>]*>", content):
+        issues.append(f"{file_rel} still contains unresolved angle-bracket placeholders")
+    if re.search(
+        r"\[(?:"
+        r"issue|why|suggestion|source|agent|path|summary|evidence|command|"
+        r"task\s+title|file\s+path|finding|reason|description|"
+        r"blocking\s+issue|spec\s+file|violation|entries|yes\s*/\s*no|"
+        r"duplicate|expected\s+file|list\s+of|present\s*/\s*missing|"
+        r"absent\s*/\s*present"
+        r")[^\]]*\]",
+        content,
+        re.IGNORECASE,
+    ):
+        issues.append(f"{file_rel} still contains unresolved bracket placeholders")
+    return issues
+
+
 def _read_task_level(task_dir: Path) -> str:
     task_json = task_dir / "task.json"
     if not task_json.is_file():
@@ -133,27 +175,18 @@ def parse_selected_gates(implement_md: Path) -> list[str]:
     except OSError:
         return []
 
+    review_section = _extract_markdown_section(content, "Review Gate Contract")
+    if not review_section:
+        return []
+
     gates: list[str] = []
-    in_selected = False
-    for line in content.splitlines():
+    for line in review_section.splitlines():
         stripped = line.strip()
-        lowered = stripped.lower()
-        if lowered.startswith("selected gates:") or lowered.startswith("### selected gates"):
-            in_selected = True
+        if not stripped.lower().startswith("- [x]") or "]" not in stripped:
             continue
-        if in_selected:
-            if stripped.startswith("#"):
-                in_selected = False
-                continue
-            if stripped.lower().startswith("selection rationale:"):
-                in_selected = False
-                continue
-            if stripped.lower().startswith("- [x]") and "]" in stripped:
-                gate = stripped.split("] ", 1)[-1].strip()
-                if gate and gate not in NON_REVIEW_GATE_NAMES:
-                    gates.append(gate)
-            elif stripped and not stripped.startswith("-"):
-                in_selected = False
+        gate = stripped.split("]", 1)[-1].strip()
+        if gate.lower().startswith("trellis-") and gate not in NON_REVIEW_GATE_NAMES:
+            gates.append(gate)
     return gates
 
 
@@ -233,6 +266,24 @@ def _merge_review_required(level: str, implement_md: Path) -> bool:
     )
 
 
+def _passing_agent_results_by_agent(task_dir: Path) -> set[str]:
+    results_dir = task_dir / "agent-results"
+    if not results_dir.is_dir():
+        return set()
+
+    agents: set[str] = set()
+    for path in sorted(results_dir.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        agent = payload.get("agent") if isinstance(payload, dict) else None
+        status = payload.get("status") if isinstance(payload, dict) else None
+        if isinstance(agent, str) and agent.strip() and status == "PASS":
+            agents.add(agent.strip())
+    return agents
+
+
 def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
     errors: list[str] = []
 
@@ -246,6 +297,10 @@ def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
     level = _read_task_level(task_dir)
     implement_md = task_dir / "implement.md"
     selected = parse_selected_gates(implement_md)
+    agent_results_ok, agent_result_issues = validate_agent_results(task_dir, require_results=False)
+    result_agents = _passing_agent_results_by_agent(task_dir) if agent_results_ok else set()
+    for issue in agent_result_issues:
+        errors.append(f"agent-results invalid: {issue}")
 
     mandatory = MANDATORY_GATES.get(level, [])
     if _merge_review_required(level, implement_md) and "trellis-merge-review" not in mandatory:
@@ -273,13 +328,15 @@ def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
             continue
 
         try:
-            content = gate_file.read_text(encoding="utf-8").lower()
+            raw_content = gate_file.read_text(encoding="utf-8")
         except OSError:
             errors.append(f"Gate '{gate}': cannot read {file_rel}")
             continue
+        content = raw_content.lower()
 
         has_status = _has_status_section(content)
         verdict = _extract_review_verdict(content)
+        expected_agent = GATE_AGENT_MAP.get(gate)
 
         if not has_status:
             errors.append(f"Gate '{gate}': no 'Status' or 'Verdict' section found in {file_rel}")
@@ -287,6 +344,12 @@ def validate_review_gates(task_dir: Path) -> tuple[bool, list[str]]:
             errors.append(f"Gate '{gate}': no PASS/FAIL verdict in {file_rel}")
         elif verdict == "fail":
             errors.append(f"Gate '{gate}': FAILED — must return to IMPLEMENTING")
+        if expected_agent and expected_agent not in result_agents:
+            errors.append(
+                f"Gate '{gate}': missing PASS agent-results JSON from {expected_agent}"
+            )
+        for issue in _review_artifact_issues(raw_content, file_rel):
+            errors.append(f"Gate '{gate}': {issue}")
 
     return len(errors) == 0, errors
 

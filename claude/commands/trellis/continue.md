@@ -26,7 +26,7 @@ Resume working on the active Trellis task with full context recovery. Detect the
    - `in_progress` + before-dev.md + no validation/ → IMPLEMENTING
    - `in_progress` + validation/check-results.md but pending/missing review gates → CHECKING / REVIEWING
    - `in_progress` + review/ dir with selected gates not all PASS → REVIEWING
-   - `in_progress` + all selected review gates PASS but no finish.md → REVIEWING (waiting for explicit Finish consent)
+   - `in_progress` + `validate_review_gates.py` PASS but no finish.md → REVIEWING (waiting for explicit Finish consent)
    - `in_progress` + finish.md but no commit evidence → UPDATING_SPEC / COMMITTING
    - `in_progress` + merge-review required and missing/failing → MERGE_REVIEWING
    - `in_progress` + commit evidence but no validation/test-results.md → VALIDATING
@@ -34,7 +34,7 @@ Resume working on the active Trellis task with full context recovery. Detect the
 
 4. **Find the last failure** — Check for any FAIL verdicts:
    - Read `validation/check-results.md` for check FAIL
-   - Read `review/*.md` files for any review FAIL
+   - Run or inspect `validate_review_gates.py <task-dir>` for selected review gate failures, missing reviewer results, and unresolved placeholders
    - Read `validation/test-results.md` for Build/Test/Smoke FAIL, `Ready for finish-work?`: no, or missing Ready
    - If a FAIL exists, summarize: which gate, what the blocking issue was
 

@@ -108,66 +108,58 @@ OMC is an optional advanced execution path, not the default. If OMC output is pr
 ### review/merge-review.md
 
 ```markdown
-# Merge Review: [Task Title]
+# Merge Review: Task Title
 
 ## Merge Sources
-- [source]: [what it contributed]
-- [source]: [what it contributed]
+- `agent-results/trellis-implementer-<timestamp>.json`: implementation changes.
+- `agent-results/trellis-checker-<timestamp>.json`: validation and fixes.
 
 ## Conflict Resolution Logic
-- [conflict description]: [how resolved] - [correct?]
-- (or "no conflicts")
+- No conflicts.
 
 ## Duplicate Implementations
-- [duplicate]: [source A vs source B] - [recommended consolidation]
-- (or "none")
+- None.
 
 ## Missing Files
-- [expected file]: [which source should have produced it] - [status]
-- (or "none")
+- None.
 
 ## Agent Results Aggregation
-- Results read: [list of agent-results JSON files]
-- Duplicate changed files across agents: [path -> agents] (or "none")
-- Failed validation: [agent -> validation failure] (or "none")
-- Unresolved blocking issues: [agent -> issue] (or "none")
+- Results read: list each `agent-results/*.json` file inspected.
+- Duplicate changed files across agents: None.
+- Failed validation: None.
+- Unresolved blocking issues: None.
 
 ## Scope Manifest Check
-- scope-manifest.json: [present / missing / malformed]
-- Undeclared changed paths: [paths] (or "none")
-- Scope expansions reviewed: [summary]
+- scope-manifest.json: present.
+- Undeclared changed paths: None.
+- Scope expansions reviewed: None.
 
 ## Guardrail Override Check
-- runtime/guardrail-overrides.jsonl: [absent / present]
-- Overrides reviewed: [yes / no / not applicable]
-- Unreviewed overrides: [entries] (or "none")
+- runtime/guardrail-overrides.jsonl: absent.
+- Overrides reviewed: not applicable.
+- Unreviewed overrides: None.
 
 ## OMC Approval Check
-- OMC outputs detected: [yes / no]
-- Explicit OMC approval: [yes / no / not applicable]
-- OMC approval issues: [summary] (or "none")
+- OMC outputs detected: no
+- Explicit OMC approval: not applicable
+- OMC approval issues: None.
 
 ## Interface Inconsistencies
-- [interface]: [how sources differ] - [which is correct per design.md]
-- (or "none")
+- None.
 
 ## Integration Completeness
-- [AC from prd.md]: [satisfied by merged result?]
-- [AC from prd.md]: [satisfied by merged result?]
+- AC1: satisfied by merged result.
 
 ## Blocking Issues
-1. [issue]: [why it blocks merge]
-(or "none")
+- None.
 
 ## Non-Blocking Issues
-1. [suggestion]: [improvement rationale]
-(or "none")
+- None.
 
 ## Verdict
 - [x] PASS - merge is coherent and complete
 - [ ] FAIL - must resolve blocking issues:
-  1. [blocking issue summary]
-<!-- For a failing merge review, mark FAIL instead and list blockers. -->
+  1. list each concrete merge blocker
 ```
 
 ## Quality Bar
@@ -178,6 +170,8 @@ OMC is an optional advanced execution path, not the default. If OMC output is pr
 - Changed paths outside `scope-manifest.json` declarations are reported.
 - Failed validation and unresolved blocking issues from agent results are reported.
 - Guardrail overrides are confirmed reviewed before PASS.
+- Do not leave placeholder text, HTML comments, or bracket/angle examples in the
+  final `review/merge-review.md`; write `None.` for empty sections.
 - OMC outputs are blocked unless explicit OMC approval is present; OMC remains optional and advanced, not default.
 - Conflict resolution is checked for correctness, not just absence of markers.
 - Duplicate implementations are flagged for consolidation.

@@ -116,27 +116,23 @@ Write to `{TASK_DIR}/review/spec-review.md`:
 
 - [x] PASS
 - [ ] FAIL
-<!-- For a failing review, mark FAIL instead and list violations below. -->
 
 ## Specs Checked
 
-- `.trellis/spec/<package>/<layer>/index.md` -- <area covered>
-- `.trellis/spec/<package>/<layer>/naming.md` -- <area covered>
+- `.trellis/spec/guides/index.md` -- checked applicable guidance.
+- `.trellis/spec/backend/index.md` -- checked applicable backend guidance.
 
 ## Violations (FAIL only)
 
-1. **Spec**: `.trellis/spec/<package>/<layer>/<file>.md:<line>`
-   **Code**: `src/<changed-file>.tsx:<line>`
-   **Violation**: <what the spec requires vs what the code does>
-   **Fix direction**: <1-2 line suggestion>
+- None.
 
 ## Compliance Notes
 
-- <areas where code follows specs correctly, notable confirmations>
+- Changed code follows the applicable spec guidance.
 
 ## Not Applicable
 
-- <specs reviewed but not applicable to this change set>
+- None.
 
 ## Agent Result JSON
 
@@ -182,6 +178,8 @@ Rules:
 - `agent` must be `trellis-spec-reviewer`.
 - `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `changed_files` must be `[]` because this is a read-only reviewer.
+- The markdown review artifact must not retain placeholder text, HTML comments,
+  or example angle/bracket placeholders. Use `None.` for empty sections.
 - `validation` must contain every inspection command you ran, or at least one
   relevant `file-review: <path>` entry for specs and changed files reviewed
   without running an executable command. Each item must include `command` and

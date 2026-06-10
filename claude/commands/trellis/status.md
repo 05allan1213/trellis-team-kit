@@ -13,7 +13,7 @@ Show the current Trellis task status in a compact, actionable summary.
    - in_progress + before-dev.md + no validation/ → IMPLEMENTING
    - in_progress + validation/check-results.md but pending/missing review gates → CHECKING / REVIEWING
    - in_progress + review/ dir with selected gates not all PASS → REVIEWING
-   - in_progress + all selected review gates PASS but no finish.md → REVIEWING (waiting for explicit Finish consent)
+   - in_progress + `validate_review_gates.py` PASS but no finish.md → REVIEWING (waiting for explicit Finish consent)
    - in_progress + finish.md but no commit evidence → UPDATING_SPEC / COMMITTING
    - in_progress + merge-review required and missing/failing → MERGE_REVIEWING
    - in_progress + commit evidence but no validation/test-results.md → VALIDATING
@@ -23,7 +23,7 @@ Show the current Trellis task status in a compact, actionable summary.
    - L3: prd.md, research/grill-me.md, implement.md, implement.jsonl, check.jsonl
    - L4: prd.md, research/grill-me.md, design.md, implement.md, implement.jsonl, check.jsonl
    - L5: prd.md, research/grill-me.md, design.md, implement.md, implement.jsonl, check.jsonl, review/merge-review.md when required
-6. Check gate status: read `validation/check-results.md` for check PASS/FAIL, `review/` files for review PASS/FAIL, and `validation/test-results.md` for final Build/Test/Smoke, Ready, and Overall status.
+6. Check gate status: read `validation/check-results.md` for check PASS/FAIL, run or inspect `validate_review_gates.py <task-dir>` for selected review completion, and read `validation/test-results.md` for final Build/Test/Smoke, Ready, and Overall status.
 7. Check scope and override audit:
    - If `before-dev.md` exists on an L2+ task, report whether `scope-manifest.json` exists and whether it has declared paths/globs.
    - If `runtime/guardrail-overrides.jsonl` exists, report entry count and whether `finish.md` contains a completed `Guardrail Overrides` review.
@@ -60,4 +60,4 @@ Guardrail overrides:
 Next step: <one actionable sentence>
 ```
 
-If all artifacts exist and all selected check/review gates pass but `finish.md` is missing, the next step is to wait for explicit Finish consent. Only suggest `/trellis:finish-work` after Finish Approval, spec update decision, commit, required merge-review, and validation are complete.
+If all artifacts exist, check passes, and `validate_review_gates.py <task-dir>` passes but `finish.md` is missing, the next step is to wait for explicit Finish consent. Only suggest `/trellis:finish-work` after Finish Approval, spec update decision, commit, required merge-review, and validation are complete.

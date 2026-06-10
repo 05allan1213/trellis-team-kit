@@ -366,6 +366,9 @@ class ReplayWorkflowCasesTests(unittest.TestCase):
             "finish/finish-with-overrides-requires-review.json",
             "orchestration/trellis-native-parallel-default.json",
             "orchestration/omc-requires-explicit-approval.json",
+            "orchestration/subagent-mode-requires-checker-result.json",
+            "review/review-gate-missing-reviewer-result.json",
+            "review/review-gate-template-placeholder-fails.json",
         }
         replay_root = FIXTURES_DIR / "replay"
         actual = {
@@ -1273,6 +1276,24 @@ class ValidateTaskTests(unittest.TestCase):
                             "summary": "updated users API behavior",
                         }
                     ],
+                    "validation": [
+                        {"command": "pytest tests/api", "status": "PASS"}
+                    ],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "agent-results" / "trellis-checker-a.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-checker",
+                    "status": "PASS",
+                    "changed_files": [],
                     "validation": [
                         {"command": "pytest tests/api", "status": "PASS"}
                     ],
@@ -2629,6 +2650,117 @@ class ProtectDangerousActionsTests(unittest.TestCase):
             response["hookSpecificOutput"]["permissionDecisionReason"].lower(),
         )
 
+    def test_finish_file_write_allows_prompt_finish_consent(self):
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Write",
+            "tool_input": {"file_path": ".trellis/tasks/T001-demo/finish.md"},
+            "prompt": "进入 Finish 阶段",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNone(response)
+
+    def test_finish_file_write_allows_content_with_recorded_finish_approval_without_prompt(self):
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": ".trellis/tasks/T001-demo/finish.md",
+                "content": textwrap.dedent(
+                    """\
+                    # Finish
+
+                    ## Finish Approval
+
+                    Approval status:
+                    - [x] approved
+
+                    Approval source:
+                    - user message: 进入 Finish 阶段
+                    - timestamp: 2026-06-10T12:00:00+08:00
+                    - summary approved: start finish phase
+
+                    Allowed to proceed with finish?
+                    - [x] yes
+                    - [ ] no
+                    """
+                ),
+            },
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNone(response)
+
+    def test_finish_file_write_blocks_self_recorded_approval_when_prompt_lacks_consent(self):
+        root, _ = self.make_repo(
+            status="in_progress",
+            implement_md=self.approval_block(
+                approved=True,
+                start_allowed=True,
+                user_message="开始实现",
+                timestamp="2026-06-04T10:00:00Z",
+                summary_approved="start implementation",
+            ),
+        )
+
+        payload = {
+            "cwd": str(root),
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": ".trellis/tasks/T001-demo/finish.md",
+                "content": textwrap.dedent(
+                    """\
+                    # Finish
+
+                    ## Finish Approval
+
+                    Approval status:
+                    - [x] approved
+
+                    Approval source:
+                    - user message: 进入 Finish 阶段
+                    - timestamp: 2026-06-10T12:00:00+08:00
+                    - summary approved: start finish phase
+
+                    Allowed to proceed with finish?
+                    - [x] yes
+                    - [ ] no
+                    """
+                ),
+            },
+            "prompt": "继续",
+        }
+        response = self.run_hook(root, payload)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(
+            response["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+
     def test_git_commit_requires_recorded_finish_approval(self):
         root, _ = self.make_repo(
             status="in_progress",
@@ -2953,6 +3085,25 @@ class StopGuardTests(unittest.TestCase):
 
                 - none
                 """
+            ),
+            encoding="utf-8",
+        )
+        (task_dir / "agent-results").mkdir(exist_ok=True)
+        (task_dir / "agent-results" / "trellis-code-reviewer-a.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-code-reviewer",
+                    "status": "PASS",
+                    "changed_files": [],
+                    "validation": [
+                        {"command": "file-review: src/example.py", "status": "PASS"}
+                    ],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
             ),
             encoding="utf-8",
         )
@@ -4834,7 +4985,8 @@ class FinalizeTaskArchiveTests(unittest.TestCase):
                     "high_risk_allowed": [],
                     "out_of_scope": ["billing changes"],
                     "workstreams": [
-                        {"name": "demo-implementation", "owner": "trellis-implementer"}
+                        {"name": "demo-implementation", "owner": "trellis-implementer"},
+                        {"name": "demo-check", "owner": "trellis-checker"},
                     ],
                 }
             ),
@@ -4854,6 +5006,25 @@ class FinalizeTaskArchiveTests(unittest.TestCase):
                             "summary": "Implemented archived demo task behavior",
                         }
                     ],
+                    "validation": [
+                        {"command": "python3 .trellis/scripts/validate_task.py", "status": "PASS"}
+                    ],
+                    "blocking_issues": [],
+                    "non_blocking_issues": [],
+                    "risks": [],
+                    "scope_expansion": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "agent-results" / "trellis-checker-20260604T120500Z.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "agent": "trellis-checker",
+                    "status": "PASS",
+                    "workstream": "demo-check",
+                    "changed_files": [],
                     "validation": [
                         {"command": "python3 .trellis/scripts/validate_task.py", "status": "PASS"}
                     ],
@@ -4986,6 +5157,115 @@ class FinalizeTaskArchiveTests(unittest.TestCase):
         ok, issues = validate_task_module.validate_task(archived_task)
         self.assertTrue(ok, msg=f"Unexpected archived task issues: {issues}")
         self.assertTrue(changes)
+
+    def test_finalize_cli_resolves_already_archived_task_from_old_active_path(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+
+        root = Path(tmpdir.name)
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        archived_task = root / ".trellis" / "tasks" / "archive" / "2026-06" / "demo-task"
+        (archived_task / "research").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "guides").mkdir(parents=True)
+        (root / ".trellis" / "spec" / "guides" / "index.md").write_text("# Guides\n", encoding="utf-8")
+        (archived_task / "research" / "grill-me.md").write_text("# Grill\n", encoding="utf-8")
+        (archived_task / "task.json").write_text(
+            json.dumps(
+                {
+                    "id": "demo-task",
+                    "title": "Demo Task",
+                    "level": "L2",
+                    "status": "completed",
+                    "creator": "alice",
+                    "completedAt": "2026-06-10",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "prd.md").write_text("# PRD\n", encoding="utf-8")
+        (archived_task / "implement.md").write_text(
+            textwrap.dedent(
+                """\
+                # Implement
+
+                ## Implementation Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: start
+                - timestamp: 2026-06-10T10:00:00Z
+                - summary approved: start
+
+                Allowed to run task.py start?
+                - [x] yes
+                - [ ] no
+                """
+            ),
+            encoding="utf-8",
+        )
+        (archived_task / "finish.md").write_text(
+            textwrap.dedent(
+                """\
+                # Finish
+
+                ## Observable Outcomes
+
+                - Outcome: demo task completed.
+
+                ## Commits
+
+                - abc1234 feat: demo
+
+                ## Spec Update Decision
+
+                - **Need update?**: no
+                - **Reason**: no reusable rule
+
+                ## Finish Approval
+
+                Approval status:
+                - [x] approved
+
+                Approval source:
+                - user message: 进入 Finish 阶段
+                - timestamp: 2026-06-10T11:00:00Z
+                - summary approved: finish
+
+                Allowed to proceed with finish?
+                - [x] yes
+                - [ ] no
+
+                ## Delivery Sync Check
+
+                - [x] README / user docs reviewed
+                - [x] Example commands / scripts reviewed
+                - [x] Public API paths / contracts reviewed
+                - [x] Implemented vs planned status reviewed
+
+                Files checked:
+                - README.md — no user-facing drift
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        old_active_path = root / ".trellis" / "tasks" / "demo-task"
+        old_argv = sys.argv
+        old_cwd = Path.cwd()
+        try:
+            sys.argv = ["finalize_task_archive.py", str(old_active_path)]
+            os.chdir(root)
+            exit_code = self.module.main()
+        finally:
+            sys.argv = old_argv
+            os.chdir(old_cwd)
+
+        self.assertEqual(exit_code, 0)
+        journal = root / ".trellis" / "workspace" / "alice" / "journal-1.md"
+        self.assertTrue(journal.is_file())
+        self.assertIn("demo-task", journal.read_text(encoding="utf-8"))
 
     def test_finalize_archived_task_repairs_legacy_journal_and_missing_indexes(self):
         tmpdir = tempfile.TemporaryDirectory()
@@ -5127,6 +5407,7 @@ class ValidateReviewGatesTests(unittest.TestCase):
 
         task_dir = Path(tmpdir.name) / "T001-demo"
         (task_dir / "review").mkdir(parents=True)
+        (task_dir / "agent-results").mkdir()
         (task_dir / "task.json").write_text(
             json.dumps({"id": "T001", "level": "L4", "status": "completed"}),
             encoding="utf-8",
@@ -5135,6 +5416,24 @@ class ValidateReviewGatesTests(unittest.TestCase):
         for name in ("spec-review.md", "code-review.md", "architecture-review.md"):
             (task_dir / "review" / name).write_text(
                 "## Verdict: PASS\n",
+                encoding="utf-8",
+            )
+        for agent in (
+            "trellis-spec-reviewer",
+            "trellis-code-reviewer",
+            "trellis-architecture-reviewer",
+        ):
+            (task_dir / "agent-results" / f"{agent}-a.json").write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agent": agent,
+                        "status": "PASS",
+                        "changed_files": [],
+                        "validation": [{"command": f"review: {agent}", "status": "PASS"}],
+                        "blocking_issues": [],
+                    }
+                ),
                 encoding="utf-8",
             )
         return task_dir
@@ -5160,6 +5459,154 @@ class ValidateReviewGatesTests(unittest.TestCase):
         ok, errors = self.module.validate_review_gates(task_dir)
 
         self.assertTrue(ok, msg=f"Unexpected gate errors: {errors}")
+
+    def test_accepts_legacy_direct_gate_list(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                - [x] trellis-check
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                """
+            )
+        )
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertTrue(ok, msg=f"Unexpected gate errors: {errors}")
+
+    def test_rejects_template_placeholder_review_report(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                """
+            )
+        )
+        (task_dir / "review" / "code-review.md").write_text(
+            textwrap.dedent(
+                """\
+                # Code Review: Demo
+
+                ## Verdict
+
+                PASS / FAIL
+
+                | # | File:Line | Issue | Severity | Suggested Fix |
+                |---|-----------|-------|----------|---------------|
+                | 1 | <!-- file:line --> | <!-- description --> | <!-- critical / high --> | <!-- how to fix --> |
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("placeholder" in err for err in errors))
+
+    def test_rejects_common_bracket_placeholder_review_report(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                """
+            )
+        )
+        (task_dir / "review" / "code-review.md").write_text(
+            textwrap.dedent(
+                """\
+                # Code Review: [Task Title]
+
+                ## Files Reviewed
+                - [file path]
+
+                ## Blocking Issues
+                - None.
+
+                ## Verdict
+                - [x] PASS -- no blocking issues
+                - [ ] FAIL -- blocking issues must be fixed:
+                  1. list each concrete blocker
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("placeholder" in err for err in errors))
+
+    def test_selected_review_gate_requires_matching_agent_result(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                """
+            )
+        )
+        (task_dir / "agent-results" / "trellis-code-reviewer-a.json").unlink()
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("trellis-code-reviewer" in err for err in errors))
+
+    def test_selected_review_gate_requires_valid_agent_result_schema(self):
+        task_dir = self.make_task_dir(
+            textwrap.dedent(
+                """\
+                # Implement: Demo
+
+                ## Review Gate Contract
+
+                ### Selected gates for this task
+
+                - [x] trellis-spec-review
+                - [x] trellis-code-review
+                - [x] trellis-code-architecture-review
+                """
+            )
+        )
+        (task_dir / "agent-results" / "trellis-code-reviewer-a.json").write_text(
+            json.dumps({"agent": "trellis-code-reviewer", "status": "PASS"}),
+            encoding="utf-8",
+        )
+
+        ok, errors = self.module.validate_review_gates(task_dir)
+
+        self.assertFalse(ok)
+        self.assertTrue(any("agent-results invalid" in err for err in errors))
 
     def test_unchecked_gate_does_not_satisfy_level_requirement(self):
         task_dir = self.make_task_dir(
@@ -7249,6 +7696,18 @@ class EndToEndWorkflowAcceptanceTests(unittest.TestCase):
             agent="trellis-code-reviewer",
             changed_files=[],
         )
+        self.write_agent_result(
+            task_dir,
+            "trellis-spec-reviewer-a.json",
+            agent="trellis-spec-reviewer",
+            changed_files=[],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-architecture-reviewer-a.json",
+            agent="trellis-architecture-reviewer",
+            changed_files=[],
+        )
         self.write_finish(task_dir)
 
         self.assert_workflow_valid(root, task_dir)
@@ -7323,6 +7782,12 @@ class EndToEndWorkflowAcceptanceTests(unittest.TestCase):
             "trellis-implementer-a.json",
             agent="trellis-implementer",
             changed_files=["src/api/users.py"],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-checker-a.json",
+            agent="trellis-checker",
+            changed_files=[],
         )
         self.write_finish(task_dir)
 
@@ -7520,6 +7985,30 @@ class EndToEndWorkflowAcceptanceTests(unittest.TestCase):
             agent="trellis-merge-reviewer",
             changed_files=["review/merge-review.md"],
             execution_mode="merge-review",
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-spec-reviewer-a.json",
+            agent="trellis-spec-reviewer",
+            changed_files=[],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-code-reviewer-a.json",
+            agent="trellis-code-reviewer",
+            changed_files=[],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-architecture-reviewer-a.json",
+            agent="trellis-architecture-reviewer",
+            changed_files=[],
+        )
+        self.write_agent_result(
+            task_dir,
+            "trellis-architecture-deep-reviewer-a.json",
+            agent="trellis-architecture-deep-reviewer",
+            changed_files=[],
         )
         self.write_finish(task_dir)
 

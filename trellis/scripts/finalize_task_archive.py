@@ -613,8 +613,11 @@ def resolve_archived_task(repo_root: Path, task_arg: Path) -> Path:
         return resolved
 
     task_json = resolved / "task.json"
-    data = json.loads(task_json.read_text(encoding="utf-8"))
-    task_id = str(data.get("id") or resolved.name)
+    if task_json.is_file():
+        data = json.loads(task_json.read_text(encoding="utf-8"))
+        task_id = str(data.get("id") or resolved.name)
+    else:
+        task_id = resolved.name
     archive_root = repo_root / ".trellis" / "tasks" / "archive"
     matches: list[Path] = []
     if archive_root.is_dir():
@@ -699,17 +702,20 @@ def main() -> int:
         return 1
 
     task_arg = Path(sys.argv[1])
-    if not task_arg.exists():
-        print(f"FAIL: task path does not exist: {task_arg}")
-        return 1
-
-    repo_root = find_repo_root(task_arg if task_arg.is_dir() else task_arg.parent)
+    repo_root = find_repo_root(
+        task_arg if task_arg.exists() and task_arg.is_dir() else task_arg.parent
+    )
+    if repo_root is None:
+        repo_root = find_repo_root(Path.cwd())
     if repo_root is None:
         print("FAIL: cannot find repo root with .git and .trellis")
         return 1
 
     try:
-        archived_task = archive_if_needed(repo_root, task_arg)
+        if task_arg.exists():
+            archived_task = archive_if_needed(repo_root, task_arg)
+        else:
+            archived_task = resolve_archived_task(repo_root, task_arg)
         changes = finalize_archived_task(archived_task, repo_root)
         failures = run_post_archive_validators(repo_root, archived_task)
     except Exception as exc:

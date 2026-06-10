@@ -452,6 +452,92 @@ def _has_explicit_finish_consent(input_data: dict) -> bool:
     return bool(prompt and FINISH_CONSENT_PATTERN.search(prompt))
 
 
+def _parse_finish_approval_content(content: str) -> dict[str, str | bool]:
+    result: dict[str, str | bool] = {
+        "approved": False,
+        "finish_allowed": False,
+        "user_message": "",
+        "timestamp": "",
+        "summary_approved": "",
+    }
+    in_section = False
+    in_source = False
+    in_allowed = False
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        if lowered == "## finish approval":
+            in_section = True
+            in_source = False
+            in_allowed = False
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if not in_section:
+            continue
+        if lowered.startswith("approval source:"):
+            in_source = True
+            in_allowed = False
+            continue
+        if lowered.startswith("allowed to proceed with finish?"):
+            in_allowed = True
+            in_source = False
+            continue
+        if stripped.startswith("- [") and "]" in stripped:
+            checked = stripped.lower().startswith("- [x]")
+            label = stripped.split("] ", 1)[-1].strip().lower()
+            if label == "approved":
+                result["approved"] = checked
+            elif in_allowed and label == "yes":
+                result["finish_allowed"] = checked
+            continue
+        if in_source:
+            if lowered.startswith("- user message:"):
+                result["user_message"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- timestamp:"):
+                result["timestamp"] = stripped.split(":", 1)[-1].strip()
+            elif lowered.startswith("- summary approved:"):
+                result["summary_approved"] = stripped.split(":", 1)[-1].strip()
+
+    return result
+
+
+def _tool_records_finish_approval(input_data: dict) -> bool:
+    tool_input = input_data.get("tool_input", {}) or input_data.get("toolInput", {})
+    if not isinstance(tool_input, dict):
+        return False
+
+    candidates: list[str] = []
+    for key in ("content", "new_string", "newString"):
+        value = tool_input.get(key)
+        if isinstance(value, str) and value.strip():
+            candidates.append(value)
+
+    edits = tool_input.get("edits")
+    if isinstance(edits, list):
+        for item in edits:
+            if not isinstance(item, dict):
+                continue
+            value = item.get("new_string") or item.get("newString")
+            if isinstance(value, str) and value.strip():
+                candidates.append(value)
+
+    for candidate in candidates:
+        approval = _parse_finish_approval_content(candidate)
+        user_message = str(approval.get("user_message", ""))
+        if finish_approval_complete(approval) and FINISH_CONSENT_PATTERN.search(user_message):
+            return True
+    return False
+
+
+def _finish_write_authorized(input_data: dict) -> bool:
+    prompt = _extract_prompt_text(input_data)
+    if prompt:
+        return bool(FINISH_CONSENT_PATTERN.search(prompt))
+    return _tool_records_finish_approval(input_data)
+
+
 def _missing_implementation_approval_fields(approval: dict[str, str | bool]) -> list[str]:
     missing: list[str] = []
     if not approval.get("approved"):
@@ -648,7 +734,10 @@ def _check_file_operation(
             finish_rel = ""
         if finish_rel and norm_path == finish_rel and status and status.lower() == "in_progress":
             recorded = parse_finish_approval(task_dir / "finish.md")
-            if finish_approval_complete(recorded) or _has_explicit_finish_consent(input_data):
+            if (
+                finish_approval_complete(recorded)
+                or _finish_write_authorized(input_data)
+            ):
                 return None, False
             return (
                 "BLOCKED: Writing finish.md without explicit Finish consent.\n"

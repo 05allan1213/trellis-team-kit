@@ -66,7 +66,6 @@ Every review must produce at least:
 
 - [x] PASS
 - [ ] FAIL
-<!-- For a failing review, mark FAIL instead and list blocking issues. -->
 
 ### Blocking Issues
 - `file:line` — what is wrong

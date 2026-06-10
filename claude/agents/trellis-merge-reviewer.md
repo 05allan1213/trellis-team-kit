@@ -261,84 +261,78 @@ Write to `{TASK_DIR}/review/merge-review.md`:
 
 - [x] PASS
 - [ ] FAIL
-<!-- For a failing merge review, mark FAIL instead and list blocking issues below. -->
 
 ## Merge Context
 
-- Scenario: <worktree / multi-subagent / OMC parallel / PR / conflict-resolution>
-- Sources merged: <description of what was merged>
+- Scenario: worktree or multi-subagent integration.
+- Sources merged: implementation, checker, and reviewer outputs.
 
 ## Agent Results Aggregation
 
-- Results read: <list of agent-results JSON files>
-- Duplicate changed files across agents: <path -> agents, or "None">
-- Failed validation: <agent -> failure, or "None">
-- Unresolved blocking issues: <agent -> issue, or "None">
+- Results read: list each `agent-results/*.json` file inspected.
+- Duplicate changed files across agents: None.
+- Failed validation: None.
+- Unresolved blocking issues: None.
 
 ## Scope Manifest Check
 
-- scope-manifest.json: <present / missing / malformed>
-- Declared paths/globs checked: <summary>
-- Undeclared changed paths: <paths, or "None">
-- Scope expansions reviewed: <summary>
+- scope-manifest.json: present.
+- Declared paths/globs checked: all changed files checked.
+- Undeclared changed paths: None.
+- Scope expansions reviewed: None.
 
 ## Guardrail Override Check
 
-- runtime/guardrail-overrides.jsonl: <absent / present>
-- Overrides reviewed: <yes / no / not applicable>
-- Unreviewed overrides: <entries, or "None">
+- runtime/guardrail-overrides.jsonl: absent.
+- Overrides reviewed: not applicable.
+- Unreviewed overrides: None.
 
 ## OMC Approval Check
 
-- OMC outputs detected: <yes / no>
-- Explicit OMC approval: <yes / no / not applicable>
-- Issues: <summary, or "None">
+- OMC outputs detected: no.
+- Explicit OMC approval: not applicable.
+- Issues: None.
 
 ## Blocking Issues
 
-1. `<file>:<line>` -- <what is wrong>
-   - Merge issue type: <conflict-logic / duplicate / missing-file / interface-drift>
-   - Concrete failure mode: <what will go wrong>
-   - Fix direction: <1-2 line suggestion>
+- None.
 
 ## Non-Blocking Issues
 
-1. `<file>:<line>` -- <what could be improved>
-   - Suggestion: <1-2 line suggestion>
+- None.
 
 ## Conflict Resolution Check
 
-- <conflict areas reviewed>
-- <resolution correctness assessment>
+- No unresolved conflict found.
 
 ## Duplicate Detection
 
-- <concepts checked for duplication>
-- <duplicates found or "None detected">
+- None detected.
 
 ## Missing Files Check
 
-- Expected files: <list from design/implement>
-- Present files: <list from git diff>
-- Missing: <list or "None">
+- Expected files: checked against design.md and implement.md.
+- Present files: checked from git diff.
+- Missing: None.
 
 ## Interface Consistency Check
 
-- <interfaces checked>
-- <inconsistencies found or "Consistent">
+- Consistent.
 
 ## Import Integrity Check
 
-- <broken imports found or "All imports resolve">
+- All imports resolve.
 
 ## Files Reviewed
 
-- `src/<file>.ts`
-- `src/<file>.tsx`
+- `src/example.ts`
 
 ## Result Artifact
 
 - `{TASK_DIR}/agent-results/trellis-merge-reviewer-<timestamp>.json`
 ```
+
+The markdown review artifact must not retain placeholder text, HTML comments,
+or example angle/bracket placeholders. Use `None.` for empty sections.
 
 Reply to the main session with the verdict and the review file path.

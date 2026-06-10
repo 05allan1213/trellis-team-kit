@@ -94,15 +94,17 @@ Plan 阶段已确认。
 3. 运行 trellis-before-dev 读取所有 artifacts，输出 before-dev.md 约束和 scope-manifest.json 范围契约。
 4. 严格按照 prd.md 和 Acceptance Criteria 实现。
 5. 默认使用 `trellis-implement` skill / `trellis-implementer` agent → `trellis-check` skill / `trellis-checker` agent → Review Gates subagent 路径。
-6. Check 通过后，按 implement.md 的 Review Gate Contract 执行审查门禁。
-7. 所有 selected review gates PASS 后，先停下来汇报结果，等待我明确说“进入 Finish 阶段”。
-8. 在我确认 Finish 之前，不要自动写 finish.md、不要自动做 spec update、不要自动 commit、不要自动 archive。
-9. 我一旦明确说“进入 Finish 阶段”，先把 `finish.md` 里的 `Finish Approval` 区块按我的原话写完整，再继续后续收尾。
-10. `finish.md` 必须填写 `Delivery Sync Check`，明确检查 README / 示例命令 / API 文档 / implemented-vs-planned 状态。
-11. Phase 3.2 commit 之前，先运行 `python3 ./.trellis/scripts/prepare_finish_workspace.py`，清理 `.omc/` 等本地运行时状态。
-12. 不要直接执行 `task.py archive`；归档必须走 `python3 ./.trellis/scripts/finalize_task_archive.py <task-dir>`。
-13. 不要 main session 直接改代码，除非我明确说 "do it inline" / "no sub-agent" / "你直接改"。
-14. 不要扩大范围，不要实现 PRD 之外的内容。
+6. 如果使用 Trellis subagent / Trellis-native parallel / OMC 执行模式，最终必须有 `trellis-implementer` 和 `trellis-checker` 两类 agent result；implementer 自己跑测试不能替代独立 checker gate。
+7. Check 通过后，按 implement.md 的 Review Gate Contract 执行审查门禁。
+8. 每个 selected review gate 必须由对应 reviewer 执行，写入 `review/*.md` 和匹配的 `agent-results/*.json`（`status: PASS`）；不要事后补模板化 review 文件，也不要在 PASS review 里留下 `PASS / FAIL`、HTML 注释或占位符。
+9. 所有 selected review gates PASS 后，先停下来汇报结果，等待我明确说“进入 Finish 阶段”。
+10. 在我确认 Finish 之前，不要自动写 finish.md、不要自动做 spec update、不要自动 commit、不要自动 archive。
+11. 我一旦明确说“进入 Finish 阶段”，先把 `finish.md` 里的 `Finish Approval` 区块按我的原话写完整，再继续后续收尾。
+12. `finish.md` 必须填写 `Delivery Sync Check`，明确检查 README / 示例命令 / API 文档 / implemented-vs-planned 状态。
+13. Phase 3.2 commit 之前，先运行 `python3 ./.trellis/scripts/prepare_finish_workspace.py`，清理 `.omc/` 等本地运行时状态。
+14. 不要直接执行 `task.py archive`；归档必须走 `python3 ./.trellis/scripts/finalize_task_archive.py <task-dir>`。
+15. 不要 main session 直接改代码，除非我明确说 "do it inline" / "no sub-agent" / "你直接改"。
+16. 不要扩大范围，不要实现 PRD 之外的内容。
 
 工具策略：
 1. 默认执行路径是标准 Trellis sub-agent；如果只是 reviewer 并行或 worktree 隔离，不需要把它称为 OMC。
@@ -117,6 +119,7 @@ Plan 阶段已确认。
 10. bug 修复必须说明复现、根因、修复方式和回归验证。
 11. 涉及接口、数据或配置变更时，必须说明兼容性和风险。
 12. Review gate FAIL 时，回到 implement 修复，修复后重新跑 check，再重新跑该 review gate。禁止跳过 failed gate。
+13. Review/check 产物必须来自真实执行结果；不要为了通过 validator 事后补录模板化文件。
 
 完成后请给出：
 1. 实现了什么
@@ -290,7 +293,7 @@ AI 会自动：
 4. 判断是否需要 Superpowers（需求不清 / 架构权衡 / 多方案取舍时自动启用）
 5. 判断是否建议并行：默认先考虑 Trellis 原生并行；只有需要高级编排时才建议 OMC `ulw/ultrawork`，并等待确认
 6. 停下来等你确认 Plan
-7. 你确认进入 Execute 后，执行 before-dev → implementer → checker → review gates
+7. 你确认进入 Execute 后，执行 before-dev → implementer → checker → review gates，并保留 implementer、checker、reviewer 的 agent result
 8. review 全部通过后停下来，等你明确说“进入 Finish 阶段”
 9. 你确认 Finish 后，再执行 finish evidence → update-spec → prepare_finish_workspace.py + commit → merge-review（如需）→ validation/test-results.md → finish-work
 

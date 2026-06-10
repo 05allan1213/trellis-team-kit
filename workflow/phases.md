@@ -45,6 +45,9 @@ Goal: turn planning artifacts into code that passes quality checks and review ga
 - No task artifacts read → no source editing
 - check FAIL → return to implement
 - review gate FAIL → return to implement
+- subagent execution selected without both implementer and checker agent results → no finish
+- selected review gate missing a matching PASS reviewer agent result → no finish
+- selected review artifact still contains template placeholders → no finish
 - Cannot skip any selected gate
 
 ---

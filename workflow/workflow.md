@@ -701,6 +701,13 @@ The implement agent must also write
 `scope-manifest.json` declares workstreams, implementer/checker results must
 also include a matching `workstream`.
 
+When the execution mode selects `single Trellis subagent`, `Trellis subagents`,
+`Trellis-native parallel + worktree`, or
+`OMC ulw/ultrawork + worktree + parent/child`, final validation requires both
+`trellis-implementer` and `trellis-checker` agent results. Verification run
+inside the implementer is useful evidence, but it does not replace the
+independent checker gate.
+
 #### 2.2 Quality check `[required · repeatable]`
 
 Spawn the check sub-agent:
@@ -715,7 +722,10 @@ The check agent outputs: PASS/FAIL, commands run, failures, fixes applied, and
 
 After check PASS, run each selected review gate from the contract. Each
 reviewer outputs PASS/FAIL with blocking issues and writes its matching
-`agent-results/*.json`.
+`agent-results/*.json` with `status: PASS` before the gate can count as passed.
+The `review/*.md` artifact must be concrete review evidence: no `PASS / FAIL`
+template text, HTML template comments, template variables, or unresolved
+angle/bracket placeholders may remain.
 
 FAIL → return to IMPLEMENTING → fix → re-check → re-review.
 

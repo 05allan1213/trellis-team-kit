@@ -18,6 +18,7 @@ GATE_FILE_MAP: dict[str, str] = {
     "trellis-improve-codebase-architecture deep-review": "review/architecture-deep-review.md",
     "trellis-merge-review": "review/merge-review.md",
 }
+NON_REVIEW_GATE_NAMES = {"trellis-check"}
 
 REQUIRED_REVIEW_FIELDS = ("status", "scope reviewed", "blocking issues")
 REQUIRED_VALIDATION_FILE = "validation/test-results.md"
@@ -130,6 +131,24 @@ def check_all_selected_gates(task_dir: Path, selected_gates: list[str]) -> dict:
     return results
 
 
+def _extract_markdown_section(content: str, heading: str) -> str:
+    target = heading.strip().lower()
+    collected: list[str] = []
+    in_section = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            current = stripped[3:].strip().lower()
+            if in_section:
+                break
+            if current == target:
+                in_section = True
+                continue
+        if in_section:
+            collected.append(line)
+    return "\n".join(collected).strip()
+
+
 def parse_selected_gates(implement_md: Path) -> list[str]:
     """Parse the Review Gate Contract from implement.md."""
     if not implement_md.is_file():
@@ -140,27 +159,18 @@ def parse_selected_gates(implement_md: Path) -> list[str]:
     except OSError:
         return []
 
+    review_section = _extract_markdown_section(content, "Review Gate Contract")
+    if not review_section:
+        return []
+
     gates: list[str] = []
-    in_selected = False
-    for line in content.splitlines():
+    for line in review_section.splitlines():
         stripped = line.strip()
-        lowered = stripped.lower()
-        if lowered.startswith("selected gates:") or lowered.startswith("### selected gates"):
-            in_selected = True
+        if not stripped.lower().startswith("- [x]") or "]" not in stripped:
             continue
-        if in_selected:
-            if stripped.startswith("#"):
-                in_selected = False
-                continue
-            if stripped.lower().startswith("selection rationale:"):
-                in_selected = False
-                continue
-            if stripped.lower().startswith("- [x]") and "]" in stripped:
-                gate = stripped.split("] ", 1)[-1].strip()
-                if gate:
-                    gates.append(gate)
-            elif stripped and not stripped.startswith("-"):
-                in_selected = False
+        gate = stripped.split("]", 1)[-1].strip()
+        if gate.lower().startswith("trellis-") and gate not in NON_REVIEW_GATE_NAMES:
+            gates.append(gate)
     return gates
 
 

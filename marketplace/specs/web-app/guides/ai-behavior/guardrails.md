@@ -68,6 +68,9 @@ Some states are not overrideable:
 - source edits during planning phases
 - missing required task artifacts
 - finishing without required approval or review evidence
+- writing Finish-phase artifacts before explicit Finish consent; the first
+  `finish.md` write may proceed only when that same content records a complete
+  `Finish Approval` section from the user's consent
 - starting OMC `ulw/ultrawork` without explicit user approval, user message,
   and timestamp recorded in `implement.md`
 - hard workflow phase mismatches
@@ -81,8 +84,9 @@ Do not work around the hook.
 
 Reviewers must treat relevant guardrail regressions as blocking issues. The
 doctor workflow must report missing scope manifests, unreviewed override
-ledgers, phase mismatches, missing approval, and missing review gates with a
-concrete next repair step.
+ledgers, phase mismatches, missing approval, missing checker/reviewer agent
+results, placeholder review artifacts, and missing review gates with a concrete
+next repair step.
 
 ---
 

@@ -55,33 +55,28 @@ Spec review checks whether the implementation respects the project's documented 
 ### review/spec-review.md
 
 ```markdown
-# Spec Review: [Task Title]
+# Spec Review: Task Title
 
 ## Spec Files Checked
-- [spec file path]: [relevant to changed files X, Y]
+- `.trellis/spec/guides/index.md`: relevant guidance checked
 
 ## Convention Violations
-- [file]: [violation description] — [spec reference]
-- (or "none")
+- None.
 
 ## Missing Specs
-- [area]: [what spec is missing] — [recommended action]
-- (or "none")
+- None.
 
 ## Bypassed Conventions
-- [file]: [what was bypassed] — [why] — [acceptable?]
-- (or "none")
+- None.
 
 ## Update-Spec Needed
-- [ ] yes — [what needs updating]
-- [ ] no — [reason]
+- [ ] yes — reusable rule identified
+- [x] no — no reusable spec update needed
 
 ## Verdict
 - [x] PASS — no spec violations
 - [ ] FAIL — violated spec files:
-  1. [spec file]: [violation]
-  2. [spec file]: [violation]
-<!-- For a failing review, mark FAIL instead and list violated specs. -->
+  1. list each violated spec and concrete violation
 ```
 
 ## Quality Bar
@@ -91,3 +86,5 @@ Spec review checks whether the implementation respects the project's documented 
 - "No violation found" is honest — do not invent concerns.
 - FAIL verdict lists violated spec files explicitly.
 - If update-spec is needed, it is specific about what to update.
+- Do not leave placeholder text, HTML comments, or bracket/angle examples in the
+  final `review/spec-review.md`; write `None.` for empty sections.

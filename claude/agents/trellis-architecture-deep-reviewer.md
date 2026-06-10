@@ -181,70 +181,64 @@ Write to `{TASK_DIR}/review/architecture-deep-review.md`:
 - [x] PASS
 - [ ] FAIL
 - [ ] REDESIGN-REQUIRED
-<!-- For a failing or redesign-required review, mark that option instead and list blocking issues below. -->
 
 ## Blocking Issues
 
-1. `<file>:<line>` -- <what is wrong>
-   - Architectural principle violated: <which principle>
-   - Long-term failure mode: <what will go wrong over time>
-   - Fix direction: <1-2 line suggestion>
+- None.
 
 ## Non-Blocking Issues
 
-1. `<file>:<line>` -- <what could be improved>
-   - Suggestion: <1-2 line suggestion>
+- None.
 
 ## Standard Architecture Review
 
 ### Dependency Direction
-- <findings>
+- PASS -- dependencies point in the intended direction.
 
 ### Module Boundaries
-- <findings>
+- PASS -- responsibilities remain in the intended modules.
 
 ### Abstraction Quality
-- <findings>
+- PASS -- no unnecessary abstraction introduced.
 
 ### Duplicated Concepts
-- <findings>
+- PASS -- no duplicate source of truth introduced.
 
 ### Layering Violations
-- <findings>
+- PASS -- no layer violation found.
 
 ### API Contract Clarity
-- <findings>
+- PASS -- changed contracts are explicit.
 
 ## Deep Audit
 
 ### Future Extensibility
-- <findings with file:line citations>
+- PASS -- no extensibility blocker found.
 
 ### Cross-Module Consistency
-- <findings with file:line citations>
+- PASS -- no cross-module drift found.
 
 ### Upgrade Safety
-- <findings with file:line citations>
+- PASS -- no upgrade hazard found.
 
 ### Long-Term Maintainability
-- <findings with file:line citations>
+- PASS -- maintenance risk is acceptable.
 
 ### Blast Radius Analysis
-- <consumers of changed interfaces, risk assessment>
+- No unexpected consumers or blast-radius expansion found.
 
 ## Single Source of Truth Audit
 
-- <concept>: owned by <module> -- <consistent / drift risk>
+- Changed concept: owned by the implemented module -- consistent.
 
 ## Design Document Compliance
 
-- <how implementation follows or deviates from design.md>
-- <any design decisions that were not implemented>
+- Implementation follows design.md.
+- No missing design decision found.
 
 ## Files Reviewed
 
-- `src/<file>.ts`
-- `src/<file>.tsx`
+- `src/example.ts`
 
 ## Agent Result JSON
 
@@ -290,6 +284,8 @@ Rules:
 - `agent` must be `trellis-architecture-deep-reviewer`.
 - `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `changed_files` must be `[]` because this is a read-only reviewer.
+- The markdown review artifact must not retain placeholder text, HTML comments,
+  or example angle/bracket placeholders. Use `None.` for empty sections.
 - `validation` must contain every inspection command you ran, or at least one
   relevant `file-review: <path>` entry for files reviewed without running an
   executable command. Each item must include `command` and `status`, where

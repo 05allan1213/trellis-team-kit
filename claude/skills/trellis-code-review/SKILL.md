@@ -94,34 +94,27 @@ Separate blocking issues from non-blocking issues. Blocking issues must be fixed
 ### review/code-review.md
 
 ```markdown
-# Code Review: [Task Title]
+# Code Review: Task Title
 
 ## Files Reviewed
-- [file path]
-- [file path]
+- `src/example.ts`
 
 ## Blocking Issues
-1. [file:line]: [issue description] — [why it's blocking]
-2. [file:line]: [issue description] — [why it's blocking]
-(or "none")
+- None.
 
 ## Non-Blocking Issues
-1. [file:line]: [suggestion] — [why it would be better]
-2. [file:line]: [suggestion] — [why it would be better]
-(or "none")
+- None.
 
 ## Positive Observations
-- [what was done well]
+- The implementation keeps the changed behavior localized and testable.
 
 ## Common Mistakes Regression
-- PASS/FAIL — [evidence]
+- PASS — no repeated workflow mistake found.
 
 ## Verdict
 - [x] PASS — no blocking issues
 - [ ] FAIL — blocking issues must be fixed:
-  1. [blocking issue summary]
-  2. [blocking issue summary]
-<!-- For a failing review, mark FAIL instead and list blockers. -->
+  1. list each concrete blocker
 ```
 
 ## Quality Bar
@@ -133,3 +126,5 @@ Separate blocking issues from non-blocking issues. Blocking issues must be fixed
 - Common mistakes regression is checked and reported explicitly.
 - FAIL verdict lists specific blocking issues.
 - The review is honest — do not upgrade non-blocking to blocking, or downgrade blocking to non-blocking.
+- Do not leave placeholder text, HTML comments, or bracket/angle examples in the
+  final `review/code-review.md`; write `None.` for empty sections.

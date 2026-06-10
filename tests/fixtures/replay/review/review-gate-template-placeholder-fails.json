@@ -1,0 +1,43 @@
+{
+  "name": "selected review gate rejects template placeholders",
+  "run": "validate-review-gates",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-review-placeholder",
+      "task_json": {
+        "id": "replay-review-placeholder",
+        "level": "L3",
+        "status": "in_progress"
+      },
+      "files": {
+        "implement.md": "# Implement\n\n## Review Gate Contract\n\n### Selected gates for this task\n\n- [x] trellis-check\n- [x] trellis-code-review\n",
+        "review/code-review.md": "# Code Review\n\n## Verdict\n\nPASS / FAIL\n\n## Blocking Issues\n\n| # | File:Line | Issue | Severity | Suggested Fix |\n|---|-----------|-------|----------|---------------|\n| 1 | <!-- file:line --> | <!-- description --> | <!-- high --> | <!-- fix --> |\n",
+        "agent-results/trellis-code-reviewer-a.json": {
+          "version": 1,
+          "agent": "trellis-code-reviewer",
+          "status": "PASS",
+          "changed_files": [],
+          "validation": [
+            {
+              "command": "file-review: src/orders/service.py",
+              "status": "PASS"
+            }
+          ],
+          "blocking_issues": [],
+          "non_blocking_issues": [],
+          "risks": [],
+          "scope_expansion": []
+        }
+      }
+    }
+  },
+  "expect": {
+    "contains": [
+      "FAIL:",
+      "placeholder"
+    ],
+    "not_contains": [
+      "PASS:"
+    ]
+  }
+}

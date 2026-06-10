@@ -84,6 +84,12 @@ Select gates based on the Review Gate Contract defaults:
 
 Customize based on task specifics, but do not remove required gates.
 
+When an execution mode uses Trellis subagents, Trellis-native parallel, or OMC,
+the plan must reserve evidence for both `trellis-implementer` and
+`trellis-checker` agent results. Each selected review gate also requires its
+matching reviewer agent result with `status: PASS`; `review/*.md` alone is not
+enough.
+
 #### Merge Review
 
 Required when any validator trigger applies: L5; `Execution Mode Decision` selected `Trellis-native parallel + worktree`; `Execution Mode Decision` selected `OMC ulw/ultrawork + worktree + parent/child`; `Branch strategy` contains `worktree`; `Parent/child: yes`; `Merge review needed: yes`; PR merge; or conflict resolution.

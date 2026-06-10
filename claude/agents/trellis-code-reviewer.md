@@ -142,35 +142,30 @@ Write to `{TASK_DIR}/review/code-review.md`:
 
 - [x] PASS
 - [ ] FAIL
-<!-- For a failing review, mark FAIL instead and list blocking issues below. -->
 
 ## Blocking Issues
 
-1. `<file>:<line>` -- <what is wrong>
-   - Why blocker: <concrete failure mode>
-   - Fix direction: <1-2 line suggestion>
+- None.
 
 ## Non-Blocking Issues
 
-1. `<file>:<line>` -- <what could be improved>
-   - Suggestion: <1-2 line suggestion>
+- None.
 
 ## Good Choices
 
-- <non-obvious good implementation decisions worth noting>
+- The implementation keeps the changed behavior localized and testable.
 
 ## Common Mistakes Regression
 
-- Result: PASS or FAIL -- <evidence>
+- Result: PASS -- no repeated workflow mistake found.
 
 ## Acceptance Criteria Coverage
 
-- <AC from prd.md>: covered / partially covered / not covered
+- AC1: covered -- verified by test or inspection evidence.
 
 ## Files Reviewed
 
-- `src/<file>.tsx`
-- `src/<file>.ts`
+- `src/example.ts`
 
 ## Agent Result JSON
 
@@ -216,6 +211,8 @@ Rules:
 - `agent` must be `trellis-code-reviewer`.
 - `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `changed_files` must be `[]` because this is a read-only reviewer.
+- The markdown review artifact must not retain placeholder text, HTML comments,
+  or example angle/bracket placeholders. Use `None.` for empty sections.
 - `validation` must contain every inspection command you ran, or at least one
   relevant `file-review: <path>` entry for files reviewed without running an
   executable command. Each item must include `command` and `status`, where

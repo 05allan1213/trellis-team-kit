@@ -179,6 +179,8 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 - [ ] 若使用 trellis-researcher，则写入 `agent-results/trellis-researcher-<timestamp>.json`
 - [ ] trellis-implementer 写入 `agent-results/trellis-implementer-<timestamp>.json`
 - [ ] agent result 含 `version`、`agent`、`status`、对象化 `changed_files`、列表 `validation`、`blocking_issues`；若 `scope-manifest.json` 声明了 workstreams，则 implementer/checker result 还必须含匹配的 `workstream`
+- [ ] 若 `Execution Mode Decision` 选中任一 Trellis subagent / Trellis-native parallel / OMC 模式，`validate_agent_results.py <task-dir>` 要求同时存在 `trellis-implementer` 与 `trellis-checker` agent result
+- [ ] 删除 `agent-results/trellis-checker-*.json` 后重新运行 `validate_agent_results.py <task-dir>` → FAIL
 - [ ] `python3 .trellis/scripts/validate_agent_results.py <task-dir>` PASS
 
 **范围守卫测试**：
@@ -211,7 +213,8 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 - [ ] `trellis-check` 的结果写入 `validation/check-results.md`
 - [ ] review gate 结果写入对应的 `review/*.md`
 - [ ] 包含 `- [x] PASS` 格式的 verdict
-- [ ] review agents 写入对应 `agent-results/*.json`
+- [ ] review artifacts 不保留 `PASS / FAIL`、HTML 注释、模板变量、尖括号或方括号占位
+- [ ] review agents 写入对应 `agent-results/*.json`，且 `agent` 与 selected gate 匹配、`status: PASS`
 - [ ] merge-review 聚合 `agent-results/*.json`、`runtime/guardrail-overrides.jsonl`、`scope-manifest.json`
 - [ ] 两个 agent 声明修改同一文件时 merge-review / `validate_agent_results.py` FAIL
 - [ ] OMC execution result 缺少 explicit OMC approval 时 FAIL
@@ -229,6 +232,9 @@ bash ~/trellis-team-kit/bootstrap/smoke-test-install.sh --mode true-remote --dev
 
 **Review FAIL 回流测试**：
 - [ ] 将某个已选中的 `review/*.md` verdict 改为 `FAIL` → `validate_review_gates.py` 报 FAIL
+- [ ] 删除某个 selected review gate 对应 reviewer 的 `agent-results/*.json` → `validate_review_gates.py` 报 FAIL
+- [ ] 将某个 selected review gate 对应 reviewer JSON 的 `status` 改成 `FAIL` / `BLOCKED` → `validate_review_gates.py` 报 FAIL
+- [ ] 在某个 selected `review/*.md` 中保留模板占位（如 `PASS / FAIL` 或 `<!-- file:line -->`）→ `validate_review_gates.py` 报 FAIL
 - [ ] 删除或改坏 `validation/check-results.md` 的 PASS 证据 → `validate_task.py` 报 FAIL
 - [ ] `stop-guard` block，要求回到 IMPLEMENTING
 - [ ] 恢复为 PASS → 全部 validator PASS
@@ -338,7 +344,7 @@ python3 .trellis/scripts/trellis_doctor.py workflow .trellis/tasks/<task-dir>
 
 # Replay Lab
 python3 .trellis/scripts/replay_workflow_cases.py .trellis/replay
-# 预期：22/22 passed
+# 预期：25/25 passed
 
 # Spec update candidate detector
 python3 .trellis/scripts/detect_spec_update_candidates.py
@@ -355,7 +361,7 @@ python3 .trellis/scripts/validate_spec_update_targets.py
 cmp -s entry/AGENTS.md entry/CLAUDE.md
 shellcheck bootstrap/*.sh claude/hooks/trellis-notify.sh
 python3 trellis/scripts/replay_workflow_cases.py tests/fixtures/replay
-# 预期：22/22 passed
+# 预期：25/25 passed
 ```
 
 **Replay Lab 场景覆盖**：
@@ -363,6 +369,9 @@ python3 trellis/scripts/replay_workflow_cases.py tests/fixtures/replay
 - [ ] guardrail fixture 覆盖规划期阻断、scope-manifest.json 缺失、override ledger 复核缺失
 - [ ] finish fixture 覆盖 finish-without-approval 必须 FAIL
 - [ ] orchestration fixture 覆盖 OMC prompt routes L5 but does not start OMC without explicit OMC approval
+- [ ] orchestration fixture 覆盖 subagent mode 缺 checker result 必须 FAIL
+- [ ] review fixture 覆盖 selected review gate 缺 reviewer result 必须 FAIL
+- [ ] review fixture 覆盖 review artifact 保留模板占位必须 FAIL
 
 **doctor workflow 场景覆盖**：
 - [ ] phase mismatch 输出 FAIL 和 To fix

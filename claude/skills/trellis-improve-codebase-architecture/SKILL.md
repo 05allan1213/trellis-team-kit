@@ -121,49 +121,39 @@ FAIL in deep-review mode must return to IMPLEMENTING. Do not proceed to finish.
 ### Deep-Review Mode: review/architecture-deep-review.md
 
 ```markdown
-# Architecture Deep Review: [Task Title]
+# Architecture Deep Review: Task Title
 
 ## Files Reviewed
-- [file path]
-- [file path]
+- `src/example.ts`
 
 ## Structural Alignment with Design
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — implementation aligns with design.md.
 
 ## Cross-Layer Integration
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — cross-layer contracts are consistent.
 
 ## Module Ownership
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — ownership remains clear.
 
 ## Shared Type/Utility Impact
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — shared types/utilities remain coherent.
 
 ## Extensibility and Coupling
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — no coupling or extensibility blocker found.
 
 ## Concurrency and Consistency (if applicable)
-- [finding]
-- Result: PASS, FAIL, or N/A — [evidence]
+- Result: N/A — no concurrency-sensitive change.
 
 ## Blocking Issues
-1. [issue]: [architectural impact]
-(or "none")
+- None.
 
 ## Non-Blocking Issues
-1. [suggestion]: [improvement rationale]
-(or "none")
+- None.
 
 ## Verdict
 - [x] PASS — architecture is sound
 - [ ] FAIL — must return to implement:
-  1. [blocking issue summary]
-<!-- For a failing review, mark FAIL instead and list blockers. -->
+  1. list each concrete architecture blocker
 ```
 
 ## Quality Bar
@@ -173,3 +163,5 @@ FAIL in deep-review mode must return to IMPLEMENTING. Do not proceed to finish.
 - Blocking issues explain the architectural impact, not just the symptom.
 - FAIL verdict returns to IMPLEMENTING — this is not advisory.
 - L5 tasks that skip deep review are in violation of the Review Gate Contract.
+- Do not leave placeholder text, HTML comments, or bracket/angle examples in the
+  final deep-review artifact; write `None.` for empty sections.

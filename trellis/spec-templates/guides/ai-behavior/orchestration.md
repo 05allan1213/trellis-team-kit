@@ -65,6 +65,11 @@ Every subagent writes `agent-results/*.json`. The main session integrates the
 results and remains responsible for final behavior. Subagents do not approve
 their own output.
 
+When a Trellis subagent execution mode is selected, aggregation must include
+both `trellis-implementer` and `trellis-checker` results. Every selected review
+gate must also have the matching reviewer result with `status: PASS`; a review
+markdown file alone is not gate evidence.
+
 Merge-review is required when any validator trigger applies: L5; selected
 `Trellis-native parallel + worktree`; selected `OMC ulw/ultrawork + worktree +
 parent/child`; `Branch strategy` contains `worktree`; `Parent/child: yes`;

@@ -45,6 +45,15 @@ guide.
 
 - Dispatching Trellis subagents without requiring an `agent-results/*.json`
   handoff.
+- Selecting a Trellis subagent execution mode but finishing without both
+  `trellis-implementer` and `trellis-checker` results.
+- Treating implementer-run lint/tests as a substitute for the independent
+  `trellis-checker` gate after subagent implementation.
+- Marking selected review gates PASS by filling `review/*.md` after the fact
+  without dispatching the matching reviewer subagent and preserving its
+  `agent-results/*.json`.
+- Leaving review artifacts with template placeholders, HTML comments, `PASS /
+  FAIL`, or bracket/angle examples while marking the gate PASS.
 - Omitting always-required fields: `version`, `agent`, `status`,
   object-shaped `changed_files`, list-shaped `validation`, or
   `blocking_issues`.
@@ -94,6 +103,10 @@ When this guide applies, translate the relevant mistake into a concrete
 - Must NOT start OMC without explicit OMC approval.
 - Must NOT edit outside `scope-manifest.json` without recording an override.
 - Must preserve `agent-results/*.json` for every Trellis subagent.
+- Must run the independent checker gate after implementation when a Trellis
+  subagent execution mode is selected.
+- Must NOT mark review gates PASS from templated or post-filled artifacts
+  without matching reviewer `agent-results/*.json`.
 
 ## Check And Review Translation
 

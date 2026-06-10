@@ -426,6 +426,7 @@ mkdir -p "$TARGET_ROOT/.trellis/replay/routing"
 mkdir -p "$TARGET_ROOT/.trellis/replay/guardrails"
 mkdir -p "$TARGET_ROOT/.trellis/replay/finish"
 mkdir -p "$TARGET_ROOT/.trellis/replay/orchestration"
+mkdir -p "$TARGET_ROOT/.trellis/replay/review"
 for replay_case in \
   routing/l1-inline-copy.json \
   routing/l2-light-util.json \
@@ -446,9 +447,12 @@ for replay_case in \
   finish/finish-without-approval-blocks.json \
   orchestration/agent-results-incomplete-workstreams.json \
   orchestration/agent-results-legacy-changed-files.json \
+  orchestration/subagent-mode-requires-checker-result.json \
   orchestration/omc-requires-explicit-approval.json \
   orchestration/trellis-native-parallel-default.json \
-  orchestration/omc-prompt-routes-l5-without-start.json; do
+  orchestration/omc-prompt-routes-l5-without-start.json \
+  review/review-gate-missing-reviewer-result.json \
+  review/review-gate-template-placeholder-fails.json; do
   get_file "tests/fixtures/replay/$replay_case" "$TARGET_ROOT/.trellis/replay/$replay_case"
   REPLAY_COUNT=$((REPLAY_COUNT + 1))
 done

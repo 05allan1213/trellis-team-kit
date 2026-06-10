@@ -59,6 +59,9 @@ The decision must include:
 - why the selected mode fits the task level and risk
 - why a heavier path was not selected, when applicable
 - explicit OMC approval details when OMC is selected
+- the evidence path for implementer and checker agent results when any Trellis
+  subagent / Trellis-native parallel / OMC execution mode is selected
+- the reviewer agent result requirement for each selected review gate
 
 L5 defaults to Trellis-native parallel + worktree when parallelism is justified.
 An L5/orchestrated task must not select `main session` as its execution mode.
@@ -88,6 +91,11 @@ OMC is not selected by routing alone. A prompt may mention OMC and still only
 route to L5 until the user explicitly approves OMC. The Trellis task lifecycle,
 scope manifest, agent-results, check, review, merge-review, and finish gates
 still apply.
+
+In subagent execution modes, the check gate is independent evidence: a
+`trellis-checker` result is required even if the implementer already ran lint or
+tests. Selected review gates are complete only with concrete review artifacts
+and matching PASS reviewer results.
 
 Starting `ulw` or `ultrawork` before the approval record is complete is a hard
 runtime guardrail violation, not just a review finding.

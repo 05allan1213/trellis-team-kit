@@ -31,9 +31,14 @@
 
 ### 6. Review Gates
 - **Trigger**: After check PASS
-- **Rule**: Run selected review gates per Review Gate Contract
-- **Output**: Each reviewer outputs PASS/FAIL
+- **Rule**: Run selected review gates per Review Gate Contract; each selected
+  gate needs a concrete `review/*.md` verdict and matching PASS reviewer
+  `agent-results/*.json`
+- **Output**: Each reviewer outputs PASS/FAIL and structured agent result JSON
 - **Blocks**: Any FAIL → return to IMPLEMENTING
+- **Blocks**: Missing reviewer result, reviewer result not `PASS`, or review
+  artifact still containing template placeholders, HTML comments, or `PASS /
+  FAIL`
 
 ### 7. Finish Consent Gate
 - **Trigger**: After all check/review PASS

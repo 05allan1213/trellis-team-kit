@@ -37,7 +37,8 @@ reports:
 - missing or invalid `scope-manifest.json`
 - broad scope declarations
 - unreviewed `runtime/guardrail-overrides.jsonl`
-- review contract issues for the task level
+- review contract issues for the task level, including missing reviewer
+  results or review artifacts that still contain placeholders
 - missing or invalid `agent-results/*.json`
 - OMC execution without explicit approval
 - parallel or OMC execution without merge-review

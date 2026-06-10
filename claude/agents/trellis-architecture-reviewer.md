@@ -148,42 +148,36 @@ Write to `{TASK_DIR}/review/architecture-review.md`:
 - [x] PASS
 - [ ] FAIL
 - [ ] REDESIGN-REQUIRED
-<!-- For a failing or redesign-required review, mark that option instead and list blocking issues below. -->
 
 ## Blocking Issues
 
-1. `<file>:<line>` -- <what is wrong>
-   - Architectural principle violated: <which principle>
-   - Concrete failure mode: <what will go wrong>
-   - Fix direction: <1-2 line suggestion>
+- None.
 
 ## Non-Blocking Issues
 
-1. `<file>:<line>` -- <what could be improved>
-   - Suggestion: <1-2 line suggestion>
+- None.
 
 ## Architecture Map
 
 ### Affected Modules
 
-- `<module>` -- <role in the change>
+- `src/example.ts` -- owns the changed behavior.
 
 ### Dependency Direction
 
-- `<module-a>` -> `<module-b>` -- <justified / questionable>
+- `src/example.ts` -> existing dependency -- justified.
 
 ### Data Flow
 
-- `<source>` -> `<transform>` -> `<store>` -> `<display>`
+- Request input -> service logic -> response output.
 
 ## Design Document Compliance
 
-- <how the implementation follows or deviates from design.md>
+- Implementation follows the design.md module boundary and data-flow decisions.
 
 ## Files Reviewed
 
-- `src/<file>.ts`
-- `src/<file>.tsx`
+- `src/example.ts`
 
 ## Agent Result JSON
 
@@ -229,6 +223,8 @@ Rules:
 - `agent` must be `trellis-architecture-reviewer`.
 - `status` must be one of `PASS`, `FAIL`, `REDESIGN-REQUIRED`, or `BLOCKED`.
 - `changed_files` must be `[]` because this is a read-only reviewer.
+- The markdown review artifact must not retain placeholder text, HTML comments,
+  or example angle/bracket placeholders. Use `None.` for empty sections.
 - `validation` must contain every inspection command you ran, or at least one
   relevant `file-review: <path>` entry for files reviewed without running an
   executable command. Each item must include `command` and `status`, where

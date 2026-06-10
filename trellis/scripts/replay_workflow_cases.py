@@ -36,6 +36,7 @@ VALIDATOR_SCRIPTS = {
     "validate-scope-manifest": TRELLIS_SCRIPTS_DIR / "validate_scope_manifest.py",
     "validate-guardrail-overrides": TRELLIS_SCRIPTS_DIR / "validate_guardrail_overrides.py",
     "validate-agent-results": TRELLIS_SCRIPTS_DIR / "validate_agent_results.py",
+    "validate-review-gates": TRELLIS_SCRIPTS_DIR / "validate_review_gates.py",
 }
 
 

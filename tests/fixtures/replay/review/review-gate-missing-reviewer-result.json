@@ -1,0 +1,27 @@
+{
+  "name": "selected review gate requires matching reviewer result",
+  "run": "validate-review-gates",
+  "workspace": {
+    "task": {
+      "path": ".trellis/tasks/replay-review-missing-agent",
+      "task_json": {
+        "id": "replay-review-missing-agent",
+        "level": "L3",
+        "status": "in_progress"
+      },
+      "files": {
+        "implement.md": "# Implement\n\n## Review Gate Contract\n\n### Selected gates for this task\n\n- [x] trellis-check\n- [x] trellis-code-review\n",
+        "review/code-review.md": "# Code Review\n\n## Verdict\n\n- [x] PASS\n- [ ] FAIL\n\n## Blocking Issues\n\n- None.\n"
+      }
+    }
+  },
+  "expect": {
+    "contains": [
+      "FAIL:",
+      "missing PASS agent-results JSON from trellis-code-reviewer"
+    ],
+    "not_contains": [
+      "PASS:"
+    ]
+  }
+}

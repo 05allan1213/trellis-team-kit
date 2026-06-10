@@ -114,7 +114,6 @@ Minimum shape for a code review artifact:
 
 - [x] PASS
 - [ ] FAIL
-<!-- For a failing review, mark FAIL instead and list blocking issues. -->
 
 ## Blocking Issues
 - None
@@ -123,13 +122,13 @@ Minimum shape for a code review artifact:
 - None
 
 ## Common Mistakes Regression
-- Result: PASS or FAIL — evidence
+- Result: PASS — no repeated workflow mistake found
 
 ## Acceptance Criteria Coverage
-- <AC from prd.md>: covered / partially covered / not covered
+- AC1: covered — verified by test or inspection evidence
 
 ## Files Reviewed
-- `src/<file>`
+- `src/example.ts`
 ```
 
 ## Pass Criteria

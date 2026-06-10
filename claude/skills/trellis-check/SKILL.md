@@ -55,6 +55,9 @@ Check is a gate. FAIL means return to IMPLEMENTING. Do not proceed to review gat
    `{TASK_DIR}/validation/check-results.md`.
    `validation/test-results.md` is reserved for the later finish-stage
    validation summary, not for Phase 2.2.
+   When this check runs as `trellis-checker` or the selected execution mode uses
+   Trellis subagents / Trellis-native parallel / OMC, also write
+   `{TASK_DIR}/agent-results/trellis-checker-<timestamp>.json`.
 
 ### Deep Check (L4-L5)
 
@@ -139,12 +142,10 @@ Write to `{TASK_DIR}/validation/check-results.md`:
 ## Verdict
 - [x] PASS — all checks pass
 - [ ] FAIL — blocking issues:
-  1. [blocking issue]
-  2. [blocking issue]
-<!-- For a failing check, mark FAIL instead and list blockers. -->
+  1. list each concrete blocker
 
 ## Fixes Applied
-- [fix description] (if any)
+- None.
 ```
 
 ## Quality Bar
@@ -156,3 +157,5 @@ Write to `{TASK_DIR}/validation/check-results.md`:
 - No debug logging, suppressed errors, or unsafe type bypasses remain.
 - Observable behavior is checked alongside build/test and captured as evidence.
 - The verdict is honest — do not soften a FAIL into a PASS.
+- Subagent-mode checks are not complete until the `trellis-checker` agent result
+  JSON exists and validates.

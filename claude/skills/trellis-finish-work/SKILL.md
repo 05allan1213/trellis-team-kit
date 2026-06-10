@@ -63,6 +63,8 @@ Observable outcomes recorded? [YES/NO]
 Delivery Sync Check recorded? [YES/NO]
 Guardrail Overrides reviewed when ledger exists? [YES/NO / N/A]
 Merge review PASS when required? [YES/NO / N/A]
+validate_review_gates.py PASS? [YES/NO]
+validate_agent_results.py PASS? [YES/NO]
 Code committed? [YES/NO / N/A with reason]
 Build/Test/Smoke recorded with Ready yes and Overall PASS? [YES/NO / N/A with reason]
 ```
@@ -92,6 +94,7 @@ Required post-archive checks:
 - `implement.jsonl` / `check.jsonl` still resolve after archive
 - JSONL still contains only spec/research context, not duplicated task artifacts
 - `agent-results/*.json` is present and valid when Execution Mode Decision selects single Trellis subagent, Trellis subagents, Trellis-native parallel + worktree, or OMC ulw/ultrawork + worktree + parent/child; if results are not required, any existing agent-results still validate cleanly
+- each selected review gate still has a concrete `review/*.md` verdict, no unresolved template placeholders, and a matching PASS reviewer agent result
 - journal / workspace index entries are updated with real commit information
 - no `.omc/state/*` runtime state files remain in the tracked dirty set
 

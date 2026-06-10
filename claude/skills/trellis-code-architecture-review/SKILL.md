@@ -86,57 +86,45 @@ For L4/L5 tasks, this review is mandatory. The higher the task level, the more r
 ### review/architecture-review.md
 
 ```markdown
-# Architecture Review: [Task Title]
+# Architecture Review: Task Title
 
 ## Files Reviewed
-- [file path]
-- [file path]
+- `src/example.ts`
 
 ## Dependency Direction
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — dependencies point in the intended direction.
 
 ## Module Boundaries
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — responsibilities remain in the intended modules.
 
 ## Abstraction Quality
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — no unnecessary abstraction introduced.
 
 ## Duplicated Concepts
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — no duplicate source of truth introduced.
 
 ## Layering Violations
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — no layer violation found.
 
 ## Shared Utility Misuse
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — no shared utility misuse found.
 
 ## API Contract Clarity
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — changed contracts are explicit.
 
 ## Future Extensibility
-- [finding]
-- Result: PASS or FAIL — [evidence]
+- Result: PASS — no extensibility blocker found.
 
 ## Blocking Issues
-1. [issue]: [why it blocks]
-(or "none")
+- None.
 
 ## Non-Blocking Issues
-1. [suggestion]: [why it would improve architecture]
-(or "none")
+- None.
 
 ## Verdict
 - [x] PASS — no architecture blocking issues
 - [ ] FAIL — must return to implement:
-  1. [blocking issue summary]
-<!-- For a failing review, mark FAIL instead and list blockers. -->
+  1. list each concrete architecture blocker
 ```
 
 ## Quality Bar
@@ -146,3 +134,5 @@ For L4/L5 tasks, this review is mandatory. The higher the task level, the more r
 - Blocking issues cite specific files and explain the architectural impact.
 - The review does not confuse code quality with architecture quality.
 - FAIL verdict is honest — structural problems that will compound over time are blocking.
+- Do not leave placeholder text, HTML comments, or bracket/angle examples in the
+  final `review/architecture-review.md`; write `None.` for empty sections.
